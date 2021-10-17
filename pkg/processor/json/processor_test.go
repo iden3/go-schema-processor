@@ -1,9 +1,9 @@
 package json
 
 import (
-	"github.com/iden3/iden3-claim-processor/pkg/json"
-	"github.com/iden3/iden3-claim-processor/pkg/loaders"
-	"github.com/iden3/iden3-claim-processor/pkg/processor"
+	"github.com/idyllicvision/iden3-claim-processor/pkg/json"
+	"github.com/idyllicvision/iden3-claim-processor/pkg/loaders"
+	"github.com/idyllicvision/iden3-claim-processor/pkg/processor"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"testing"

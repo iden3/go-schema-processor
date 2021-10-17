@@ -2,7 +2,7 @@ package json
 
 import (
 	"encoding/json"
-	"github.com/iden3/iden3-claim-processor/pkg/json/utils"
+	"github.com/idyllicvision/iden3-claim-processor/pkg/json/utils"
 	"github.com/pkg/errors"
 )
 
