@@ -1,4 +1,4 @@
-module github.com/idyllicvision/iden3-claim-processor
+module github.com/iden3/iden3-claim-processor
 
 go 1.17
 
