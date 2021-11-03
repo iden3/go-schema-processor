@@ -1,14 +1,14 @@
 package json
 
 import (
+	commonJSON "encoding/json"
+	"testing"
+
 	"github.com/iden3/go-claim-schema-processor/pkg/json"
 	"github.com/iden3/go-claim-schema-processor/pkg/loaders"
 	"github.com/iden3/go-claim-schema-processor/pkg/processor"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"testing"
-
-	commonJSON "encoding/json"
 )
 
 const url = "https://raw.githubusercontent.com/vmidyllic/iden3vocab/main/schemas/json/KYCAgeCredential-2.json"
@@ -125,10 +125,12 @@ func TestParser(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	index, value, err := jsonProcessor.ParseSlots(dataBytes, schema)
+	parsedData, err := jsonProcessor.ParseSlots(dataBytes, schema)
 
 	assert.Nil(t, err)
-	assert.NotEmpty(t, index)
-	assert.Empty(t, value)
+	assert.NotEmpty(t, parsedData.IndexA)
+	assert.Empty(t, parsedData.IndexB)
+	assert.Empty(t, parsedData.ValueA)
+	assert.Empty(t, parsedData.ValueB)
 
 }

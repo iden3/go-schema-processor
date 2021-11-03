@@ -17,14 +17,20 @@ type SchemaLoader interface {
 	Load(url string) (schema []byte, extension string, err error)
 }
 
+type ParsedSlots struct {
+	IndexA, IndexB []byte
+	ValueA, ValueB []byte
+}
+
 type Parser interface {
-	ParseSlots(data, schema []byte) (index, value []byte, err error)
+	ParseSlots(data, schema []byte) (ParsedSlots, error)
 }
 
 var (
 	errParserNotDefined    = errors.New("parser is not defined")
 	errLoaderNotDefined    = errors.New("loader is not defined")
 	errValidatorNotDefined = errors.New("validator is not defined")
+	ErrSlotsOverflow       = errors.New("slots overflow")
 )
 
 // Opt returns configuration options for processor suite
@@ -68,9 +74,9 @@ func (s *Processor) Load(url string) (schema []byte, extension string, err error
 }
 
 // ParseSlots will serialize input data to index and value fields.
-func (s *Processor) ParseSlots(data []byte, schema []byte) (index []byte, value []byte, err error) {
+func (s *Processor) ParseSlots(data []byte, schema []byte) (ParsedSlots, error) {
 	if s.Parser == nil {
-		return nil, nil, errParserNotDefined
+		return ParsedSlots{}, errParserNotDefined
 	}
 	return s.Parser.ParseSlots(data, schema)
 }
