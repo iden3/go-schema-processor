@@ -2,26 +2,31 @@ package processor
 
 import "github.com/pkg/errors"
 
+// Processor is set of tool for claim processing
 type Processor struct {
 	Validator    Validator
 	SchemaLoader SchemaLoader
 	Parser       Parser
 }
 
+// Validator is interface to validate data and documents
 type Validator interface {
 	ValidateData(data, schema []byte) error
 	ValidateDocument(doc, schema []byte) error
 }
 
+// SchemaLoader is interface to load schema
 type SchemaLoader interface {
 	Load(url string) (schema []byte, extension string, err error)
 }
 
+// ParsedSlots is struct that represents iden3 claim specification
 type ParsedSlots struct {
 	IndexA, IndexB []byte
 	ValueA, ValueB []byte
 }
 
+// Parser is an interface to parse claim slots
 type Parser interface {
 	ParseSlots(data, schema []byte) (ParsedSlots, error)
 }

@@ -2,6 +2,7 @@ package json
 
 import (
 	"encoding/json"
+	"github.com/iden3/go-claim-schema-processor/pkg/claims"
 	"testing"
 
 	"github.com/iden3/go-claim-schema-processor/pkg/processor"
@@ -118,7 +119,6 @@ func TestGetSerializedData(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.title, func(t *testing.T) {
-			var p Parser
 			var schema = &CommonJSONSerializationSchema{
 				Index: struct {
 					Type    string   `json:"type"`
@@ -138,7 +138,7 @@ func TestGetSerializedData(t *testing.T) {
 			}
 			input, err := json.Marshal(inputData)
 			require.NoError(t, err)
-			slots, err := p.getSerializedData(input, schema)
+			slots, err := claims.PrepareClaimSlots(input, schema.Index.Default, schema.Value.Default)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {
