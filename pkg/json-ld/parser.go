@@ -1,6 +1,7 @@
 package json_ld
 
 import (
+	"encoding/json"
 	"github.com/iden3/go-claim-schema-processor/pkg/claims"
 	"github.com/iden3/go-claim-schema-processor/pkg/processor"
 	"github.com/pkg/errors"
@@ -76,7 +77,50 @@ func (p Parser) ParseSlots(data, schema []byte) (processor.ParsedSlots, error) {
 		return valueFields[j] < valueFields[i]
 	})
 
-	return claims.PrepareClaimSlots(data, indexFields, valueFields)
+	/*  if all data fields have position property then we need to process it
+	`"baseType"
+	"data":
+	"position":
+	*/
+
+	preparedData := map[string]interface{}{}
+	var extendedData map[string]map[string]interface{}
+
+	err = json.Unmarshal(data, &extendedData)
+	if err != nil {
+		// that means that data is not presented as extended format
+		return claims.PrepareClaimSlots(data, indexFields, valueFields)
+
+	}
+	// that means that data is presented in the extended format (each field has a detailed description how it should be processed)
+
+	positionedIndexes := make([]string, len(indexFields))
+
+	for _, fieldName := range indexFields {
+		position, ok := extendedData[fieldName]["position"].(float64)
+		if !ok {
+			return processor.ParsedSlots{}, errors.New("position is not found")
+		}
+		positionedIndexes[int(position)] = fieldName
+		preparedData[fieldName] = extendedData[fieldName]["data"]
+
+	}
+	positionedValues := make([]string, len(valueFields))
+
+	for _, fieldName := range valueFields {
+		position, ok := extendedData[fieldName]["position"].(float64)
+		if !ok {
+			return processor.ParsedSlots{}, errors.New("position is not found")
+		}
+		positionedValues[int(position)] = fieldName
+		preparedData[fieldName] = extendedData[fieldName]["data"]
+	}
+
+	preparedDataBytes, err := json.Marshal(preparedData)
+	if err != nil {
+		return processor.ParsedSlots{}, err
+	}
+	return claims.PrepareClaimSlots(preparedDataBytes, positionedIndexes, positionedValues)
 }
 
 func isVocabField(a string, list []string) bool {

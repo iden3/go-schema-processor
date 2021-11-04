@@ -31,6 +31,8 @@ func (v Validator) ValidateData(data, schema []byte) error {
 		// TODO: later we can check the type of data field
 		// use claimContext.Fields["schemaField"].Type
 	}
+	//TODO: validate positioned data
+
 	return nil
 }
 
