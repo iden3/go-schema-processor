@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// HTTP is loader for http / https schemas
 type HTTP struct {
 }
 

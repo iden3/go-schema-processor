@@ -2,6 +2,7 @@ package json_ld
 
 import "github.com/iden3/go-claim-schema-processor/pkg/processor"
 
+// Processor is set of tool for claim processing
 type Processor struct {
 	processor.Processor
 }

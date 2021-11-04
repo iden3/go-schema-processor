@@ -7,6 +7,7 @@ import (
 	"github.com/qri-io/jsonschema"
 )
 
+// Validator validate json data
 type Validator struct {
 }
 
@@ -25,6 +26,8 @@ func (v Validator) ValidateData(data, schema []byte) error {
 	}
 	return nil
 }
+
+// ValidateDocument validate json document by json schema
 func (v Validator) ValidateDocument(doc, schema []byte) error {
 	return errors.New("not implemented")
 }
