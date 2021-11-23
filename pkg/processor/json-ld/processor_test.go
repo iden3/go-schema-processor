@@ -30,16 +30,18 @@ func TestParserWithSimpleData(t *testing.T) {
 	data["birthdayYear"] = 1996
 	data["birthdayMonth"] = 4
 	data["birthdayDay"] = 24
+	data["documentType"] = 1
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
 
 	parsedData, err := jsonLdProcessor.ParseSlots(dataBytes, schema)
-	exptectedSlotA := []uint8{204, 7, 0, 0, 4, 0, 0, 0, 24, 0, 0, 0}
+	expetctedSlotA := []uint8{24, 0, 0, 0, 4, 0, 0, 0, 204, 7, 0, 0, 1, 0, 0, 0}
 
+	t.Log(parsedData.IndexA)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, parsedData.IndexA)
-	assert.Equal(t, exptectedSlotA, parsedData.IndexA)
+	assert.Equal(t, expetctedSlotA, parsedData.IndexA)
 
 	assert.Empty(t, parsedData.IndexB)
 	assert.Empty(t, parsedData.ValueA)
@@ -64,13 +66,14 @@ func TestParserWithPositionedData(t *testing.T) {
 	data["birthdayDay"] = map[string]interface{}{"position": 0, "data": 24}
 	data["birthdayMonth"] = map[string]interface{}{"position": 1, "data": 4}
 	data["birthdayYear"] = map[string]interface{}{"position": 2, "data": 1996}
+	data["documentType"] = map[string]interface{}{"position": 3, "data": 1}
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
 
 	parsedData, err := jsonLdProcessor.ParseSlots(dataBytes, schema)
 
-	exptectedSlotA := []uint8{24, 0, 0, 0, 4, 0, 0, 0, 204, 7, 0, 0}
+	exptectedSlotA := []uint8{24, 0, 0, 0, 4, 0, 0, 0, 204, 7, 0, 0, 1, 0, 0, 0}
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, parsedData.IndexA)
@@ -98,6 +101,7 @@ func TestValidator(t *testing.T) {
 	data["birthdayDay"] = 24
 	data["birthdayMonth"] = 4
 	data["birthdayYear"] = 1996
+	data["documentType"] = 1
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
@@ -124,6 +128,7 @@ func TestValidatorWithInvalidField(t *testing.T) {
 	data := make(map[string]interface{})
 	data["birthdayDay"] = 24
 	data["birthdayMonth"] = 4
+	data["documentType"] = 1
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
@@ -152,6 +157,7 @@ func TestValidatorWithPositionedData(t *testing.T) {
 	data["birthdayDay"] = map[string]interface{}{"position": 0, "data": 24}
 	data["birthdayMonth"] = map[string]interface{}{"position": 1, "data": 4}
 	data["birthdayYear"] = map[string]interface{}{"position": 2, "data": 1996}
+	data["documentType"] = map[string]interface{}{"position": 3, "data": 1}
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
