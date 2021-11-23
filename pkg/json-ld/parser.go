@@ -69,19 +69,10 @@ func (p Parser) ParseSlots(data, schema []byte) (processor.ParsedSlots, error) {
 		}
 	}
 
-	// NOW fields are in reverse alphabetical order ( based on KYC circuits implementation)
-	sort.Slice(indexFields, func(i, j int) bool {
-		return indexFields[j] < indexFields[i]
-	})
-	sort.Slice(valueFields, func(i, j int) bool {
-		return valueFields[j] < valueFields[i]
-	})
+	// fields must be presented in circuit in alphabetical order
 
-	/*  if all data fields have position property then we need to process it
-	`"baseType"
-	"data":
-	"position":
-	*/
+	sort.Strings(indexFields)
+	sort.Strings(valueFields)
 
 	preparedData := map[string]interface{}{}
 	var extendedData map[string]map[string]interface{}

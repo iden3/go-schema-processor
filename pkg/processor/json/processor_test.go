@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const url = "https://raw.githubusercontent.com/vmidyllic/iden3vocab/main/schemas/json/KYCAgeCredential-2.json"
+const url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json/KYCAgeCredential.json"
 
 func TestInit(t *testing.T) {
 
@@ -62,6 +62,7 @@ func TestValidator(t *testing.T) {
 	data["birthdayDay"] = 24
 	data["birthdayMonth"] = 4
 	data["birthdayYear"] = 1996
+	data["documentType"] = 1
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
@@ -89,6 +90,7 @@ func TestValidatorWithInvalidField(t *testing.T) {
 	data := make(map[string]interface{})
 	data["birthdayDay"] = 24
 	data["birthdayMonth"] = 4
+	data["documentType"] = 1
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
@@ -117,6 +119,7 @@ func TestParser(t *testing.T) {
 	data["birthdayDay"] = 24
 	data["birthdayMonth"] = 4
 	data["birthdayYear"] = 1996
+	data["documentType"] = 1
 
 	dataBytes, err := commonJSON.Marshal(data)
 	assert.Nil(t, err)
