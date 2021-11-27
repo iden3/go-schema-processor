@@ -1,6 +1,7 @@
 package loaders
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
@@ -33,6 +34,7 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", errors.Errorf("request failed with status code %v", resp.StatusCode)
 	}
+	fmt.Println("status code", resp.StatusCode)
 	defer func() {
 		if tempErr := resp.Body.Close(); tempErr != nil {
 			err = tempErr
