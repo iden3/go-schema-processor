@@ -34,7 +34,6 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", errors.Errorf("request failed with status code %v", resp.StatusCode)
 	}
-	fmt.Println("status code", resp.StatusCode)
 	defer func() {
 		if tempErr := resp.Body.Close(); tempErr != nil {
 			err = tempErr
@@ -46,5 +45,12 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	if err != nil {
 		return nil, "", err
 	}
+	fmt.Println("status code", resp.StatusCode)
+	if err != nil {
+		fmt.Println("error", err.Error())
+	} else {
+		fmt.Println("nil error", err.Error())
+	}
+
 	return schema, extension, err
 }
