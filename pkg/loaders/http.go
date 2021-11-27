@@ -24,7 +24,7 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	segments := strings.Split(u.Path, "/")
 	extension = segments[len(segments)-1][strings.Index(segments[len(segments)-1], ".")+1:]
 
-	http.DefaultClient.Timeout = 2 * time.Second
+	http.DefaultClient.Timeout = 15 * time.Second
 	resp, err := http.Get(u.String())
 	if err != nil {
 		return nil, "", err
