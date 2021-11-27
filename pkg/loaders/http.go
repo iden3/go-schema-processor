@@ -1,6 +1,7 @@
 package loaders
 
 import (
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -27,7 +28,10 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	http.DefaultClient.Timeout = 30 * time.Second
 	resp, err := http.Get(u.String())
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.WithMessage(err, "http request failed")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", errors.Errorf("request failed with status code %v", resp.StatusCode)
 	}
 	defer func() {
 		if tempErr := resp.Body.Close(); tempErr != nil {
