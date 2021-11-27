@@ -49,7 +49,7 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	if err != nil {
 		fmt.Println("error", err.Error())
 	} else {
-		fmt.Println("nil error", err.Error())
+		fmt.Println("nil error")
 	}
 
 	return schema, extension, err
