@@ -1,6 +1,7 @@
 package loaders
 
 import (
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -24,16 +25,23 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	segments := strings.Split(u.Path, "/")
 	extension = segments[len(segments)-1][strings.Index(segments[len(segments)-1], ".")+1:]
 
-	http.DefaultClient.Timeout = 2 * time.Second
+	http.DefaultClient.Timeout = 30 * time.Second
 	resp, err := http.Get(u.String())
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.WithMessage(err, "http request failed")
 	}
-	defer func() {
-		if tempErr := resp.Body.Close(); tempErr != nil {
-			err = tempErr
-		}
-	}()
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", errors.Errorf("request failed with status code %v", resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+
+	// TODO: https://github.com/golang/go/issues/49366 wait for fix
+	//defer func() {
+	//	if tempErr := resp.Body.Close(); tempErr != nil {
+	//		err = tempErr
+	//	}
+	//}()
 
 	// We Read the response body on the line below.
 	schema, err = ioutil.ReadAll(resp.Body)
