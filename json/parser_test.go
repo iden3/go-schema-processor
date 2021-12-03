@@ -2,10 +2,10 @@ package json
 
 import (
 	"encoding/json"
-	"github.com/iden3/go-claim-schema-processor/pkg/claims"
+	"github.com/iden3/go-claim-schema-processor/processor"
+	"github.com/iden3/go-claim-schema-processor/utils"
 	"testing"
 
-	"github.com/iden3/go-claim-schema-processor/pkg/processor"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,7 +138,7 @@ func TestGetSerializedData(t *testing.T) {
 			}
 			input, err := json.Marshal(inputData)
 			require.NoError(t, err)
-			slots, err := claims.PrepareClaimSlots(input, schema.Index.Default, schema.Value.Default)
+			slots, err := utils.FillClaimSlots(input, schema.Index.Default, schema.Value.Default)
 			if tc.expectedErr != "" {
 				require.EqualError(t, err, tc.expectedErr)
 			} else {

@@ -1,4 +1,4 @@
-package json_ld
+package jsonld
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ type Validator struct {
 	ClaimType string
 }
 
-//ValidateData validate JSON data by JSON-LD Schema
+// ValidateData validates JSON data by JSON-LD Schema
 func (v Validator) ValidateData(data, schema []byte) error {
 
 	claimContext, err := getClaimContext(v.ClaimType, schema)
@@ -36,7 +36,7 @@ func (v Validator) ValidateData(data, schema []byte) error {
 	return nil
 }
 
-//ValidateDocument validate JSON data by JSON-LD Schema
+// ValidateDocument validates JSON data by JSON-LD Schema
 func (v Validator) ValidateDocument(doc, schema []byte) error {
 	return errors.New("not implemented")
 }

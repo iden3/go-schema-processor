@@ -1,15 +1,17 @@
-package claims
+package utils
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/iden3/go-claim-schema-processor/pkg/json/utils"
-	"github.com/iden3/go-claim-schema-processor/pkg/processor"
+	"github.com/iden3/go-claim-schema-processor/processor"
 	"math/big"
+	"strconv"
 )
 
 var q *big.Int
 
+//nolint //reason - needed
 func init() {
 	qString := "21888242871839275222246405745257275088548364400416034343698204186575808495617"
 	var ok bool
@@ -19,8 +21,44 @@ func init() {
 	}
 }
 
-// PrepareClaimSlots converts index and value fields to iden3 slots
-func PrepareClaimSlots(content []byte, indexFields, valueFields []string) (processor.ParsedSlots, error) {
+// FieldToByteArray convert fields to byte representation based on type
+func FieldToByteArray(field interface{}) ([]byte, error) {
+
+	switch v := field.(type) {
+	case uint32:
+		bs := make([]byte, 4)
+		binary.LittleEndian.PutUint32(bs, v)
+		return bs, nil
+	case float64:
+		s := fmt.Sprintf("%.0f", v)
+		intValue, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("can not convert field %v to uint32", field)
+		}
+
+		bs := make([]byte, 4)
+		binary.LittleEndian.PutUint32(bs, uint32(intValue))
+		return bs, nil
+	}
+
+	return nil, fmt.Errorf("not supported field type %T", field)
+}
+
+// DataFillsSlot  checks if newData fills into slot capacity ()
+func DataFillsSlot(slot, newData []byte) bool {
+	slot = append(slot, newData...)
+	a := new(big.Int).SetBytes(swapEndianness(slot))
+	return a.Cmp(q) == -1
+}
+
+// CheckDataInField  checks if data is in Q field
+func CheckDataInField(data []byte) bool {
+	a := new(big.Int).SetBytes(swapEndianness(data))
+	return a.Cmp(q) == -1
+}
+
+// FillClaimSlots fullfils index and value fields to iden3 slots
+func FillClaimSlots(content []byte, indexFields, valueFields []string) (processor.ParsedSlots, error) {
 	var data map[string]interface{}
 
 	err := json.Unmarshal(content, &data)
@@ -38,13 +76,13 @@ func PrepareClaimSlots(content []byte, indexFields, valueFields []string) (proce
 
 	for _, key := range indexFields {
 		// key is a property of data map to process
-		byteValue, err := utils.FieldToByteArray(data[key])
+		byteValue, err := FieldToByteArray(data[key])
 		if err != nil {
 			return processor.ParsedSlots{}, err
 		}
 
 		if !slotAFilled {
-			if dataFillsSlot(result.IndexA, byteValue) {
+			if DataFillsSlot(result.IndexA, byteValue) {
 				result.IndexA = append(result.IndexA, byteValue...)
 				continue
 			} else {
@@ -52,7 +90,7 @@ func PrepareClaimSlots(content []byte, indexFields, valueFields []string) (proce
 			}
 		}
 
-		if dataFillsSlot(result.IndexB, byteValue) {
+		if DataFillsSlot(result.IndexB, byteValue) {
 			result.IndexB = append(result.IndexB, byteValue...)
 		} else {
 			return processor.ParsedSlots{}, processor.ErrSlotsOverflow
@@ -62,12 +100,12 @@ func PrepareClaimSlots(content []byte, indexFields, valueFields []string) (proce
 	slotAFilled = false
 	for _, key := range valueFields {
 		// key is a property of data map to process
-		byteValue, err := utils.FieldToByteArray(data[key])
+		byteValue, err := FieldToByteArray(data[key])
 		if err != nil {
 			return processor.ParsedSlots{}, err
 		}
 		if !slotAFilled {
-			if dataFillsSlot(result.ValueA, byteValue) {
+			if DataFillsSlot(result.ValueA, byteValue) {
 				result.ValueA = append(result.ValueA, byteValue...)
 				continue
 			} else {
@@ -75,7 +113,7 @@ func PrepareClaimSlots(content []byte, indexFields, valueFields []string) (proce
 			}
 		}
 
-		if dataFillsSlot(result.ValueB, byteValue) {
+		if DataFillsSlot(result.ValueB, byteValue) {
 			result.ValueB = append(result.ValueB, byteValue...)
 		} else {
 			return processor.ParsedSlots{}, processor.ErrSlotsOverflow
@@ -83,13 +121,6 @@ func PrepareClaimSlots(content []byte, indexFields, valueFields []string) (proce
 	}
 
 	return result, nil
-}
-
-// check if newData fills into slot capacity ()
-func dataFillsSlot(slot []byte, newData []byte) bool {
-	slot = append(slot, newData...)
-	a := new(big.Int).SetBytes(swapEndianness(slot))
-	return a.Cmp(q) == -1
 }
 
 func swapEndianness(buf []byte) []byte {

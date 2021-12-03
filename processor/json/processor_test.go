@@ -2,11 +2,11 @@ package json
 
 import (
 	commonJSON "encoding/json"
+	json "github.com/iden3/go-claim-schema-processor/json"
+	"github.com/iden3/go-claim-schema-processor/loaders"
+	"github.com/iden3/go-claim-schema-processor/processor"
 	"testing"
 
-	"github.com/iden3/go-claim-schema-processor/pkg/json"
-	"github.com/iden3/go-claim-schema-processor/pkg/loaders"
-	"github.com/iden3/go-claim-schema-processor/pkg/processor"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -106,7 +106,9 @@ func TestParser(t *testing.T) {
 
 	loader := loaders.HTTP{}
 	validator := json.Validator{}
-	parser := json.Parser{}
+	parser := json.Parser{
+		ParsingStrategy: processor.SlotFullfilmentStrategy,
+	}
 
 	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonProcessor.Load(url)

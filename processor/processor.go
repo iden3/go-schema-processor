@@ -35,7 +35,8 @@ var (
 	errParserNotDefined    = errors.New("parser is not defined")
 	errLoaderNotDefined    = errors.New("loader is not defined")
 	errValidatorNotDefined = errors.New("validator is not defined")
-	ErrSlotsOverflow       = errors.New("slots overflow")
+	// ErrSlotsOverflow thrown on claim slot overflow
+	ErrSlotsOverflow = errors.New("slots overflow")
 )
 
 // Opt returns configuration options for processor suite
@@ -79,7 +80,7 @@ func (s *Processor) Load(url string) (schema []byte, extension string, err error
 }
 
 // ParseSlots will serialize input data to index and value fields.
-func (s *Processor) ParseSlots(data []byte, schema []byte) (ParsedSlots, error) {
+func (s *Processor) ParseSlots(data, schema []byte) (ParsedSlots, error) {
 	if s.Parser == nil {
 		return ParsedSlots{}, errParserNotDefined
 	}

@@ -2,7 +2,7 @@ package loaders
 
 import (
 	"github.com/pkg/errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,7 +16,7 @@ type HTTP struct {
 // Load loads schema by url
 func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 
-	//parse schema url
+	// parse schema url
 	u, err := url.Parse(_url)
 	if err != nil {
 		return nil, "", err
@@ -37,14 +37,17 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	defer resp.Body.Close()
 
 	// TODO: https://github.com/golang/go/issues/49366 wait for fix
-	//defer func() {
-	//	if tempErr := resp.Body.Close(); tempErr != nil {
-	//		err = tempErr
-	//	}
-	//}()
+	//nolint //reason: needed in future
+	/*
+		defer func() {
+			if tempErr := resp.Body.Close(); tempErr != nil {
+			err = tempErr
+			}
+		}()
+	*/
 
 	// We Read the response body on the line below.
-	schema, err = ioutil.ReadAll(resp.Body)
+	schema, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, "", err
 	}
