@@ -1,4 +1,4 @@
-package json_ld
+package jsonld
 
 import (
 	"encoding/json"

@@ -1,11 +1,11 @@
-package json_ld
+package jsonld
 
 import (
 	commonJSON "encoding/json"
-	"github.com/iden3/go-claim-schema-processor/pkg/json"
-	json_ld "github.com/iden3/go-claim-schema-processor/pkg/json-ld"
-	"github.com/iden3/go-claim-schema-processor/pkg/loaders"
-	"github.com/iden3/go-claim-schema-processor/pkg/processor"
+	"github.com/iden3/go-claim-schema-processor/json"
+	jsonld "github.com/iden3/go-claim-schema-processor/json-ld"
+	"github.com/iden3/go-claim-schema-processor/loaders"
+	"github.com/iden3/go-claim-schema-processor/processor"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -15,7 +15,7 @@ var url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schem
 func TestParserWithSimpleData(t *testing.T) {
 	loader := loaders.HTTP{}
 	validator := json.Validator{}
-	parser := json_ld.Parser{ClaimType: "KYCAgeCredential"}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
 
 	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonLdProcessor.Load(url)
@@ -52,7 +52,7 @@ func TestParserWithSimpleData(t *testing.T) {
 func TestParserWithPositionedData(t *testing.T) {
 	loader := loaders.HTTP{}
 	validator := json.Validator{}
-	parser := json_ld.Parser{ClaimType: "KYCAgeCredential"}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
 
 	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonLdProcessor.Load(url)
@@ -87,7 +87,7 @@ func TestParserWithPositionedData(t *testing.T) {
 func TestValidator(t *testing.T) {
 
 	loader := loaders.HTTP{}
-	validator := json_ld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
 
@@ -115,7 +115,7 @@ func TestValidator(t *testing.T) {
 func TestValidatorWithInvalidField(t *testing.T) {
 
 	loader := loaders.HTTP{}
-	validator := json_ld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
 
@@ -143,7 +143,7 @@ func TestValidatorWithInvalidField(t *testing.T) {
 func TestValidatorWithPositionedData(t *testing.T) {
 
 	loader := loaders.HTTP{}
-	validator := json_ld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
 
@@ -165,5 +165,45 @@ func TestValidatorWithPositionedData(t *testing.T) {
 	err = p.ValidateData(dataBytes, schema)
 
 	assert.Nil(t, err)
+
+}
+
+func TestParserWithSlotsTypes(t *testing.T) {
+
+	url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
+
+	loader := loaders.HTTP{}
+	validator := json.Validator{}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
+
+	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	schema, ext, err := jsonLdProcessor.Load(url)
+
+	assert.Nil(t, err)
+	assert.Equal(t, ext, "json-ld")
+	assert.NotEmpty(t, schema)
+
+	data := make(map[string]interface{})
+
+	data["birthday"] = 828522341
+	data["documentType"] = 1
+
+	dataBytes, err := commonJSON.Marshal(data)
+	assert.Nil(t, err)
+
+	parsedData, err := jsonLdProcessor.ParseSlots(dataBytes, schema)
+	assert.Nil(t, err)
+	t.Log(parsedData.IndexA)
+	expetctedSlotA := []uint8{101, 63, 98, 49}
+	expetctedSlotB := []uint8{1, 0, 0, 0}
+
+	t.Log(parsedData.IndexA)
+	assert.Nil(t, err)
+	assert.NotEmpty(t, parsedData.IndexA)
+	assert.Equal(t, expetctedSlotA, parsedData.IndexA)
+	assert.Equal(t, expetctedSlotB, parsedData.IndexB)
+
+	assert.Empty(t, parsedData.ValueA)
+	assert.Empty(t, parsedData.ValueB)
 
 }

@@ -11,7 +11,7 @@ import (
 type Validator struct {
 }
 
-//ValidateData validate JSON data by JSON Schema
+// ValidateData validate JSON data by JSON Schema
 func (v Validator) ValidateData(data, schema []byte) error {
 	rs := &jsonschema.Schema{}
 	if err := json.Unmarshal(schema, rs); err != nil {
