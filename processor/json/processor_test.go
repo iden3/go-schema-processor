@@ -139,3 +139,20 @@ func TestParser(t *testing.T) {
 	assert.Empty(t, parsedData.ValueB)
 
 }
+func TestGetFieldIndexWithSlotsTypes(t *testing.T) {
+
+	loader := loaders.HTTP{}
+	validator := json.Validator{}
+	parser := json.Parser{ParsingStrategy: processor.OneFieldPerSlotStrategy}
+
+	jsonP := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	schema, ext, err := jsonP.Load(url)
+
+	assert.Nil(t, err)
+	assert.Equal(t, ext, "json")
+	assert.NotEmpty(t, schema)
+
+	_, err = jsonP.GetFieldSlotIndex("documentType", schema)
+	assert.NotNil(t, err)
+
+}

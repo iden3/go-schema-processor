@@ -207,3 +207,32 @@ func TestParserWithSlotsTypes(t *testing.T) {
 	assert.Empty(t, parsedData.ValueB)
 
 }
+
+func TestGetFieldIndexWithSlotsTypes(t *testing.T) {
+
+	url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
+
+	loader := loaders.HTTP{}
+	validator := json.Validator{}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
+
+	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	schema, ext, err := jsonLdProcessor.Load(url)
+
+	assert.Nil(t, err)
+	assert.Equal(t, ext, "json-ld")
+	assert.NotEmpty(t, schema)
+
+	data := make(map[string]interface{})
+
+	data["birthday"] = 828522341
+	data["documentType"] = 1
+
+	slot2, err := jsonLdProcessor.GetFieldSlotIndex("birthday", schema)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, slot2)
+	slot3, err := jsonLdProcessor.GetFieldSlotIndex("documentType", schema)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, slot3)
+
+}

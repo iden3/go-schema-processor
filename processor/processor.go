@@ -29,6 +29,7 @@ type ParsedSlots struct {
 // Parser is an interface to parse claim slots
 type Parser interface {
 	ParseSlots(data, schema []byte) (ParsedSlots, error)
+	GetFieldSlotIndex(field string, schema []byte) (int, error)
 }
 
 var (
@@ -85,6 +86,14 @@ func (s *Processor) ParseSlots(data, schema []byte) (ParsedSlots, error) {
 		return ParsedSlots{}, errParserNotDefined
 	}
 	return s.Parser.ParseSlots(data, schema)
+}
+
+// GetFieldSlotIndex returns index of slot for specified field according to schema
+func (s *Processor) GetFieldSlotIndex(field string, schema []byte) (int, error) {
+	if s.Parser == nil {
+		return 0, errParserNotDefined
+	}
+	return s.Parser.GetFieldSlotIndex(field, schema)
 }
 
 // ValidateData will validate a claim content by given schema.
