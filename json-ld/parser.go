@@ -74,29 +74,16 @@ func (p Parser) ParseSlots(data, schema []byte) (processor.ParsedSlots, error) {
 
 // FillSlots fills slots sequentially
 func (p Parser) FillSlots(data []byte, ctx *ClaimContext) (processor.ParsedSlots, error) {
-	var indexFields []string
-	var valueFields []string
 
-	for k, v := range ctx.Fields {
-		switch v.Type {
-		case serializationIndexType:
-			indexFields = append(indexFields, k)
-		case serializationValueType:
-			valueFields = append(valueFields, k)
-		default:
-			return processor.ParsedSlots{}, errors.New("field type is not supported")
-		}
+	indexFields, valueFields, err := p.sortFields(ctx)
+	if err != nil {
+		return processor.ParsedSlots{}, err
 	}
-
-	// fields must be presented in circuit in alphabetical order
-
-	sort.Strings(indexFields)
-	sort.Strings(valueFields)
 
 	preparedData := map[string]interface{}{}
 	var extendedData map[string]map[string]interface{}
 
-	err := json.Unmarshal(data, &extendedData)
+	err = json.Unmarshal(data, &extendedData)
 	if err != nil {
 		// that means that data is not presented as extended format
 		return utils.FillClaimSlots(data, indexFields, valueFields)
@@ -189,6 +176,76 @@ func (p Parser) AssignSlots(content []byte, ctx *ClaimContext) (processor.Parsed
 		}
 	}
 	return result, nil
+}
+
+// GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)
+func (p Parser) GetFieldSlotIndex(field string, schema []byte) (int, error) {
+
+	if p.ParsingStrategy != processor.OneFieldPerSlotStrategy {
+		return 0, errors.Errorf("it's not possible to retrieve field slot strategy other than OneFieldPerSlotStrategy")
+	}
+	claimContext, err := getClaimContext(p.ClaimType, schema)
+	if err != nil {
+		return 0, err
+	}
+
+	schemaField, ok := claimContext.Fields[field]
+	if !ok {
+		return 0, errors.Errorf("no field %s in given schema", field)
+	}
+	index, value, err := p.sortFields(claimContext)
+	if len(index) > 2 {
+		return 0, errors.Errorf("invalid number of fields for index data slots. Specification supports 2, given %v", len(index))
+	}
+	if len(value) > 2 {
+		return 0, errors.Errorf("invalid number of fields for value data slots. Specification supports 2, given %v", len(value))
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	/*
+			Index : 0, 1, 2 ,3
+			Value:   4, 5, 6, 7
+			IndexDataSlotA: 2
+		    IndexDataSlotB: 3
+		    ValueDataSlotA: 6
+		    ValueDataSlotB: 7
+	*/
+	switch schemaField.Type {
+	case serializationIndexType:
+		return utils.IndexOf(field, index) + 2, nil // + 2 (only 2,3 fields are supported)
+	case serializationValueType:
+		return utils.IndexOf(field, value) + 6, nil // +4 (value fields) + 2 (only 6,7 fields are supported)
+	case serializationIndexDataSlotAType:
+		return 2, nil
+	case serializationIndexDataSlotBType:
+		return 3, nil
+	case serializationValueDataSlotAType:
+		return 6, nil
+	case serializationValueDataSlotBType:
+		return 7, nil
+	default:
+		return -1, errors.Errorf("unknown field type %s", schemaField.Type)
+	}
+
+}
+
+func (p Parser) sortFields(ctx *ClaimContext) (indexFields, valueFields []string, err error) {
+	for k, v := range ctx.Fields {
+		switch v.Type {
+		case serializationIndexType, serializationIndexDataSlotAType, serializationIndexDataSlotBType:
+			indexFields = append(indexFields, k)
+		case serializationValueType, serializationValueDataSlotAType, serializationValueDataSlotBType:
+			valueFields = append(valueFields, k)
+		default:
+			return nil, nil, errors.New("field type is not supported")
+		}
+	}
+	// fields must be presented in circuit in alphabetical order
+	sort.Strings(indexFields)
+	sort.Strings(valueFields)
+	return indexFields, valueFields, nil
 }
 
 func isVocabField(a string, list []string) bool {

@@ -130,3 +130,13 @@ func swapEndianness(buf []byte) []byte {
 	}
 	return newBuf
 }
+
+// IndexOf returns field index in array of fields
+func IndexOf(field string, fields []string) int {
+	for k, v := range fields {
+		if field == v {
+			return k
+		}
+	}
+	return -1
+}

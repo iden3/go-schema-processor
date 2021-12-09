@@ -104,6 +104,36 @@ func (s Parser) AssignSlots(content []byte, indexFields, valueFields []string) (
 	return result, nil
 }
 
+// GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)
+func (s Parser) GetFieldSlotIndex(field string, schema []byte) (int, error) {
+
+	if s.ParsingStrategy != processor.OneFieldPerSlotStrategy {
+		return 0, errors.Errorf("it's not possible to retrieve field slot strategy other than OneFieldPerSlotStrategy")
+	}
+	serializationSchema, err := s.getJSONSerializationInfo(schema)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(serializationSchema.Index.Default) > 2 {
+		return 0, errors.Errorf("invalid number of fields for index data slots. Specification supports 2, given %v", len(serializationSchema.Index.Default))
+	}
+	if len(serializationSchema.Value.Default) > 2 {
+		return 0, errors.Errorf("invalid number of fields for value data slots. Specification supports 2, given %v", len(serializationSchema.Value.Default))
+	}
+	index := utils.IndexOf(field, serializationSchema.Index.Default)
+	if index == -1 {
+		// try to find key in value
+		index = utils.IndexOf(field, serializationSchema.Value.Default)
+		if index != -1 {
+			return index + 6, nil // because for value data  we support only 6th an 7nth slots
+		}
+		return index, nil
+	}
+	return index + 2, nil // because we support only 2nd and 3rd slots for index data
+
+}
+
 func (s Parser) getJSONSerializationInfo(jsonSchema []byte) (serialization *CommonJSONSerializationSchema, err error) {
 	var schemaFields map[string]interface{}
 	err = json.Unmarshal(jsonSchema, &schemaFields)
