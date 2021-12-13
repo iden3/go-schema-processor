@@ -1,6 +1,9 @@
-# iden3-claim-processor
+# go-claim-schema-processor
 
-Repository: https://github.com/iden3/go-claim-schema-processor
+[![Go Reference](https://pkg.go.dev/badge/github.com/iden3/go-claim-schema-processor.svg)](https://pkg.go.dev/github.com/iden3/go-claim-schema-processor)
+[![Go Report Card](https://goreportcard.com/badge/github.com/iden3/go-claim-schema-processor)](https://goreportcard.com/report/github.com/iden3/go-claim-schema-processor)
+[![Test](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-test.yaml/badge.svg)](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-test.yaml)
+[![Lint](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-lint.yaml/badge.svg)](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-lint.yaml)
 
 ### General description:
 
@@ -10,10 +13,6 @@ Repository: https://github.com/iden3/go-claim-schema-processor
 We use a common approach to describe data for Iden3 credentials by utilizing the concept of JSON-LD and JSON schemas.
 
 Repository of claim schema vocabulary: https://github.com/iden3/claim-schema-vocab
-
-Repository of claim processor: https://github.com/iden3/go-claim-schema-processor
-
-
 
 The library includes three main components of any processor:
 
