@@ -1,7 +1,7 @@
 package jsonld
 
 import (
-	"github.com/iden3/go-claim-schema-processor/processor"
+	"github.com/iden3/go-schema-processor/processor"
 )
 
 // Processor is set of tool for claim processing

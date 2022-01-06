@@ -2,10 +2,10 @@ package jsonld
 
 import (
 	commonJSON "encoding/json"
-	"github.com/iden3/go-claim-schema-processor/json"
-	jsonld "github.com/iden3/go-claim-schema-processor/json-ld"
-	"github.com/iden3/go-claim-schema-processor/loaders"
-	"github.com/iden3/go-claim-schema-processor/processor"
+	"github.com/iden3/go-schema-processor/json"
+	jsonld "github.com/iden3/go-schema-processor/json-ld"
+	"github.com/iden3/go-schema-processor/loaders"
+	"github.com/iden3/go-schema-processor/processor"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

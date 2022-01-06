@@ -2,8 +2,11 @@ package jsonld
 
 import (
 	"encoding/json"
-	"github.com/iden3/go-claim-schema-processor/processor"
-	"github.com/iden3/go-claim-schema-processor/utils"
+	"fmt"
+	core "github.com/iden3/go-iden3-core"
+	"github.com/iden3/go-schema-processor/processor"
+	"github.com/iden3/go-schema-processor/utils"
+	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
 	"sort"
 )
@@ -52,6 +55,51 @@ type ClaimContext struct {
 // SchemaContext is top-level wrapper of json-ld schema
 type SchemaContext struct {
 	Context []map[string]interface{} `json:"@context"`
+}
+
+// ParseClaim creates Claim object from Iden3Credential
+func (p Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error) {
+
+	credentialSubject := credential.CredentialSubject
+
+	credentialType := fmt.Sprintf("%v", credential.CredentialSubject["type"])
+	subjectID := fmt.Sprintf("%v", credential.CredentialSubject["id"])
+
+	delete(credentialSubject, "id")
+	delete(credentialSubject, "type")
+
+	credentialSubjectBytes, err := json.Marshal(credentialSubject)
+
+	if err != nil {
+		return nil, err
+	}
+
+	slots, err := p.ParseSlots(credentialSubjectBytes, schemaBytes)
+	if err != nil {
+		return nil, err
+	}
+	id, err := core.IDFromString(subjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	claim, err := core.NewClaim(utils.CreateSchemaHash(credentialType),
+		core.WithIndexID(id),
+		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
+		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
+		core.WithExpirationDate(credential.Expiration),
+		core.WithRevocationNonce(credential.RevNonce),
+		core.WithVersion(credential.Version))
+	if err != nil {
+		return nil, err
+	}
+
+	err = utils.VerifyClaimHash(credential, claim)
+	if err != nil {
+		return nil, err
+	}
+
+	return claim, nil
 }
 
 // ParseSlots converts payload to claim slots using provided schema

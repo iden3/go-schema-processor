@@ -1,6 +1,10 @@
 package processor
 
-import "github.com/pkg/errors"
+import (
+	core "github.com/iden3/go-iden3-core"
+	"github.com/iden3/go-schema-processor/verifiable"
+	"github.com/pkg/errors"
+)
 
 // Processor is set of tool for claim processing
 type Processor struct {
@@ -28,6 +32,7 @@ type ParsedSlots struct {
 
 // Parser is an interface to parse claim slots
 type Parser interface {
+	ParseClaim(credentialBytes *verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error)
 	ParseSlots(data, schema []byte) (ParsedSlots, error)
 	GetFieldSlotIndex(field string, schema []byte) (int, error)
 }
