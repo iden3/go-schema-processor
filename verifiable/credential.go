@@ -11,7 +11,7 @@ type Iden3Credential struct {
 	Type              []string               `json:"@type"`
 	Expiration        time.Time              `json:"expiration"`
 	Updatable         bool                   `json:"updatable"`
-	Version           int                    `json:"version"`
+	Version           uint32                 `json:"version"`
 	RevNonce          uint64                 `json:"rev_nonce"`
 	CredentialSubject map[string]interface{} `json:"credentialSubject"`
 	CredentialStatus  CredentialStatus       `json:"credentialStatus,omitempty"`

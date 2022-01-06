@@ -51,7 +51,6 @@ func (s Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 	if err != nil {
 		return nil, err
 	}
-	version := uint32(credential.Version)
 
 	claim, err := core.NewClaim(utils.CreateSchemaHash(credentialType),
 		core.WithIndexID(id),
@@ -59,7 +58,7 @@ func (s Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
 		core.WithExpirationDate(credential.Expiration),
 		core.WithRevocationNonce(credential.RevNonce),
-		core.WithVersion(version))
+		core.WithVersion(credential.Version))
 	if err != nil {
 		return nil, err
 	}
