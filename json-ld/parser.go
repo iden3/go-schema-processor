@@ -69,9 +69,6 @@ func (p Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 	delete(credentialSubject, "type")
 
 	credentialSubjectBytes, err := json.Marshal(credentialSubject)
-	if err != nil {
-		return nil, err
-	}
 
 	if err != nil {
 		return nil, err
