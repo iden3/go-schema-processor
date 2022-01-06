@@ -32,7 +32,7 @@ type ParsedSlots struct {
 
 // Parser is an interface to parse claim slots
 type Parser interface {
-	ParseClaim(credentialBytes *verifiable.Iden3Credential) (*core.Claim, error)
+	ParseClaim(credentialBytes *verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error)
 	ParseSlots(data, schema []byte) (ParsedSlots, error)
 	GetFieldSlotIndex(field string, schema []byte) (int, error)
 }

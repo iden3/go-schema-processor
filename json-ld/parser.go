@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-schema-processor/loaders"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/utils"
 	"github.com/iden3/go-schema-processor/verifiable"
@@ -59,7 +58,7 @@ type SchemaContext struct {
 }
 
 // ParseClaim creates Claim object from Iden3Credential
-func (p Parser) ParseClaim(credential *verifiable.Iden3Credential) (*core.Claim, error) {
+func (p Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error) {
 
 	credentialSubject := credential.CredentialSubject
 
@@ -74,10 +73,6 @@ func (p Parser) ParseClaim(credential *verifiable.Iden3Credential) (*core.Claim,
 		return nil, err
 	}
 
-	httpLoader := loaders.HTTP{}
-
-	schemaURL := credential.CredentialSchema.ID
-	schemaBytes, _, err := httpLoader.Load(schemaURL)
 	if err != nil {
 		return nil, err
 	}
