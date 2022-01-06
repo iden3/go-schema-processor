@@ -2,8 +2,12 @@ package json
 
 import (
 	"encoding/json"
-	"github.com/iden3/go-claim-schema-processor/processor"
-	"github.com/iden3/go-claim-schema-processor/utils"
+	"fmt"
+	core "github.com/iden3/go-iden3-core"
+	"github.com/iden3/go-schema-processor/loaders"
+	"github.com/iden3/go-schema-processor/processor"
+	"github.com/iden3/go-schema-processor/utils"
+	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
 )
 
@@ -22,6 +26,59 @@ type CommonJSONSerializationSchema struct {
 // Parser can parse claim data according to specification
 type Parser struct {
 	ParsingStrategy processor.ParsingStrategy
+}
+
+// ParseClaim creates Claim object from Iden3Credential
+func (s Parser) ParseClaim(credential *verifiable.Iden3Credential) (*core.Claim, error) {
+
+	credentialSubject := credential.CredentialSubject
+
+	credentialType := fmt.Sprintf("%v", credential.CredentialSubject["type"])
+	subjectID := fmt.Sprintf("%v", credential.CredentialSubject["id"])
+
+	delete(credentialSubject, "id")
+	delete(credentialSubject, "type")
+
+	credentialSubjectBytes, err := json.Marshal(credentialSubject)
+	if err != nil {
+		return nil, err
+	}
+
+	httpLoader := loaders.HTTP{}
+
+	schemaURL := credential.CredentialSchema.ID
+	schemaBytes, _, err := httpLoader.Load(schemaURL)
+	if err != nil {
+		return nil, err
+	}
+
+	slots, err := s.ParseSlots(credentialSubjectBytes, schemaBytes)
+	if err != nil {
+		return nil, err
+	}
+	id, err := core.IDFromString(subjectID)
+	if err != nil {
+		return nil, err
+	}
+	version := uint32(credential.Version)
+
+	claim, err := core.NewClaim(utils.CreateSchemaHash(credentialType),
+		core.WithIndexID(id),
+		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
+		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
+		core.WithExpirationDate(credential.Expiration),
+		core.WithRevocationNonce(credential.RevNonce),
+		core.WithVersion(version))
+	if err != nil {
+		return nil, err
+	}
+
+	err = utils.VerifyClaimHash(credential, claim)
+	if err != nil {
+		return nil, err
+	}
+
+	return claim, nil
 }
 
 // ParseSlots converts payload to claim slots using provided schema

@@ -2,9 +2,9 @@ package json
 
 import (
 	commonJSON "encoding/json"
-	json "github.com/iden3/go-claim-schema-processor/json"
-	"github.com/iden3/go-claim-schema-processor/loaders"
-	"github.com/iden3/go-claim-schema-processor/processor"
+	json "github.com/iden3/go-schema-processor/json"
+	"github.com/iden3/go-schema-processor/loaders"
+	"github.com/iden3/go-schema-processor/processor"
 	"testing"
 
 	"github.com/pkg/errors"

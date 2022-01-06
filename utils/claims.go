@@ -4,7 +4,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/iden3/go-claim-schema-processor/processor"
+	core "github.com/iden3/go-iden3-core"
+	"github.com/iden3/go-schema-processor/processor"
+	"github.com/iden3/go-schema-processor/verifiable"
+	"github.com/pkg/errors"
 	"math/big"
 	"strconv"
 )
@@ -56,6 +59,9 @@ func CheckDataInField(data []byte) bool {
 	a := new(big.Int).SetBytes(swapEndianness(data))
 	return a.Cmp(q) == -1
 }
+
+var errIndexHashNotEqual = errors.New("claim index hash in credential and in resulted claim are not equal")
+var errValueHashNotEqual = errors.New("claim value hash in credential and in resulted claim are not equal")
 
 // FillClaimSlots fullfils index and value fields to iden3 slots
 func FillClaimSlots(content []byte, indexFields, valueFields []string) (processor.ParsedSlots, error) {
@@ -139,4 +145,43 @@ func IndexOf(field string, fields []string) int {
 		}
 	}
 	return -1
+}
+
+// CreateSchemaHash calculates schema hash
+func CreateSchemaHash(credentialType string) core.SchemaHash {
+	var sHash core.SchemaHash
+	h := Keccak256([]byte(credentialType))
+	copy(sHash[:], h[len(h)-16:])
+	return sHash
+}
+
+// VerifyClaimHash verifies that hashes of index and value of claim are equal to proof in credential
+func VerifyClaimHash(credential *verifiable.Iden3Credential, claim *core.Claim) error {
+
+	entry := claim.TreeEntry()
+	hi, hv, err := entry.HiHv()
+
+	if err != nil {
+		return err
+	}
+	switch proof := credential.Proof.(type) {
+	case []verifiable.BasicProof:
+		for _, p := range proof {
+			if p.HIndex != hi.Hex() {
+				return errIndexHashNotEqual
+			}
+			if p.HValue != hv.Hex() {
+				return errValueHashNotEqual
+			}
+		}
+	case verifiable.BasicProof:
+		if proof.HIndex != hi.Hex() {
+			return errIndexHashNotEqual
+		}
+		if proof.HValue != hv.Hex() {
+			return errValueHashNotEqual
+		}
+	}
+	return nil
+
 }

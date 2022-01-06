@@ -1,9 +1,9 @@
-# go-claim-schema-processor
+# go-schema-processor
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/iden3/go-claim-schema-processor.svg)](https://pkg.go.dev/github.com/iden3/go-claim-schema-processor)
-[![Go Report Card](https://goreportcard.com/badge/github.com/iden3/go-claim-schema-processor)](https://goreportcard.com/report/github.com/iden3/go-claim-schema-processor)
-[![Test](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-test.yaml/badge.svg)](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-test.yaml)
-[![Lint](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-lint.yaml/badge.svg)](https://github.com/iden3/go-claim-schema-processor/actions/workflows/ci-lint.yaml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/iden3/go-schema-processor.svg)](https://pkg.go.dev/github.com/iden3/go-schema-processor)
+[![Go Report Card](https://goreportcard.com/badge/github.com/iden3/go-schema-processor)](https://goreportcard.com/report/github.com/iden3/go-schema-processor)
+[![Test](https://github.com/iden3/go-schema-processor/actions/workflows/ci-test.yaml/badge.svg)](https://github.com/iden3/go-schema-processor/actions/workflows/ci-test.yaml)
+[![Lint](https://github.com/iden3/go-schema-processor/actions/workflows/ci-lint.yaml/badge.svg)](https://github.com/iden3/go-schema-processor/actions/workflows/ci-lint.yaml)
 
 ### General description:
 
