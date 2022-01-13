@@ -25,30 +25,25 @@ func init() {
 // FieldToByteArray convert fields to byte representation based on type
 func FieldToByteArray(field interface{}) ([]byte, error) {
 
-	s := fmt.Sprintf("%v", field)
-	f, ok := new(big.Int).SetString(s, 10)
-	if !ok {
-		return nil, errors.New("can't convert string field to big Int")
-	}
-	return swapEndianness(f.Bytes()), nil
-	//switch v := field.(type) {
-	//case uint32:
-	//	bs := make([]byte, 4)
-	//	binary.LittleEndian.PutUint32(bs, v)
-	//	return bs, nil
-	//case float64:
-	//	s := fmt.Sprintf("%.0f", v)
-	//	intValue, err := strconv.Atoi(s)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("can not convert field %v to uint32", field)
-	//	}
-	//
-	//	bs := make([]byte, 4)
-	//	binary.LittleEndian.PutUint32(bs, uint32(intValue))
-	//	return bs, nil
-	//}
+	var bigIntField *big.Int
+	var ok bool
 
-	//return nil, fmt.Errorf("not supported field type %T", field)
+	switch v := field.(type) {
+	case string:
+		bigIntField, ok = new(big.Int).SetString(v, 10)
+		if !ok {
+			return nil, errors.New("can't convert string to big int")
+		}
+	case float64:
+		stringField := fmt.Sprintf("%.0f", v)
+		bigIntField, ok = new(big.Int).SetString(stringField, 10)
+		if !ok {
+			return nil, errors.New("can't convert string to big int")
+		}
+	default:
+		return nil, errors.New("field type is not supported")
+	}
+	return swapEndianness(bigIntField.Bytes()), nil
 }
 
 // DataFillsSlot  checks if newData fills into slot capacity ()
