@@ -2,11 +2,13 @@ package jsonld
 
 import (
 	commonJSON "encoding/json"
+	"github.com/iden3/go-iden3-crypto/utils"
 	"github.com/iden3/go-schema-processor/json"
 	jsonld "github.com/iden3/go-schema-processor/json-ld"
 	"github.com/iden3/go-schema-processor/loaders"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/stretchr/testify/assert"
+	"math/big"
 	"testing"
 )
 
@@ -36,7 +38,7 @@ func TestParserWithSimpleData(t *testing.T) {
 	assert.Nil(t, err)
 
 	parsedData, err := jsonLdProcessor.ParseSlots(dataBytes, schema)
-	expetctedSlotA := []uint8{24, 0, 0, 0, 4, 0, 0, 0, 204, 7, 0, 0, 1, 0, 0, 0}
+	expetctedSlotA := []uint8{24, 4, 204, 7, 1}
 
 	t.Log(parsedData.IndexA)
 	assert.Nil(t, err)
@@ -73,7 +75,7 @@ func TestParserWithPositionedData(t *testing.T) {
 
 	parsedData, err := jsonLdProcessor.ParseSlots(dataBytes, schema)
 
-	exptectedSlotA := []uint8{24, 0, 0, 0, 4, 0, 0, 0, 204, 7, 0, 0, 1, 0, 0, 0}
+	exptectedSlotA := []uint8{24, 4, 204, 7, 1}
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, parsedData.IndexA)
@@ -195,7 +197,7 @@ func TestParserWithSlotsTypes(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log(parsedData.IndexA)
 	expetctedSlotA := []uint8{101, 63, 98, 49}
-	expetctedSlotB := []uint8{1, 0, 0, 0}
+	expetctedSlotB := []uint8{1}
 
 	t.Log(parsedData.IndexA)
 	assert.Nil(t, err)
@@ -235,4 +237,45 @@ func TestGetFieldIndexWithSlotsTypes(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, slot3)
 
+}
+
+func TestParserForBigIntegers(t *testing.T) {
+
+	url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"
+
+	loader := loaders.HTTP{}
+	validator := json.Validator{}
+	parser := jsonld.Parser{ClaimType: "AuthBJJCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
+
+	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	schema, ext, err := jsonLdProcessor.Load(url)
+
+	assert.Nil(t, err)
+	assert.Equal(t, ext, "json-ld")
+	assert.NotEmpty(t, schema)
+
+	data := make(map[string]interface{})
+
+	data["x"] = "12747559771369266961976321746772881814229091957322087014312756428846389160887"
+	data["y"] = "7732074634595480184356588475330446395691728690271550550016720788712795268212"
+
+	dataBytes, err := commonJSON.Marshal(data)
+	assert.Nil(t, err)
+
+	parsedData, err := jsonLdProcessor.ParseSlots(dataBytes, schema)
+	assert.Nil(t, err)
+
+	x, _ := new(big.Int).SetString(data["x"].(string), 10)
+	y, _ := new(big.Int).SetString(data["y"].(string), 10)
+
+	expetctedSlotA := utils.SwapEndianness(x.Bytes())
+	expetctedSlotB := utils.SwapEndianness(y.Bytes())
+
+	assert.Nil(t, err)
+	assert.NotEmpty(t, parsedData.IndexA)
+	assert.Equal(t, expetctedSlotA, parsedData.IndexA)
+	assert.Equal(t, expetctedSlotB, parsedData.IndexB)
+
+	assert.Empty(t, parsedData.ValueA)
+	assert.Empty(t, parsedData.ValueB)
 }

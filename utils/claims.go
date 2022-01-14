@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	core "github.com/iden3/go-iden3-core"
@@ -9,7 +8,6 @@ import (
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
 	"math/big"
-	"strconv"
 )
 
 var q *big.Int
@@ -27,24 +25,25 @@ func init() {
 // FieldToByteArray convert fields to byte representation based on type
 func FieldToByteArray(field interface{}) ([]byte, error) {
 
+	var bigIntField *big.Int
+	var ok bool
+
 	switch v := field.(type) {
-	case uint32:
-		bs := make([]byte, 4)
-		binary.LittleEndian.PutUint32(bs, v)
-		return bs, nil
-	case float64:
-		s := fmt.Sprintf("%.0f", v)
-		intValue, err := strconv.Atoi(s)
-		if err != nil {
-			return nil, fmt.Errorf("can not convert field %v to uint32", field)
+	case string:
+		bigIntField, ok = new(big.Int).SetString(v, 10)
+		if !ok {
+			return nil, errors.New("can't convert string to big int")
 		}
-
-		bs := make([]byte, 4)
-		binary.LittleEndian.PutUint32(bs, uint32(intValue))
-		return bs, nil
+	case float64:
+		stringField := fmt.Sprintf("%.0f", v)
+		bigIntField, ok = new(big.Int).SetString(stringField, 10)
+		if !ok {
+			return nil, errors.New("can't convert string to big int")
+		}
+	default:
+		return nil, errors.New("field type is not supported")
 	}
-
-	return nil, fmt.Errorf("not supported field type %T", field)
+	return swapEndianness(bigIntField.Bytes()), nil
 }
 
 // DataFillsSlot  checks if newData fills into slot capacity ()
