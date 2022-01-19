@@ -33,7 +33,7 @@ func (s Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 	credentialSubject := credential.CredentialSubject
 
 	credentialType := fmt.Sprintf("%v", credential.CredentialSubject["type"])
-	subjectID := fmt.Sprintf("%v", credential.CredentialSubject["id"])
+	subjectID := credential.CredentialSubject["id"]
 
 	delete(credentialSubject, "id")
 	delete(credentialSubject, "type")
@@ -47,18 +47,22 @@ func (s Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 	if err != nil {
 		return nil, err
 	}
-	id, err := core.IDFromString(subjectID)
-	if err != nil {
-		return nil, err
-	}
 
 	claim, err := core.NewClaim(utils.CreateSchemaHash(credentialType),
-		core.WithIndexID(id),
 		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
 		core.WithExpirationDate(credential.Expiration),
 		core.WithRevocationNonce(credential.RevNonce),
 		core.WithVersion(credential.Version))
+
+	if subjectID != nil {
+		id, err := core.IDFromString(fmt.Sprintf("%v", subjectID))
+		if err != nil {
+			return nil, err
+		}
+		claim.SetIndexID(id)
+	}
+
 	if err != nil {
 		return nil, err
 	}

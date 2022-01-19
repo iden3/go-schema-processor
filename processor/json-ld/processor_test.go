@@ -310,7 +310,7 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	assert.Equal(t, vc.RevNonce, revNonce)
 
 	expTime, _ := coreClaim.GetExpirationDate()
-	assert.Equal(t, vc.Expiration, expTime)
+	assert.Equal(t, vc.Expiration.Unix(), expTime.Unix())
 
 	updatable := coreClaim.GetFlagUpdatable()
 	assert.Equal(t, vc.Updatable, updatable)
@@ -362,7 +362,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	assert.Equal(t, vc.RevNonce, revNonce)
 
 	expTime, _ := coreClaim.GetExpirationDate()
-	assert.Equal(t, vc.Expiration, expTime)
+	assert.Equal(t, vc.Expiration.Unix(), expTime.Unix())
 
 	updatable := coreClaim.GetFlagUpdatable()
 	assert.Equal(t, vc.Updatable, updatable)
