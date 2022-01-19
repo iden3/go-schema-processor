@@ -84,9 +84,13 @@ func (p Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 		core.WithExpirationDate(credential.Expiration),
 		core.WithRevocationNonce(credential.RevNonce),
 		core.WithVersion(credential.Version))
+	if err != nil {
+		return nil, err
+	}
 
 	if subjectID != nil {
-		id, err := core.IDFromString(fmt.Sprintf("%v", subjectID))
+		var id core.ID
+		id, err = core.IDFromString(fmt.Sprintf("%v", subjectID))
 		if err != nil {
 			return nil, err
 		}

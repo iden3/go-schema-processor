@@ -304,6 +304,7 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	_, err = coreClaim.GetID()
 	assert.Errorf(t, err, "ID is not set")
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
+	assert.Nil(t, err)
 	assert.Equal(t, "7c0844a075a9ddc7fcbdfb4f88acd9bc", string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
@@ -318,7 +319,11 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	entry := coreClaim.TreeEntry()
 
 	hIndex, err := entry.HIndex()
+	assert.Nil(t, err)
+
 	hValue, err := entry.HValue()
+	assert.Nil(t, err)
+
 	xBigInt, ok := new(big.Int).SetString("12747559771369266961976321746772881814229091957322087014312756428846389160887", 10)
 	assert.True(t, ok)
 	yBigInt, ok := new(big.Int).SetString("7732074634595480184356588475330446395691728690271550550016720788712795268212", 10)
@@ -356,6 +361,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	assert.Equal(t, subjectID, id.String())
 
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
+	assert.Nil(t, err)
 	assert.Equal(t, "68041e1ca18544ece92e2ad6f17538e4", string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
@@ -370,7 +376,9 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	entry := coreClaim.TreeEntry()
 
 	hIndex, err := entry.HIndex()
+	assert.Nil(t, err)
 	hValue, err := entry.HValue()
+	assert.Nil(t, err)
 	xBigInt, ok := new(big.Int).SetString("980", 10)
 	assert.True(t, ok)
 	yBigInt, ok := new(big.Int).SetString("1", 10)
