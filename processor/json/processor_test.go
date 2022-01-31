@@ -1,6 +1,7 @@
 package json
 
 import (
+	"context"
 	commonJSON "encoding/json"
 	json "github.com/iden3/go-schema-processor/json"
 	"github.com/iden3/go-schema-processor/loaders"
@@ -15,14 +16,14 @@ const url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/sch
 
 func TestInit(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: "https://google.com/custom.json"}
 	validator := json.Validator{}
 	parser := json.Parser{}
 
 	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	errLoaderNotDefined := errors.New("loader is not defined")
 
-	_, _, err := jsonProcessor.Load("https://google.com/custom.json")
+	_, _, err := jsonProcessor.Load(context.Background())
 
 	notDefinedError := errors.Is(errLoaderNotDefined, err)
 	assert.Equal(t, false, notDefinedError)
@@ -31,13 +32,13 @@ func TestInit(t *testing.T) {
 
 func TestLoader(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := json.Parser{}
 
 	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
 
-	schema, ext, err := jsonProcessor.Load(url)
+	schema, ext, err := jsonProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json")
@@ -46,13 +47,13 @@ func TestLoader(t *testing.T) {
 
 func TestValidator(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := json.Parser{}
 
 	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
 
-	schema, ext, err := jsonProcessor.Load(url)
+	schema, ext, err := jsonProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json")
@@ -75,13 +76,13 @@ func TestValidator(t *testing.T) {
 
 func TestValidatorWithInvalidField(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := json.Parser{}
 
 	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
 
-	schema, ext, err := jsonProcessor.Load(url)
+	schema, ext, err := jsonProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json")
@@ -104,14 +105,14 @@ func TestValidatorWithInvalidField(t *testing.T) {
 
 func TestParser(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := json.Parser{
 		ParsingStrategy: processor.SlotFullfilmentStrategy,
 	}
 
 	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	schema, ext, err := jsonProcessor.Load(url)
+	schema, ext, err := jsonProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json")
@@ -141,12 +142,12 @@ func TestParser(t *testing.T) {
 }
 func TestGetFieldIndexWithSlotsTypes(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := json.Parser{ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
 	jsonP := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	schema, ext, err := jsonP.Load(url)
+	schema, ext, err := jsonP.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json")

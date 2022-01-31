@@ -1,8 +1,10 @@
 package loaders
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,13 +13,17 @@ import (
 
 // HTTP is loader for http / https schemas
 type HTTP struct {
+	URL string
 }
 
 // Load loads schema by url
-func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
+func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err error) {
 
+	if l.URL == "" {
+		return nil, "", errors.New("URL is empty")
+	}
 	// parse schema url
-	u, err := url.Parse(_url)
+	u, err := url.Parse(l.URL)
 	if err != nil {
 		return nil, "", err
 	}
@@ -25,8 +31,16 @@ func (l HTTP) Load(_url string) (schema []byte, extension string, err error) {
 	segments := strings.Split(u.Path, "/")
 	extension = segments[len(segments)-1][strings.Index(segments[len(segments)-1], ".")+1:]
 
-	http.DefaultClient.Timeout = 30 * time.Second
-	resp, err := http.Get(u.String())
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(30*time.Second))
+	defer cancel()
+	req = req.WithContext(ctx)
+	c := &http.Client{}
+	resp, err := c.Do(req)
+
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "http request failed")
 	}

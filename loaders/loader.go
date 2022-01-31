@@ -1,6 +1,8 @@
 package loaders
 
+import "context"
+
 // Loader is basic interface for loaders
 type Loader interface {
-	Load(url string) (schema []byte, extension string, err error)
+	Load(ctx context.Context) (schema []byte, extension string, err error)
 }

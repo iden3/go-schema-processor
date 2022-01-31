@@ -1,6 +1,7 @@
 package jsonld
 
 import (
+	"context"
 	commonJSON "encoding/json"
 	"github.com/iden3/go-iden3-crypto/utils"
 	"github.com/iden3/go-schema-processor/json"
@@ -16,12 +17,12 @@ import (
 var url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
 
 func TestParserWithSimpleData(t *testing.T) {
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
 
 	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	schema, ext, err := jsonLdProcessor.Load(url)
+	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -53,12 +54,12 @@ func TestParserWithSimpleData(t *testing.T) {
 }
 
 func TestParserWithPositionedData(t *testing.T) {
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
 
 	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	schema, ext, err := jsonLdProcessor.Load(url)
+	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -89,12 +90,12 @@ func TestParserWithPositionedData(t *testing.T) {
 
 func TestValidator(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
 
-	schema, ext, err := p.Load(url)
+	schema, ext, err := p.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -117,12 +118,12 @@ func TestValidator(t *testing.T) {
 
 func TestValidatorWithInvalidField(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
 
-	schema, ext, err := p.Load(url)
+	schema, ext, err := p.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -145,12 +146,12 @@ func TestValidatorWithInvalidField(t *testing.T) {
 
 func TestValidatorWithPositionedData(t *testing.T) {
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
 
-	schema, ext, err := p.Load(url)
+	schema, ext, err := p.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -175,12 +176,12 @@ func TestParserWithSlotsTypes(t *testing.T) {
 
 	url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
 	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	schema, ext, err := jsonLdProcessor.Load(url)
+	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -215,12 +216,12 @@ func TestGetFieldIndexWithSlotsTypes(t *testing.T) {
 
 	url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
 	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	schema, ext, err := jsonLdProcessor.Load(url)
+	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -244,12 +245,12 @@ func TestParserForBigIntegers(t *testing.T) {
 
 	url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: url}
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "AuthBJJCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
 	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	schema, ext, err := jsonLdProcessor.Load(url)
+	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -291,10 +292,10 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	assert.Nil(t, err)
 
 	credType := vc.CredentialSubject["type"].(string)
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: vc.CredentialSchema.ID}
 	parser := jsonld.Parser{ClaimType: credType, ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
-	schemaBytes, ext, err := loader.Load(vc.CredentialSchema.ID)
+	schemaBytes, ext, err := loader.Load(context.Background())
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
 	assert.NotEmpty(t, schemaBytes)
@@ -346,10 +347,10 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	credType := vc.CredentialSubject["type"].(string)
 	subjectID := vc.CredentialSubject["id"].(string)
 
-	loader := loaders.HTTP{}
+	loader := loaders.HTTP{URL: vc.CredentialSchema.ID}
 	parser := jsonld.Parser{ClaimType: credType, ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
-	schemaBytes, ext, err := loader.Load(vc.CredentialSchema.ID)
+	schemaBytes, ext, err := loader.Load(context.Background())
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
 	assert.NotEmpty(t, schemaBytes)
