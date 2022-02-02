@@ -35,7 +35,7 @@ func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err er
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(30*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	req = req.WithContext(ctx)
 	c := &http.Client{}

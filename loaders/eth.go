@@ -2,6 +2,9 @@ package loaders
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/iden3/go-schema-registry-wrapper/wrapper"
 	"github.com/pkg/errors"
 )
@@ -10,7 +13,7 @@ import (
 type Eth struct {
 	ContractAddress string
 	URL             string
-	ShcemaName      string
+	SchemaName      string
 	SchemaHash      string
 }
 
@@ -20,18 +23,57 @@ func (l Eth) Load(ctx context.Context) ([]byte, string, error) {
 		return nil, "", errors.New("RPC url, Contract address should not be empty")
 	}
 
-	var b []byte
-	var err error
 	if l.SchemaHash != "" {
-		b, err = wrapper.GetSchemaBytesByHash(ctx, l.URL, l.ContractAddress, l.ShcemaName)
-	} else if l.ShcemaName != "" {
-		b, err = wrapper.GetSchemaBytesByName(ctx, l.URL, l.ContractAddress, l.ShcemaName)
-	} else {
-		return nil, "", errors.New("schema name and schema hash are empty")
+		payload, err := wrapper.EncodeSchemaBytesByHash(l.SchemaHash)
+		if err != nil {
+			return nil, "", err
+		}
+		b, err := callContract(ctx, l.URL, l.ContractAddress, payload)
+		if err != nil {
+			return nil, "", err
+		}
+		d, err := wrapper.DecodeSchemaBytesByHash(b)
+		if err != nil {
+			return nil, "", err
+		}
+		return d, "json-ld", nil
+	} else if l.SchemaName != "" {
+		payload, err := wrapper.EncodeSchemaHashByName(l.SchemaName)
+		if err != nil {
+			return nil, "", err
+		}
+		b, err := callContract(ctx, l.URL, l.ContractAddress, payload)
+		if err != nil {
+			return nil, "", err
+		}
+		d, err := wrapper.DecodeSchemaBytesByName(b)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return d, "json-ld", nil
 	}
 
+	return nil, "", errors.New("schema name and schema hash are empty")
+
+}
+
+func callContract(ctx context.Context, rpcURL, cAddress string, payload []byte) ([]byte, error) {
+	cl, err := ethclient.DialContext(ctx, rpcURL)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	return b, "json-ld", nil
+
+	addr := common.HexToAddress(cAddress)
+
+	res, err := cl.CallContract(ctx, ethereum.CallMsg{
+		To:   &addr,
+		Data: payload,
+	}, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
