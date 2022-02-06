@@ -212,8 +212,8 @@ github.com/iden3/go-iden3-crypto v0.0.11 h1:5cFQ/BIqH9gjwe9Z68Hmc5jOTGqmMYnewIaT
 github.com/iden3/go-iden3-crypto v0.0.11/go.mod h1:yUBWcXgAUDZxa1PvRl0zIT4Q4/rQO5PacE52Z06i8kw=
 github.com/iden3/go-merkletree-sql v1.0.0-pre8 h1:ywL4VaBnpMGRLQUbSGgXXOjSHIo33KEEiBvrK2AnRa8=
 github.com/iden3/go-merkletree-sql v1.0.0-pre8/go.mod h1:oYLAGBrr1/yNBZWhpE3JTxtbgDf6d56oRCbdjT1UX9A=
-github.com/iden3/go-schema-registry-wrapper v0.0.4 h1:OsCujfjKGUqP+HFlXJyCsDorw2DScpmO4FLDSYiNGFg=
-github.com/iden3/go-schema-registry-wrapper v0.0.4/go.mod h1:AQOjk1u8pajtf0KmuiaCPscDqu9Xrl0OmJ4Y6H39XrM=
+github.com/iden3/go-schema-registry-wrapper v0.0.7 h1:0/ONytPufxkLd1N8IQ3syfZBKjwQPdAUOqzZ5JjKFAI=
+github.com/iden3/go-schema-registry-wrapper v0.0.7/go.mod h1:p+hycGXKKHtfn3wizEhJliZDz/SfljitkSQSDa5E8UI=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/influxdata/flux v0.65.1/go.mod h1:J754/zds0vvpfwuq7Gc2wRdVwEodfpCFM7mYlOw2LqY=
 github.com/influxdata/influxdb v1.8.3/go.mod h1:JugdFhsvvI8gadxOI6noqNeeBHvWNTbfYGtiAn+2jhI=
