@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
@@ -21,7 +22,7 @@ type Validator interface {
 
 // SchemaLoader is interface to load schema
 type SchemaLoader interface {
-	Load(url string) (schema []byte, extension string, err error)
+	Load(ctx context.Context) (schema []byte, extension string, err error)
 }
 
 // ParsedSlots is struct that represents iden3 claim specification
@@ -78,11 +79,11 @@ func InitProcessorOptions(processor *Processor, opts ...Opt) *Processor {
 }
 
 // Load will load a schema by given url.
-func (s *Processor) Load(url string) (schema []byte, extension string, err error) {
+func (s *Processor) Load(ctx context.Context) (schema []byte, extension string, err error) {
 	if s.SchemaLoader == nil {
 		return nil, "", errLoaderNotDefined
 	}
-	return s.SchemaLoader.Load(url)
+	return s.SchemaLoader.Load(ctx)
 }
 
 // ParseSlots will serialize input data to index and value fields.
