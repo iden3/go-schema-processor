@@ -31,13 +31,13 @@ func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err er
 	segments := strings.Split(u.Path, "/")
 	extension = segments[len(segments)-1][strings.Index(segments[len(segments)-1], ".")+1:]
 
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, u.String(), http.NoBody)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	newCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	req = req.WithContext(ctx)
+	req = req.WithContext(newCtx)
 	c := &http.Client{}
 	resp, err := c.Do(req)
 

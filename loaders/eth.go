@@ -18,7 +18,7 @@ type Eth struct {
 }
 
 // Load loads schema by name or hash
-func (l Eth) Load(ctx context.Context) ([]byte, string, error) {
+func (l Eth) Load(ctx context.Context) (schema []byte, extension string, err error) {
 	if l.URL == "" || l.ContractAddress == "" {
 		return nil, "", errors.New("RPC url, Contract address should not be empty")
 	}
@@ -32,11 +32,11 @@ func (l Eth) Load(ctx context.Context) ([]byte, string, error) {
 		if err != nil {
 			return nil, "", err
 		}
-		d, err := wrapper.DecodeSchemaBytesByHash(b)
+		schema, err = wrapper.DecodeSchemaBytesByHash(b)
 		if err != nil {
 			return nil, "", err
 		}
-		return d, "json-ld", nil
+		return schema, "json-ld", nil
 	} else if l.SchemaName != "" {
 		payload, err := wrapper.EncodeSchemaHashByName(l.SchemaName)
 		if err != nil {
@@ -46,12 +46,12 @@ func (l Eth) Load(ctx context.Context) ([]byte, string, error) {
 		if err != nil {
 			return nil, "", err
 		}
-		d, err := wrapper.DecodeSchemaBytesByName(b)
+		schema, err = wrapper.DecodeSchemaBytesByName(b)
 		if err != nil {
 			return nil, "", err
 		}
 
-		return d, "json-ld", nil
+		return schema, "json-ld", nil
 	}
 
 	return nil, "", errors.New("schema name and schema hash are empty")
