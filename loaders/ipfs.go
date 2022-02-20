@@ -7,8 +7,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CIDEEmptyError is for error when CID is empty
-var CIDEEmptyError = errors.New("CID is empty")
+// ErrorCIDEEmpty is for error when CID is empty
+var ErrorCIDEEmpty = errors.New("CID is empty")
 
 // IPFS loader for fetching schema
 type IPFS struct {
@@ -24,7 +24,7 @@ func (l IPFS) Load(ctx context.Context) (schema []byte, extension string, err er
 	}
 
 	if l.CID == "" {
-		return nil, "", CIDEEmptyError
+		return nil, "", ErrorCIDEEmpty
 	}
 
 	sh := shell.NewShell(l.URL)

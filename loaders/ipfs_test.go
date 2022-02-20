@@ -17,6 +17,9 @@ func UploadToIpfs() (string, error) {
 	var m map[string]interface{}
 	sh := shell.NewShell(os.Getenv("IPFS_URL"))
 	err := json.Unmarshal([]byte(str), &m)
+	if err != nil {
+		return "", err
+	}
 	b, err := json.Marshal(m)
 	if err != nil {
 		return "", err
