@@ -11,12 +11,37 @@ import (
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/stretchr/testify/assert"
 	"math/big"
+	"os"
 	"testing"
 )
 
-func TestParserWithSimpleData(t *testing.T) {
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
-	loader := loaders.HTTP{URL: url}
+func getIPFSLoader(t string) processor.SchemaLoader {
+	var cid string
+
+	switch t {
+	case "kyc":
+		{
+			cid = "QmaniifmAkPfmTkpNzVQPcdn4Bu5LuNx1qn1dpNFmU6en6"
+		}
+	case "kyc-v2":
+		{
+			cid = "QmZm9WhzuyqXnhBmvd9aNYP6qQAHnpghFbVzH5kiAikmhW"
+		}
+	case "auth":
+		{
+			cid = "QmWf7fD5txHaMH1zhrWUKSVvACgTLLqcdWbFPqQkKHa9yJ"
+		}
+	default:
+		cid = ""
+	}
+	return &loaders.IPFS{
+		CID: cid,
+		URL: os.Getenv("IPFS_URL"),
+	}
+}
+
+func TestParserWithSimpleDataIPFSLoader(t *testing.T) {
+	loader := getIPFSLoader("kyc")
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
 
@@ -52,9 +77,8 @@ func TestParserWithSimpleData(t *testing.T) {
 
 }
 
-func TestParserWithPositionedData(t *testing.T) {
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
-	loader := loaders.HTTP{URL: url}
+func TestParserWithPositionedDataPFSLoader(t *testing.T) {
+	loader := getIPFSLoader("kyc")
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
 
@@ -88,9 +112,9 @@ func TestParserWithPositionedData(t *testing.T) {
 
 }
 
-func TestValidator(t *testing.T) {
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
-	loader := loaders.HTTP{URL: url}
+func TestValidatorPFSLoader(t *testing.T) {
+
+	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
@@ -116,9 +140,9 @@ func TestValidator(t *testing.T) {
 
 }
 
-func TestValidatorWithInvalidField(t *testing.T) {
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
-	loader := loaders.HTTP{URL: url}
+func TestValidatorWithInvalidFieldPFSLoader(t *testing.T) {
+
+	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
@@ -144,9 +168,9 @@ func TestValidatorWithInvalidField(t *testing.T) {
 
 }
 
-func TestValidatorWithPositionedData(t *testing.T) {
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
-	loader := loaders.HTTP{URL: url}
+func TestValidatorWithPositionedDataPFSLoader(t *testing.T) {
+
+	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
@@ -172,11 +196,11 @@ func TestValidatorWithPositionedData(t *testing.T) {
 
 }
 
-func TestParserWithSlotsTypes(t *testing.T) {
+func TestParserWithSlotsTypesPFSLoader(t *testing.T) {
 
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
+	//url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
 
-	loader := loaders.HTTP{URL: url}
+	loader := getIPFSLoader("kyc-v2")
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
@@ -212,11 +236,9 @@ func TestParserWithSlotsTypes(t *testing.T) {
 
 }
 
-func TestGetFieldIndexWithSlotsTypes(t *testing.T) {
+func TestGetFieldIndexWithSlotsTypesPFSLoader(t *testing.T) {
 
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
-
-	loader := loaders.HTTP{URL: url}
+	loader := getIPFSLoader("kyc-v2")
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
@@ -241,11 +263,9 @@ func TestGetFieldIndexWithSlotsTypes(t *testing.T) {
 
 }
 
-func TestParserForBigIntegers(t *testing.T) {
+func TestParserForBigIntegersPFSLoader(t *testing.T) {
 
-	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"
-
-	loader := loaders.HTTP{URL: url}
+	loader := getIPFSLoader("auth")
 	validator := json.Validator{}
 	parser := jsonld.Parser{ClaimType: "AuthBJJCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
@@ -282,9 +302,9 @@ func TestParserForBigIntegers(t *testing.T) {
 	assert.Empty(t, parsedData.ValueB)
 }
 
-func TestParserParseClaimWithoutSubjectID(t *testing.T) {
+func TestParserParseClaimWithoutSubjectIDPFSLoader(t *testing.T) {
 
-	jsonLDDocument := `{"id":"c0f6ac87-603e-44cd-8d83-0caeb458d50d","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":2034832188220019200,"credentialSubject":{"type":"AuthBJJCredential","x":"12747559771369266961976321746772881814229091957322087014312756428846389160887","y":"7732074634595480184356588475330446395691728690271550550016720788712795268212"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6/claims/revocation/status/2034832188220019081","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","created":1642518655,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"201a02eb979be695702ea37d930309d2965d803541be5f7b3900459b2fad8726","h_value":"0654da1d53ca201cb42b767a6f12265ff7a08720b88a82182e0f20702479d12d","state":{"claims_tree_root":"a5087cfa6f2c7c565d831327091533f09999133df1df51104d2ce6f8e4d90529","value":"dca344e95da517a301729d94b213298b9de96dfddaf7aad9423d918ea3208820"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"2764e2d8241b18c217010ebf90bebb30240d32c33f3007f33e42d58680813123","proof_value":"c354eb1006534c59766ed8398d49a9a614312e430c5373ea493395db6369d49485e9a0d63f3bfe9fd157294ffbf706b6b7df7a8662a58fae0056a046af1caa04","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","state":{"tx_id":"0xf2e23524ab76cb4f371b921a214ff411d5d391962899a2afe20f356e3bdc0c71","block_timestamp":1642522496,"block_number":11837707,"claims_tree_root":"bebcaee8444e93b6e32855f54e9f617d5fd654570badce7d6bc649304169681d","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"2806aa9a045b2a5503b12f2979b2d19933e803fd3dd73d8ad40dc138bc9a582e"},"mtp":{"existence":true,"siblings":["0","0","0","18555164879275043542501047154170418730098376961920428892719505858997411121317"]}}]}`
+	jsonLDDocument := `{"id":"c0f6ac87-603e-44cd-8d83-0caeb458d50d","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":2034832188220019200,"credentialSubject":{"type":"AuthBJJCredential","x":"12747559771369266961976321746772881814229091957322087014312756428846389160887","y":"7732074634595480184356588475330446395691728690271550550016720788712795268212"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6/claims/revocation/status/2034832188220019081","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"auth","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","created":1642518655,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"201a02eb979be695702ea37d930309d2965d803541be5f7b3900459b2fad8726","h_value":"0654da1d53ca201cb42b767a6f12265ff7a08720b88a82182e0f20702479d12d","state":{"claims_tree_root":"a5087cfa6f2c7c565d831327091533f09999133df1df51104d2ce6f8e4d90529","value":"dca344e95da517a301729d94b213298b9de96dfddaf7aad9423d918ea3208820"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"2764e2d8241b18c217010ebf90bebb30240d32c33f3007f33e42d58680813123","proof_value":"c354eb1006534c59766ed8398d49a9a614312e430c5373ea493395db6369d49485e9a0d63f3bfe9fd157294ffbf706b6b7df7a8662a58fae0056a046af1caa04","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","state":{"tx_id":"0xf2e23524ab76cb4f371b921a214ff411d5d391962899a2afe20f356e3bdc0c71","block_timestamp":1642522496,"block_number":11837707,"claims_tree_root":"bebcaee8444e93b6e32855f54e9f617d5fd654570badce7d6bc649304169681d","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"2806aa9a045b2a5503b12f2979b2d19933e803fd3dd73d8ad40dc138bc9a582e"},"mtp":{"existence":true,"siblings":["0","0","0","18555164879275043542501047154170418730098376961920428892719505858997411121317"]}}]}`
 
 	var vc verifiable.Iden3Credential
 
@@ -292,9 +312,8 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	assert.Nil(t, err)
 
 	credType := vc.CredentialSubject["type"].(string)
-	loader := loaders.HTTP{URL: vc.CredentialSchema.ID}
 	parser := jsonld.Parser{ClaimType: credType, ParsingStrategy: processor.OneFieldPerSlotStrategy}
-
+	loader := getIPFSLoader(vc.CredentialSchema.ID)
 	schemaBytes, ext, err := loader.Load(context.Background())
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -335,9 +354,9 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	assert.Equal(t, yBigInt, entry.Index()[3].BigInt())
 
 }
-func TestParserParseClaimWithSubjectID(t *testing.T) {
+func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
-	jsonLDDocument := `{"id":"2caf3139-7f69-4f9c-a2cb-5a35cff78aab","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":3473370693766599700,"credentialSubject":{"countryCode":980,"documentType":1,"id":"114RrowVvS5fz1XDmTG1EXBuYsruvdYzGByqFBvpHc","type":"KYCCountryOfResidenceCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW/claims/revocation/status/3473370693766599916","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","created":1642497726,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"eaa341a91db8b914d61326d9642c35ac2ca4f6dbb1a87609f84b669685141f11","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"5ce2c11a4474fe4c6041e5105b0b381c0efb203ef0ce4d88c4ed32d3d8877001","value":"9a47b0353868f5c0ec3eae7a20bab97cbfd789b334424ab41c9bd40c1f762823"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"ddba158931e361d48f195417413a2ec931441847200fe276bcb1648a4e184c1e","proof_value":"40dd0fb06386d78021d999c4b49d659dd90333a64d87d27870297d31188f95948e86ea2d37f605295074f16a837b6a9bc6189d90aaed1be10bcaca06292a4005","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","state":{"tx_id":"0x8537e0645996e34a8115da9a60b307094580e840a030668127393826d61cd0d1","block_timestamp":1642497740,"block_number":11836551,"claims_tree_root":"0511047e551c7e0d2ae1884636fbdf86c1a5a0156938b6ea857a4e34e06a7a0c","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"c5803aeb2c6d0a357855e070c24fddd5c4ccfef4692cfbf5e1c9068581d53712"},"mtp":{"existence":true,"siblings":["5691303581499283741098849603802493433441417335538778353796518252917364457995","0","0","0","0","0","0","651137301185586690938826662242457730822130240763746109003863565068434268764"]}}]}`
+	jsonLDDocument := `{"id":"2caf3139-7f69-4f9c-a2cb-5a35cff78aab","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":3473370693766599700,"credentialSubject":{"countryCode":980,"documentType":1,"id":"114RrowVvS5fz1XDmTG1EXBuYsruvdYzGByqFBvpHc","type":"KYCCountryOfResidenceCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW/claims/revocation/status/3473370693766599916","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"kyc-v2","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","created":1642497726,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"eaa341a91db8b914d61326d9642c35ac2ca4f6dbb1a87609f84b669685141f11","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"5ce2c11a4474fe4c6041e5105b0b381c0efb203ef0ce4d88c4ed32d3d8877001","value":"9a47b0353868f5c0ec3eae7a20bab97cbfd789b334424ab41c9bd40c1f762823"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"ddba158931e361d48f195417413a2ec931441847200fe276bcb1648a4e184c1e","proof_value":"40dd0fb06386d78021d999c4b49d659dd90333a64d87d27870297d31188f95948e86ea2d37f605295074f16a837b6a9bc6189d90aaed1be10bcaca06292a4005","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","state":{"tx_id":"0x8537e0645996e34a8115da9a60b307094580e840a030668127393826d61cd0d1","block_timestamp":1642497740,"block_number":11836551,"claims_tree_root":"0511047e551c7e0d2ae1884636fbdf86c1a5a0156938b6ea857a4e34e06a7a0c","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"c5803aeb2c6d0a357855e070c24fddd5c4ccfef4692cfbf5e1c9068581d53712"},"mtp":{"existence":true,"siblings":["5691303581499283741098849603802493433441417335538778353796518252917364457995","0","0","0","0","0","0","651137301185586690938826662242457730822130240763746109003863565068434268764"]}}]}`
 
 	var vc verifiable.Iden3Credential
 
@@ -346,10 +365,9 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 
 	credType := vc.CredentialSubject["type"].(string)
 	subjectID := vc.CredentialSubject["id"].(string)
-
-	loader := loaders.HTTP{URL: vc.CredentialSchema.ID}
 	parser := jsonld.Parser{ClaimType: credType, ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
+	loader := getIPFSLoader(vc.CredentialSchema.ID)
 	schemaBytes, ext, err := loader.Load(context.Background())
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
