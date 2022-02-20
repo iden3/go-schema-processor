@@ -20,17 +20,11 @@ func getIPFSLoader(t string) processor.SchemaLoader {
 
 	switch t {
 	case "kyc":
-		{
-			cid = "QmaniifmAkPfmTkpNzVQPcdn4Bu5LuNx1qn1dpNFmU6en6"
-		}
+		cid = "QmaniifmAkPfmTkpNzVQPcdn4Bu5LuNx1qn1dpNFmU6en6"
 	case "kyc-v2":
-		{
-			cid = "QmZm9WhzuyqXnhBmvd9aNYP6qQAHnpghFbVzH5kiAikmhW"
-		}
+		cid = "QmZm9WhzuyqXnhBmvd9aNYP6qQAHnpghFbVzH5kiAikmhW"
 	case "auth":
-		{
-			cid = "QmWf7fD5txHaMH1zhrWUKSVvACgTLLqcdWbFPqQkKHa9yJ"
-		}
+		cid = "QmWf7fD5txHaMH1zhrWUKSVvACgTLLqcdWbFPqQkKHa9yJ"
 	default:
 		cid = ""
 	}
@@ -197,8 +191,6 @@ func TestValidatorWithPositionedDataPFSLoader(t *testing.T) {
 }
 
 func TestParserWithSlotsTypesPFSLoader(t *testing.T) {
-
-	//url = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"
 
 	loader := getIPFSLoader("kyc-v2")
 	validator := json.Validator{}

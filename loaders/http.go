@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// ErrorURLEmpty is empty url error
 var ErrorURLEmpty = errors.New("URL is empty")
 
 // HTTP is loader for http / https schemas
