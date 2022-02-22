@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// ErrorURLEmpty is empty url error
+var ErrorURLEmpty = errors.New("URL is empty")
+
 // HTTP is loader for http / https schemas
 type HTTP struct {
 	URL string
@@ -20,7 +23,7 @@ type HTTP struct {
 func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err error) {
 
 	if l.URL == "" {
-		return nil, "", errors.New("URL is empty")
+		return nil, "", ErrorURLEmpty
 	}
 	// parse schema url
 	u, err := url.Parse(l.URL)

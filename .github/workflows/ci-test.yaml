@@ -26,4 +26,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Unit Tests
+        env:
+          IPFS_URL: ${{secrets.IPFS_URL }}
         run: go test -race -timeout=60s ./...
