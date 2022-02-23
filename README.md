@@ -141,7 +141,7 @@ data["documentType"] = 1
 dataBytes, err := commonJSON.Marshal(data)
 assert.Nil(t, err)
 
-err = p.ValidateData(dataBytes, schema)  // Validation of data
+err = jsonLdProcessor.ValidateData(dataBytes, schema)  // Validation of data
 parsedData, err := jsonLdProcessor.ParseSlots(dataBytes, schema) // parsing data
 ```
 

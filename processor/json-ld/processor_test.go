@@ -1,6 +1,7 @@
 package jsonld
 
 import (
+	"encoding/hex"
 	commonJSON "encoding/json"
 	"github.com/iden3/go-iden3-crypto/utils"
 	"github.com/iden3/go-schema-processor/json"
@@ -278,6 +279,40 @@ func TestParserForBigIntegers(t *testing.T) {
 	assert.Equal(t, expetctedSlotB, parsedData.IndexB)
 
 	assert.Empty(t, parsedData.ValueA)
+	assert.Empty(t, parsedData.ValueB)
+}
+
+func TestIdentityStateInRelay(t *testing.T) {
+	path := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/feature/relay/schemas/json-ld/stateInRelayCredential.json-ld"
+
+	loader := loaders.HTTP{}
+	validator := json.Validator{}
+	parser := jsonld.Parser{ClaimType: "StateInRelayCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
+
+	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+
+	schema, _, err := jsonLdProcessor.Load(path)
+	assert.Nil(t, err)
+	assert.NotEmpty(t, schema)
+
+	stateHex := "28156abe7fe2fd433dc9df969286b96666489bac508612d0e16593e944c4f600"
+	state, err := hex.DecodeString(stateHex)
+	assert.Nil(t, err)
+
+	data := make(map[string]interface{})
+	data["state"] = big.NewInt(0).SetBytes(state).String()
+	dataBytes, err := commonJSON.Marshal(data)
+	assert.Nil(t, err)
+
+	stateSlot, err := jsonLdProcessor.GetFieldSlotIndex("state", schema)
+	assert.Nil(t, err)
+	assert.Equal(t, 6, stateSlot)
+
+	expectedValueSlotA := utils.SwapEndianness(state)
+	parsedData, _ := jsonLdProcessor.ParseSlots(dataBytes, schema)
+	assert.Empty(t, parsedData.IndexA)
+	assert.Empty(t, parsedData.IndexB)
+	assert.Equal(t, expectedValueSlotA, parsedData.ValueA)
 	assert.Empty(t, parsedData.ValueB)
 }
 
