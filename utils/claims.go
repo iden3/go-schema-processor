@@ -147,6 +147,7 @@ func IndexOf(field string, fields []string) int {
 	return -1
 }
 
+// CreateSchemaHash computes schema hash from content and credential type
 func CreateSchemaHash(schemaBytes []byte, credentialType string) core.SchemaHash {
 	var sHash core.SchemaHash
 	h := crypto.Keccak256(schemaBytes, []byte(credentialType))
