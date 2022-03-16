@@ -317,7 +317,7 @@ func TestParserParseClaimWithoutSubjectIDPFSLoader(t *testing.T) {
 	assert.Errorf(t, err, "ID is not set")
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
-	assert.Equal(t, "7c0844a075a9ddc7fcbdfb4f88acd9bc", string(schemaClaimBytes))
+	assert.Equal(t, "825a563818f8450461ea87bd23bf56af", string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
 	assert.Equal(t, vc.RevNonce, revNonce)
@@ -340,7 +340,7 @@ func TestParserParseClaimWithoutSubjectIDPFSLoader(t *testing.T) {
 	assert.True(t, ok)
 	yBigInt, ok := new(big.Int).SetString("7732074634595480184356588475330446395691728690271550550016720788712795268212", 10)
 	assert.True(t, ok)
-	assert.Equal(t, "c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403", hIndex.Hex())
+	assert.Equal(t, "c522586cce36201d072f2bb8a75e6c729960ef54d3c75903c17ab705ba43b11a", hIndex.Hex())
 	assert.Equal(t, "449c53013992e70856c3cb7c7a10ac0b3aa455de305f4af5a93b9ade4592f319", hValue.Hex())
 	assert.Equal(t, xBigInt, entry.Index()[2].BigInt())
 	assert.Equal(t, yBigInt, entry.Index()[3].BigInt())
@@ -373,7 +373,7 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
-	assert.Equal(t, "68041e1ca18544ece92e2ad6f17538e4", string(schemaClaimBytes))
+	assert.Equal(t, "782bb5dd29b875efb42f6c54ab585fdb", string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
 	assert.Equal(t, vc.RevNonce, revNonce)
@@ -395,7 +395,7 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 	yBigInt, ok := new(big.Int).SetString("1", 10)
 	assert.True(t, ok)
 	assert.Equal(t, "6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e", hIndex.Hex())
-	assert.Equal(t, "4da320609775b1caa029c7058f27069eccfb70560c582e8df7319ce54124b00c", hValue.Hex())
+	assert.Equal(t, "519c009c790b3bcb3ea3e9f33fc8071bacf7a1c6510e944dbb648419025e500c", hValue.Hex())
 	assert.Equal(t, xBigInt, entry.Index()[2].BigInt())
 	assert.Equal(t, yBigInt, entry.Index()[3].BigInt())
 
