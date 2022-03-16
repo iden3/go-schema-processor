@@ -78,7 +78,7 @@ func (p Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 		return nil, err
 	}
 
-	claim, err := core.NewClaim(utils.CreateSchemaHash(credentialType),
+	claim, err := core.NewClaim(utils.CreateSchemaHash(schemaBytes, credentialType),
 		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
 		core.WithExpirationDate(credential.Expiration),

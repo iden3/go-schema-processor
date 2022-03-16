@@ -306,7 +306,7 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	assert.Errorf(t, err, "ID is not set")
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
-	assert.Equal(t, "7c0844a075a9ddc7fcbdfb4f88acd9bc", string(schemaClaimBytes))
+	assert.Equal(t, "ca938857241db9451ea329256b9c06e5", string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
 	assert.Equal(t, vc.RevNonce, revNonce)
@@ -329,7 +329,7 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	assert.True(t, ok)
 	yBigInt, ok := new(big.Int).SetString("7732074634595480184356588475330446395691728690271550550016720788712795268212", 10)
 	assert.True(t, ok)
-	assert.Equal(t, "c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403", hIndex.Hex())
+	assert.Equal(t, "f11cb68c61628ed00bad0f797a6756bd16faa983019af7f20daeb2600c437d28", hIndex.Hex())
 	assert.Equal(t, "449c53013992e70856c3cb7c7a10ac0b3aa455de305f4af5a93b9ade4592f319", hValue.Hex())
 	assert.Equal(t, xBigInt, entry.Index()[2].BigInt())
 	assert.Equal(t, yBigInt, entry.Index()[3].BigInt())
@@ -363,7 +363,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
-	assert.Equal(t, "68041e1ca18544ece92e2ad6f17538e4", string(schemaClaimBytes))
+	assert.Equal(t, "ce38102464833febf36e714922a83050", string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
 	assert.Equal(t, vc.RevNonce, revNonce)
@@ -384,7 +384,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	assert.True(t, ok)
 	yBigInt, ok := new(big.Int).SetString("1", 10)
 	assert.True(t, ok)
-	assert.Equal(t, "6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e", hIndex.Hex())
+	assert.Equal(t, "28876d2aeb56324aaf9c506b7313f19d309b223cbc047eb4528f2a6fdb8d1d1c", hIndex.Hex())
 	assert.Equal(t, "4da320609775b1caa029c7058f27069eccfb70560c582e8df7319ce54124b00c", hValue.Hex())
 	assert.Equal(t, xBigInt, entry.Index()[2].BigInt())
 	assert.Equal(t, yBigInt, entry.Index()[3].BigInt())

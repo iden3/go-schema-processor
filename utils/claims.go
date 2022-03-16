@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/verifiable"
@@ -146,10 +147,10 @@ func IndexOf(field string, fields []string) int {
 	return -1
 }
 
-// CreateSchemaHash calculates schema hash
-func CreateSchemaHash(credentialType string) core.SchemaHash {
+// CreateSchemaHash computes schema hash from content and credential type
+func CreateSchemaHash(schemaBytes []byte, credentialType string) core.SchemaHash {
 	var sHash core.SchemaHash
-	h := Keccak256([]byte(credentialType))
+	h := crypto.Keccak256(schemaBytes, []byte(credentialType))
 	copy(sHash[:], h[len(h)-16:])
 	return sHash
 }
