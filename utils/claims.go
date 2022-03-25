@@ -190,10 +190,10 @@ func VerifyClaimHash(credential *verifiable.Iden3Credential,
 
 }
 
+// IndexValueHash returns hashes of index and value of a claim
 func IndexValueHash(c core.Claim) (
-	indexHash *merkletree.Hash,
-	valueHash *merkletree.Hash,
-	err error) {
+	indexHash *merkletree.Hash, valueHash *merkletree.Hash, err error) {
+
 	indexSlots, valueSlots := c.RawSlots()
 
 	var indexHashInt, valueHashInt *big.Int
