@@ -3,12 +3,15 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	core "github.com/iden3/go-iden3-core"
+	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/iden3/go-merkletree-sql"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
-	"math/big"
 )
 
 var q *big.Int
@@ -64,7 +67,8 @@ var errIndexHashNotEqual = errors.New("claim index hash in credential and in res
 var errValueHashNotEqual = errors.New("claim value hash in credential and in resulted claim are not equal")
 
 // FillClaimSlots fullfils index and value fields to iden3 slots
-func FillClaimSlots(content []byte, indexFields, valueFields []string) (processor.ParsedSlots, error) {
+func FillClaimSlots(content []byte,
+	indexFields, valueFields []string) (processor.ParsedSlots, error) {
 	var data map[string]interface{}
 
 	err := json.Unmarshal(content, &data)
@@ -148,7 +152,8 @@ func IndexOf(field string, fields []string) int {
 }
 
 // CreateSchemaHash computes schema hash from content and credential type
-func CreateSchemaHash(schemaBytes []byte, credentialType string) core.SchemaHash {
+func CreateSchemaHash(schemaBytes []byte,
+	credentialType string) core.SchemaHash {
 	var sHash core.SchemaHash
 	h := crypto.Keccak256(schemaBytes, []byte(credentialType))
 	copy(sHash[:], h[len(h)-16:])
@@ -156,11 +161,10 @@ func CreateSchemaHash(schemaBytes []byte, credentialType string) core.SchemaHash
 }
 
 // VerifyClaimHash verifies that hashes of index and value of claim are equal to proof in credential
-func VerifyClaimHash(credential *verifiable.Iden3Credential, claim *core.Claim) error {
+func VerifyClaimHash(credential *verifiable.Iden3Credential,
+	claim *core.Claim) error {
 
-	entry := claim.TreeEntry()
-	hi, hv, err := entry.HiHv()
-
+	hi, hv, err := IndexValueHash(*claim)
 	if err != nil {
 		return err
 	}
@@ -184,4 +188,27 @@ func VerifyClaimHash(credential *verifiable.Iden3Credential, claim *core.Claim) 
 	}
 	return nil
 
+}
+
+func IndexValueHash(c core.Claim) (
+	indexHash *merkletree.Hash,
+	valueHash *merkletree.Hash,
+	err error) {
+	indexSlots, valueSlots := c.RawSlots()
+
+	var indexHashInt, valueHashInt *big.Int
+
+	indexHashInt, err = poseidon.Hash(core.ElemBytesToInts(indexSlots[:]))
+	if err != nil {
+		return
+	}
+
+	valueHashInt, err = poseidon.Hash(core.ElemBytesToInts(valueSlots[:]))
+	if err != nil {
+		return
+	}
+
+	indexHash = merkletree.NewHashFromBigInt(indexHashInt)
+	valueHash = merkletree.NewHashFromBigInt(valueHashInt)
+	return
 }

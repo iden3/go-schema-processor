@@ -3,16 +3,19 @@ package jsonld
 import (
 	"context"
 	commonJSON "encoding/json"
+	"math/big"
+	"os"
+	"testing"
+
 	"github.com/iden3/go-iden3-crypto/utils"
 	"github.com/iden3/go-schema-processor/json"
 	jsonld "github.com/iden3/go-schema-processor/json-ld"
 	"github.com/iden3/go-schema-processor/loaders"
 	"github.com/iden3/go-schema-processor/processor"
+	schemaUtils "github.com/iden3/go-schema-processor/utils"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"os"
-	"testing"
+	"github.com/stretchr/testify/require"
 )
 
 func getIPFSLoader(t string) processor.SchemaLoader {
@@ -37,9 +40,11 @@ func getIPFSLoader(t string) processor.SchemaLoader {
 func TestParserWithSimpleDataIPFSLoader(t *testing.T) {
 	loader := getIPFSLoader("kyc")
 	validator := json.Validator{}
-	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential",
+		ParsingStrategy: processor.SlotFullfilmentStrategy}
 
-	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	jsonLdProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
@@ -74,9 +79,11 @@ func TestParserWithSimpleDataIPFSLoader(t *testing.T) {
 func TestParserWithPositionedDataPFSLoader(t *testing.T) {
 	loader := getIPFSLoader("kyc")
 	validator := json.Validator{}
-	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.SlotFullfilmentStrategy}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential",
+		ParsingStrategy: processor.SlotFullfilmentStrategy}
 
-	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	jsonLdProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
@@ -111,7 +118,8 @@ func TestValidatorPFSLoader(t *testing.T) {
 	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
-	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
+	p := New(processor.WithValidator(validator),
+		processor.WithSchemaLoader(loader))
 
 	schema, ext, err := p.Load(context.Background())
 
@@ -139,7 +147,8 @@ func TestValidatorWithInvalidFieldPFSLoader(t *testing.T) {
 	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
-	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
+	p := New(processor.WithValidator(validator),
+		processor.WithSchemaLoader(loader))
 
 	schema, ext, err := p.Load(context.Background())
 
@@ -158,7 +167,10 @@ func TestValidatorWithInvalidFieldPFSLoader(t *testing.T) {
 	err = p.ValidateData(dataBytes, schema)
 
 	assert.NotNil(t, err)
-	assert.Containsf(t, err.Error(), "field birthdayYear is missign in the payload, but required in schema", "expected error containing %q, got %s", "\"birthdayYear\" value is required", err)
+	assert.Containsf(t, err.Error(),
+		"field birthdayYear is missign in the payload, but required in schema",
+		"expected error containing %q, got %s",
+		"\"birthdayYear\" value is required", err)
 
 }
 
@@ -167,7 +179,8 @@ func TestValidatorWithPositionedDataPFSLoader(t *testing.T) {
 	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
 
-	p := New(processor.WithValidator(validator), processor.WithSchemaLoader(loader))
+	p := New(processor.WithValidator(validator),
+		processor.WithSchemaLoader(loader))
 
 	schema, ext, err := p.Load(context.Background())
 
@@ -194,9 +207,11 @@ func TestParserWithSlotsTypesPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc-v2")
 	validator := json.Validator{}
-	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential",
+		ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
-	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	jsonLdProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
@@ -232,9 +247,11 @@ func TestGetFieldIndexWithSlotsTypesPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc-v2")
 	validator := json.Validator{}
-	parser := jsonld.Parser{ClaimType: "KYCAgeCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
+	parser := jsonld.Parser{ClaimType: "KYCAgeCredential",
+		ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
-	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	jsonLdProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
@@ -259,9 +276,11 @@ func TestParserForBigIntegersPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("auth")
 	validator := json.Validator{}
-	parser := jsonld.Parser{ClaimType: "AuthBJJCredential", ParsingStrategy: processor.OneFieldPerSlotStrategy}
+	parser := jsonld.Parser{ClaimType: "AuthBJJCredential",
+		ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
-	jsonLdProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	jsonLdProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithSchemaLoader(loader))
 	schema, ext, err := jsonLdProcessor.Load(context.Background())
 
 	assert.Nil(t, err)
@@ -304,7 +323,8 @@ func TestParserParseClaimWithoutSubjectIDPFSLoader(t *testing.T) {
 	assert.Nil(t, err)
 
 	credType := vc.CredentialSubject["type"].(string)
-	parser := jsonld.Parser{ClaimType: credType, ParsingStrategy: processor.OneFieldPerSlotStrategy}
+	parser := jsonld.Parser{ClaimType: credType,
+		ParsingStrategy: processor.OneFieldPerSlotStrategy}
 	loader := getIPFSLoader(vc.CredentialSchema.ID)
 	schemaBytes, ext, err := loader.Load(context.Background())
 	assert.Nil(t, err)
@@ -317,7 +337,8 @@ func TestParserParseClaimWithoutSubjectIDPFSLoader(t *testing.T) {
 	assert.Errorf(t, err, "ID is not set")
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
-	assert.Equal(t, "825a563818f8450461ea87bd23bf56af", string(schemaClaimBytes))
+	assert.Equal(t, "825a563818f8450461ea87bd23bf56af",
+		string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
 	assert.Equal(t, vc.RevNonce, revNonce)
@@ -328,22 +349,24 @@ func TestParserParseClaimWithoutSubjectIDPFSLoader(t *testing.T) {
 	updatable := coreClaim.GetFlagUpdatable()
 	assert.Equal(t, vc.Updatable, updatable)
 
-	entry := coreClaim.TreeEntry()
+	indexSlots, _ := coreClaim.RawSlots()
+	hIndex, hValue, err := schemaUtils.IndexValueHash(*coreClaim)
+	require.NoError(t, err)
 
-	hIndex, err := entry.HIndex()
-	assert.Nil(t, err)
-
-	hValue, err := entry.HValue()
-	assert.Nil(t, err)
-
-	xBigInt, ok := new(big.Int).SetString("12747559771369266961976321746772881814229091957322087014312756428846389160887", 10)
+	xBigInt, ok := new(big.Int).SetString("12747559771369266961976321746772881814229091957322087014312756428846389160887",
+		10)
 	assert.True(t, ok)
-	yBigInt, ok := new(big.Int).SetString("7732074634595480184356588475330446395691728690271550550016720788712795268212", 10)
+	yBigInt, ok := new(big.Int).SetString("7732074634595480184356588475330446395691728690271550550016720788712795268212",
+		10)
 	assert.True(t, ok)
-	assert.Equal(t, "c522586cce36201d072f2bb8a75e6c729960ef54d3c75903c17ab705ba43b11a", hIndex.Hex())
-	assert.Equal(t, "449c53013992e70856c3cb7c7a10ac0b3aa455de305f4af5a93b9ade4592f319", hValue.Hex())
-	assert.Equal(t, xBigInt, entry.Index()[2].BigInt())
-	assert.Equal(t, yBigInt, entry.Index()[3].BigInt())
+	assert.Equal(t,
+		"c522586cce36201d072f2bb8a75e6c729960ef54d3c75903c17ab705ba43b11a",
+		hIndex.Hex())
+	assert.Equal(t,
+		"449c53013992e70856c3cb7c7a10ac0b3aa455de305f4af5a93b9ade4592f319",
+		hValue.Hex())
+	assert.Equal(t, xBigInt, indexSlots[2].ToInt())
+	assert.Equal(t, yBigInt, indexSlots[3].ToInt())
 
 }
 func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
@@ -357,7 +380,8 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
 	credType := vc.CredentialSubject["type"].(string)
 	subjectID := vc.CredentialSubject["id"].(string)
-	parser := jsonld.Parser{ClaimType: credType, ParsingStrategy: processor.OneFieldPerSlotStrategy}
+	parser := jsonld.Parser{ClaimType: credType,
+		ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
 	loader := getIPFSLoader(vc.CredentialSchema.ID)
 	schemaBytes, ext, err := loader.Load(context.Background())
@@ -373,7 +397,8 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
-	assert.Equal(t, "782bb5dd29b875efb42f6c54ab585fdb", string(schemaClaimBytes))
+	assert.Equal(t, "782bb5dd29b875efb42f6c54ab585fdb",
+		string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
 	assert.Equal(t, vc.RevNonce, revNonce)
@@ -384,19 +409,20 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 	updatable := coreClaim.GetFlagUpdatable()
 	assert.Equal(t, vc.Updatable, updatable)
 
-	entry := coreClaim.TreeEntry()
-
-	hIndex, err := entry.HIndex()
-	assert.Nil(t, err)
-	hValue, err := entry.HValue()
-	assert.Nil(t, err)
+	hIndex, hValue, err := schemaUtils.IndexValueHash(*coreClaim)
+	require.NoError(t, err)
+	indexSlots, _ := coreClaim.RawSlots()
 	xBigInt, ok := new(big.Int).SetString("980", 10)
 	assert.True(t, ok)
 	yBigInt, ok := new(big.Int).SetString("1", 10)
 	assert.True(t, ok)
-	assert.Equal(t, "519c009c790b3bcb3ea3e9f33fc8071bacf7a1c6510e944dbb648419025e500c", hIndex.Hex())
-	assert.Equal(t, "4da320609775b1caa029c7058f27069eccfb70560c582e8df7319ce54124b00c", hValue.Hex())
-	assert.Equal(t, xBigInt, entry.Index()[2].BigInt())
-	assert.Equal(t, yBigInt, entry.Index()[3].BigInt())
+	assert.Equal(t,
+		"519c009c790b3bcb3ea3e9f33fc8071bacf7a1c6510e944dbb648419025e500c",
+		hIndex.Hex())
+	assert.Equal(t,
+		"4da320609775b1caa029c7058f27069eccfb70560c582e8df7319ce54124b00c",
+		hValue.Hex())
+	assert.Equal(t, xBigInt, indexSlots[2].ToInt())
+	assert.Equal(t, yBigInt, indexSlots[3].ToInt())
 
 }
