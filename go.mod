@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/ethereum/go-ethereum v1.10.15
-	github.com/iden3/go-iden3-core v0.0.12
-	github.com/iden3/go-iden3-crypto v0.0.11
+	github.com/iden3/go-iden3-core v0.0.13
+	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/iden3/go-merkletree-sql v1.0.0-pre8
 	github.com/iden3/go-schema-registry-wrapper v0.0.7
 	github.com/ipfs/go-ipfs-api v0.3.0
@@ -13,7 +13,6 @@ require (
 	github.com/qri-io/jsonschema v0.2.1
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20220126234351-aa10faf2a1f8
-
 )
 
 require (
