@@ -2,6 +2,7 @@ package verifiable
 
 import (
 	mt "github.com/iden3/go-merkletree-sql"
+	"math/big"
 )
 
 // MTPProof JSON-LD merkle tree proof
@@ -67,3 +68,59 @@ const (
 	// ProofPurposeAuthentication is a proof for authentication
 	ProofPurposeAuthentication ProofPurpose = "Authentication"
 )
+
+// ProofData is structure that represents SnarkJS library result of proof generation
+type ProofData struct {
+	A        []string   `json:"pi_a"`
+	B        [][]string `json:"pi_b"`
+	C        []string   `json:"pi_c"`
+	Protocol string     `json:"protocol"`
+}
+
+// ZKProof is proof data with public signals
+type ZKProof struct {
+	Proof      *ProofData `json:"proof"`
+	PubSignals []string   `json:"pub_signals"`
+}
+
+// ProofType is a type that must be used for proof definition
+type ProofType string
+
+func (p ProofType) String() string {
+	return string(p)
+}
+
+var (
+	// ZeroKnowledgeProofType describes zkp type
+	ZeroKnowledgeProofType ProofType = "zeroknowledge"
+	// SignatureProofType describes signature
+	SignatureProofType ProofType = "signature"
+)
+
+type ProofRequest interface {
+	GetType() ProofType
+	GetRules() map[string]interface{}
+	GetID() string
+	GetChallenge() *big.Int
+}
+
+// ZeroKnowledgeProofRequest represents structure of zkp object
+type ZeroKnowledgeProofRequest struct {
+	Type      ProofType              `json:"type"`
+	CircuitID string                 `json:"circuit_id"`
+	Challenge *big.Int               `json:"challenge"`
+	Rules     map[string]interface{} `json:"rules,omitempty"`
+}
+
+func (r *ZeroKnowledgeProofRequest) GetType() ProofType {
+	return r.Type
+}
+func (r *ZeroKnowledgeProofRequest) GetID() string {
+	return r.CircuitID
+}
+func (r *ZeroKnowledgeProofRequest) GetRules() map[string]interface{} {
+	return r.Rules
+}
+func (r *ZeroKnowledgeProofRequest) GetChallenge() *big.Int {
+	return r.Challenge
+}

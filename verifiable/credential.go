@@ -37,3 +37,14 @@ type CredentialStatusType string
 
 // JSONSchemaValidator2018 JSON schema
 const JSONSchemaValidator2018 = "JsonSchemaValidator2018"
+
+// RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
+type RevocationStatus struct {
+	Issuer struct {
+		State              *string `json:"state"`
+		RootOfRoots        *string `json:"root_of_roots,omitempty"`
+		ClaimsTreeRoot     *string `json:"claims_tree_root,omitempty"`
+		RevocationTreeRoot *string `json:"revocation_tree_root,omitempty"`
+	} `json:"issuer"`
+	MTP `json:"mtp"`
+}
