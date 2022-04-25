@@ -3,8 +3,8 @@ package jsonld
 import (
 	"context"
 	commonJSON "encoding/json"
+	schemaUtils "github.com/iden3/go-schema-processor/utils"
 	"math/big"
-	"os"
 	"testing"
 
 	"github.com/iden3/go-iden3-crypto/utils"
@@ -12,10 +12,8 @@ import (
 	jsonld "github.com/iden3/go-schema-processor/json-ld"
 	"github.com/iden3/go-schema-processor/loaders"
 	"github.com/iden3/go-schema-processor/processor"
-	schemaUtils "github.com/iden3/go-schema-processor/utils"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func getIPFSLoader(t string) processor.SchemaLoader {
@@ -25,7 +23,7 @@ func getIPFSLoader(t string) processor.SchemaLoader {
 	case "kyc":
 		cid = "QmaniifmAkPfmTkpNzVQPcdn4Bu5LuNx1qn1dpNFmU6en6"
 	case "kyc-v2":
-		cid = "QmZm9WhzuyqXnhBmvd9aNYP6qQAHnpghFbVzH5kiAikmhW"
+		cid = "QmP8NrKqoBKjmKwMsC8pwBCBxXR2PhwSepwXx31gnJxAbP"
 	case "auth":
 		cid = "QmWf7fD5txHaMH1zhrWUKSVvACgTLLqcdWbFPqQkKHa9yJ"
 	default:
@@ -33,7 +31,7 @@ func getIPFSLoader(t string) processor.SchemaLoader {
 	}
 	return &loaders.IPFS{
 		CID: cid,
-		URL: os.Getenv("IPFS_URL"),
+		URL: "https://25CLrk5mJXWhONKzbMQtQHEvepN:888f2b0d89b97887358b6a762ba9d95f@ipfs.infura.io:5001",
 	}
 }
 
@@ -142,7 +140,7 @@ func TestValidatorPFSLoader(t *testing.T) {
 
 }
 
-func TestValidatorWithInvalidFieldPFSLoader(t *testing.T) {
+func TestValidatorWithInvalidFieldIPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
@@ -174,7 +172,7 @@ func TestValidatorWithInvalidFieldPFSLoader(t *testing.T) {
 
 }
 
-func TestValidatorWithPositionedDataPFSLoader(t *testing.T) {
+func TestValidatorWithPositionedDataIPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc")
 	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
@@ -203,7 +201,7 @@ func TestValidatorWithPositionedDataPFSLoader(t *testing.T) {
 
 }
 
-func TestParserWithSlotsTypesPFSLoader(t *testing.T) {
+func TestParserWithSlotsTypesIPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc-v2")
 	validator := json.Validator{}
@@ -243,7 +241,7 @@ func TestParserWithSlotsTypesPFSLoader(t *testing.T) {
 
 }
 
-func TestGetFieldIndexWithSlotsTypesPFSLoader(t *testing.T) {
+func TestGetFieldIndexWithSlotsTypesIPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc-v2")
 	validator := json.Validator{}
@@ -272,7 +270,7 @@ func TestGetFieldIndexWithSlotsTypesPFSLoader(t *testing.T) {
 
 }
 
-func TestParserForBigIntegersPFSLoader(t *testing.T) {
+func TestParserForBigIntegersIPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("auth")
 	validator := json.Validator{}
@@ -313,66 +311,9 @@ func TestParserForBigIntegersPFSLoader(t *testing.T) {
 	assert.Empty(t, parsedData.ValueB)
 }
 
-func TestParserParseClaimWithoutSubjectIDPFSLoader(t *testing.T) {
-
-	jsonLDDocument := `{"id":"c0f6ac87-603e-44cd-8d83-0caeb458d50d","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":2034832188220019200,"credentialSubject":{"type":"AuthBJJCredential","x":"12747559771369266961976321746772881814229091957322087014312756428846389160887","y":"7732074634595480184356588475330446395691728690271550550016720788712795268212"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6/claims/revocation/status/2034832188220019081","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"auth","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","created":1642518655,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"201a02eb979be695702ea37d930309d2965d803541be5f7b3900459b2fad8726","h_value":"0654da1d53ca201cb42b767a6f12265ff7a08720b88a82182e0f20702479d12d","state":{"claims_tree_root":"a5087cfa6f2c7c565d831327091533f09999133df1df51104d2ce6f8e4d90529","value":"dca344e95da517a301729d94b213298b9de96dfddaf7aad9423d918ea3208820"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"2764e2d8241b18c217010ebf90bebb30240d32c33f3007f33e42d58680813123","proof_value":"c354eb1006534c59766ed8398d49a9a614312e430c5373ea493395db6369d49485e9a0d63f3bfe9fd157294ffbf706b6b7df7a8662a58fae0056a046af1caa04","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","state":{"tx_id":"0xf2e23524ab76cb4f371b921a214ff411d5d391962899a2afe20f356e3bdc0c71","block_timestamp":1642522496,"block_number":11837707,"claims_tree_root":"bebcaee8444e93b6e32855f54e9f617d5fd654570badce7d6bc649304169681d","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"2806aa9a045b2a5503b12f2979b2d19933e803fd3dd73d8ad40dc138bc9a582e"},"mtp":{"existence":true,"siblings":["0","0","0","18555164879275043542501047154170418730098376961920428892719505858997411121317"]}}]}`
-
-	var vc verifiable.Iden3Credential
-
-	err := commonJSON.Unmarshal([]byte(jsonLDDocument), &vc)
-	assert.Nil(t, err)
-
-	credType := vc.CredentialSubject["type"].(string)
-	parser := jsonld.Parser{ClaimType: credType,
-		ParsingStrategy: processor.OneFieldPerSlotStrategy}
-	loader := getIPFSLoader(vc.CredentialSchema.ID)
-	schemaBytes, ext, err := loader.Load(context.Background())
-	assert.Nil(t, err)
-	assert.Equal(t, ext, "json-ld")
-	assert.NotEmpty(t, schemaBytes)
-
-	coreClaim, err := parser.ParseClaim(&vc, schemaBytes)
-	assert.Nil(t, err)
-	_, err = coreClaim.GetID()
-	assert.Errorf(t, err, "ID is not set")
-	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
-	assert.Nil(t, err)
-	assert.Equal(t, "825a563818f8450461ea87bd23bf56af",
-		string(schemaClaimBytes))
-
-	revNonce := coreClaim.GetRevocationNonce()
-	assert.Equal(t, vc.RevNonce, revNonce)
-
-	expTime, _ := coreClaim.GetExpirationDate()
-	assert.Equal(t, vc.Expiration.Unix(), expTime.Unix())
-
-	updatable := coreClaim.GetFlagUpdatable()
-	assert.Equal(t, vc.Updatable, updatable)
-
-	indexSlots, _ := coreClaim.RawSlots()
-	hIndex, hValue, err := schemaUtils.IndexValueHash(*coreClaim)
-	require.NoError(t, err)
-
-	xBigInt, ok := new(big.Int).SetString("12747559771369266961976321746772881814229091957322087014312756428846389160887",
-		10)
-	assert.True(t, ok)
-	yBigInt, ok := new(big.Int).SetString("7732074634595480184356588475330446395691728690271550550016720788712795268212",
-		10)
-	assert.True(t, ok)
-	assert.Equal(t,
-		"c522586cce36201d072f2bb8a75e6c729960ef54d3c75903c17ab705ba43b11a",
-		hIndex.Hex())
-	assert.Equal(t,
-		"449c53013992e70856c3cb7c7a10ac0b3aa455de305f4af5a93b9ade4592f319",
-		hValue.Hex())
-	assert.Equal(t, xBigInt, indexSlots[2].ToInt())
-	assert.Equal(t, yBigInt, indexSlots[3].ToInt())
-
-}
 func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
-	jsonLDDocument := `{"id":"2caf3139-7f69-4f9c-a2cb-5a35cff78aab","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":3473370693766599700,"credentialSubject":{"countryCode":980,"documentType":1,"id":"114RrowVvS5fz1XDmTG1EXBuYsruvdYzGByqFBvpHc","type":"KYCCountryOfResidenceCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW/claims/revocation/status/3473370693766599916","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"kyc-v2","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"519c009c790b3bcb3ea3e9f33fc8071bacf7a1c6510e944dbb648419025e500c","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","created":1642497726,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"eaa341a91db8b914d61326d9642c35ac2ca4f6dbb1a87609f84b669685141f11","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"5ce2c11a4474fe4c6041e5105b0b381c0efb203ef0ce4d88c4ed32d3d8877001","value":"9a47b0353868f5c0ec3eae7a20bab97cbfd789b334424ab41c9bd40c1f762823"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"ddba158931e361d48f195417413a2ec931441847200fe276bcb1648a4e184c1e","proof_value":"40dd0fb06386d78021d999c4b49d659dd90333a64d87d27870297d31188f95948e86ea2d37f605295074f16a837b6a9bc6189d90aaed1be10bcaca06292a4005","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","state":{"tx_id":"0x8537e0645996e34a8115da9a60b307094580e840a030668127393826d61cd0d1","block_timestamp":1642497740,"block_number":11836551,"claims_tree_root":"0511047e551c7e0d2ae1884636fbdf86c1a5a0156938b6ea857a4e34e06a7a0c","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"c5803aeb2c6d0a357855e070c24fddd5c4ccfef4692cfbf5e1c9068581d53712"},"mtp":{"existence":true,"siblings":["5691303581499283741098849603802493433441417335538778353796518252917364457995","0","0","0","0","0","0","651137301185586690938826662242457730822130240763746109003863565068434268764"]}}]}`
-
+	jsonLDDocument := `{"id":"e65a0bfb-d1a0-4f8d-bbd4-7705a17f6b5d","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","ipfs://QmP8NrKqoBKjmKwMsC8pwBCBxXR2PhwSepwXx31gnJxAbP"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":1427136406,"credentialSubject":{"countryCode":980,"documentType":1,"id":"116iPg7dwEP5VqNr1DHQKo4JRbypL2ccJryV3626yV","type":"KYCCountryOfResidenceCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz/claims/revocation/status/1427136406","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"ipfs://QmP8NrKqoBKjmKwMsC8pwBCBxXR2PhwSepwXx31gnJxAbP","type":"KYCCountryOfResidenceCredential"},"proof":{"@type":"BJJSignature2021","issuer":"118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz","h_index":"6e43eefcb286da6410752683af39ac01fe4c2b71bb6bc33153f817c1ff72b323","h_value":"095192dcc00fc43d0df69c59905b150376c317a92f0f29e5cb958cd2856b8908","created":1650903921,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz","h_index":"90feb35f5b65f0b51d24d88a933dd6bde9809dc0d5bfe1f48219864036e61105","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"4a215db950a071439fee5c2d4862d6fab89c2f7b1e06735e1c23e96b0584142e","value":"c4000e554cc3a6a725e0298b816e1952c3b1681bbed44e0a84fc6957b908900f","status":"created"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"d2050abbe1e4d788621e5e54ef0e40081d3e1a1e5753b08e159608f60eb48715","proof_value":"6b3b95fa5365df397cb2d0d638fc2d9ec2e7bb687937a50d3c9aa8820343c01c80821f66eea8c706cf836040e7b58dc85513b3aad99abbc7067cbe1ee6a36701","proof_purpose":"Authentication"}}`
 	var vc verifiable.Iden3Credential
 
 	err := commonJSON.Unmarshal([]byte(jsonLDDocument), &vc)
@@ -383,7 +324,7 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 	parser := jsonld.Parser{ClaimType: credType,
 		ParsingStrategy: processor.OneFieldPerSlotStrategy}
 
-	loader := getIPFSLoader(vc.CredentialSchema.ID)
+	loader := getIPFSLoader("kyc-v2")
 	schemaBytes, ext, err := loader.Load(context.Background())
 	assert.Nil(t, err)
 	assert.Equal(t, ext, "json-ld")
@@ -397,7 +338,7 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
-	assert.Equal(t, "782bb5dd29b875efb42f6c54ab585fdb",
+	assert.Equal(t, "ce38102464833febf36e714922a83050",
 		string(schemaClaimBytes))
 
 	revNonce := coreClaim.GetRevocationNonce()
@@ -409,20 +350,6 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 	updatable := coreClaim.GetFlagUpdatable()
 	assert.Equal(t, vc.Updatable, updatable)
 
-	hIndex, hValue, err := schemaUtils.IndexValueHash(*coreClaim)
-	require.NoError(t, err)
-	indexSlots, _ := coreClaim.RawSlots()
-	xBigInt, ok := new(big.Int).SetString("980", 10)
-	assert.True(t, ok)
-	yBigInt, ok := new(big.Int).SetString("1", 10)
-	assert.True(t, ok)
-	assert.Equal(t,
-		"519c009c790b3bcb3ea3e9f33fc8071bacf7a1c6510e944dbb648419025e500c",
-		hIndex.Hex())
-	assert.Equal(t,
-		"4da320609775b1caa029c7058f27069eccfb70560c582e8df7319ce54124b00c",
-		hValue.Hex())
-	assert.Equal(t, xBigInt, indexSlots[2].ToInt())
-	assert.Equal(t, yBigInt, indexSlots[3].ToInt())
-
+	err = schemaUtils.VerifyClaimHash(&vc, coreClaim)
+	assert.Nil(t, err)
 }
