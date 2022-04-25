@@ -366,4 +366,6 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, subjectID, id.String())
 
+	err = schemaUtils.VerifyClaimHash(&vc, coreClaim)
+	assert.Nil(t, err)
 }
