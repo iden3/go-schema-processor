@@ -5,6 +5,7 @@ import (
 	commonJSON "encoding/json"
 	schemaUtils "github.com/iden3/go-schema-processor/utils"
 	"math/big"
+	"os"
 	"testing"
 
 	"github.com/iden3/go-iden3-crypto/utils"
@@ -31,7 +32,7 @@ func getIPFSLoader(t string) processor.SchemaLoader {
 	}
 	return &loaders.IPFS{
 		CID: cid,
-		URL: "https://25CLrk5mJXWhONKzbMQtQHEvepN:888f2b0d89b97887358b6a762ba9d95f@ipfs.infura.io:5001",
+		URL: os.Getenv("IPFS_URL"),
 	}
 }
 
