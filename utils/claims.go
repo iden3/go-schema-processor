@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/verifiable"
@@ -164,51 +163,66 @@ func CreateSchemaHash(schemaBytes []byte,
 func VerifyClaimHash(credential *verifiable.Iden3Credential,
 	claim *core.Claim) error {
 
-	hi, hv, err := IndexValueHash(*claim)
+	hi, hv, err := claim.HiHv()
 	if err != nil {
 		return err
 	}
 	switch proof := credential.Proof.(type) {
-	case []verifiable.BasicProof:
+	case []interface{}:
 		for _, p := range proof {
-			if p.HIndex != hi.Hex() {
+			var basicProof verifiable.BasicProof
+			proofBytes, err := json.Marshal(p)
+			if err != nil {
+				return err
+			}
+			err = json.Unmarshal(proofBytes, &basicProof)
+			if err != nil {
+				return err
+			}
+			indexHash, err := merkletree.NewHashFromBigInt(hi)
+			if err != nil {
+				return err
+			}
+			if basicProof.HIndex != indexHash.Hex() {
 				return errIndexHashNotEqual
 			}
-			if p.HValue != hv.Hex() {
+			valueHash, err := merkletree.NewHashFromBigInt(hv)
+			if err != nil {
+				return err
+			}
+			if basicProof.HValue != valueHash.Hex() {
 				return errValueHashNotEqual
 			}
 		}
-	case verifiable.BasicProof:
-		if proof.HIndex != hi.Hex() {
+	case interface{}:
+		var basicProof verifiable.BasicProof
+		proofBytes, err := json.Marshal(proof)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(proofBytes, &basicProof)
+		if err != nil {
+			return err
+		}
+
+		indexHash, err := merkletree.NewHashFromBigInt(hi)
+		if err != nil {
+			return err
+		}
+		if basicProof.HIndex != indexHash.Hex() {
 			return errIndexHashNotEqual
 		}
-		if proof.HValue != hv.Hex() {
+		valueHash, err := merkletree.NewHashFromBigInt(hv)
+		if err != nil {
+			return err
+		}
+		if basicProof.HValue != valueHash.Hex() {
 			return errValueHashNotEqual
 		}
+	default:
+		return errors.New("proof can't be parsed")
 	}
+
 	return nil
 
-}
-
-// IndexValueHash returns hashes of index and value of a claim
-func IndexValueHash(c core.Claim) (
-	indexHash *merkletree.Hash, valueHash *merkletree.Hash, err error) {
-
-	indexSlots, valueSlots := c.RawSlots()
-
-	var indexHashInt, valueHashInt *big.Int
-
-	indexHashInt, err = poseidon.Hash(core.ElemBytesToInts(indexSlots[:]))
-	if err != nil {
-		return
-	}
-
-	valueHashInt, err = poseidon.Hash(core.ElemBytesToInts(valueSlots[:]))
-	if err != nil {
-		return
-	}
-
-	indexHash = merkletree.NewHashFromBigInt(indexHashInt)
-	valueHash = merkletree.NewHashFromBigInt(valueHashInt)
-	return
 }

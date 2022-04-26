@@ -4,9 +4,9 @@ go 1.17
 
 require (
 	github.com/ethereum/go-ethereum v1.10.15
-	github.com/iden3/go-iden3-core v0.0.13
+	github.com/iden3/go-iden3-core v0.0.16
 	github.com/iden3/go-iden3-crypto v0.0.13
-	github.com/iden3/go-merkletree-sql v1.0.0-pre8
+	github.com/iden3/go-merkletree-sql v1.0.1
 	github.com/iden3/go-schema-registry-wrapper v0.0.7
 	github.com/ipfs/go-ipfs-api v0.3.0
 	github.com/pkg/errors v0.9.1

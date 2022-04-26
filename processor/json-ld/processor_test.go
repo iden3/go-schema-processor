@@ -14,7 +14,6 @@ import (
 	schemaUtils "github.com/iden3/go-schema-processor/utils"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParserWithSimpleData(t *testing.T) {
@@ -303,8 +302,7 @@ func TestParserForBigIntegers(t *testing.T) {
 
 func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 
-	jsonLDDocument := `{"id":"c0f6ac87-603e-44cd-8d83-0caeb458d50d","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":2034832188220019200,"credentialSubject":{"type":"AuthBJJCredential","x":"12747559771369266961976321746772881814229091957322087014312756428846389160887","y":"7732074634595480184356588475330446395691728690271550550016720788712795268212"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6/claims/revocation/status/2034832188220019081","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","created":1642518655,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"201a02eb979be695702ea37d930309d2965d803541be5f7b3900459b2fad8726","h_value":"0654da1d53ca201cb42b767a6f12265ff7a08720b88a82182e0f20702479d12d","state":{"claims_tree_root":"a5087cfa6f2c7c565d831327091533f09999133df1df51104d2ce6f8e4d90529","value":"dca344e95da517a301729d94b213298b9de96dfddaf7aad9423d918ea3208820"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"2764e2d8241b18c217010ebf90bebb30240d32c33f3007f33e42d58680813123","proof_value":"c354eb1006534c59766ed8398d49a9a614312e430c5373ea493395db6369d49485e9a0d63f3bfe9fd157294ffbf706b6b7df7a8662a58fae0056a046af1caa04","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"118VhAf6ng6J44FhNrGeYzSbJgGVmcpeXYFR2YTrZ6","h_index":"c89cf5b95157f091f2d8bf49bc1a57cd7988da83bbcd982a74c5e8c70e566403","h_value":"0262b2cd6b9ae44cd9a39045c9bb03ad4e1f056cb81d855f1fc4ef0cdf827912","state":{"tx_id":"0xf2e23524ab76cb4f371b921a214ff411d5d391962899a2afe20f356e3bdc0c71","block_timestamp":1642522496,"block_number":11837707,"claims_tree_root":"bebcaee8444e93b6e32855f54e9f617d5fd654570badce7d6bc649304169681d","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"2806aa9a045b2a5503b12f2979b2d19933e803fd3dd73d8ad40dc138bc9a582e"},"mtp":{"existence":true,"siblings":["0","0","0","18555164879275043542501047154170418730098376961920428892719505858997411121317"]}}]}`
-
+	jsonLDDocument := `{"id":"43a43795-bbf2-4793-8bb3-b2c7adda38c2","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":2718740429,"credentialSubject":{"type":"AuthBJJCredential","x":"20409658749787088412096793141437101561442676297213277276857597798284501440331","y":"3183003504125265840590980610899311014430663361485132256793125936481857108909"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/1129q213BgoVEnnvUGB4TsmNuScS1icbiN2C1RBpPF/claims/revocation/status/2718740429","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/auth.json-ld","type":"AuthBJJCredential"},"proof":{"@type":"BJJSignature2021","issuer":"1129q213BgoVEnnvUGB4TsmNuScS1icbiN2C1RBpPF","h_index":"c423a3e302df8d1b3acc126b23a7bc670923b7a25bed848df0df77695a15ff26","h_value":"72c0318618293988eb9d7820fb762b09c4f906ac54eebe0108959313a4f8441d","created":1650898704,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"1129q213BgoVEnnvUGB4TsmNuScS1icbiN2C1RBpPF","h_index":"b530c7ed22879305e899914ba8a378c713bd023144cb79808a1d2adf4947a517","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"f93fd2d63e1961711b996de149efe0a5297e8651203eb42f6a90245e82fa9500","value":"a4b6b022a2b95f34ad63b4ef589ea60282af283e833f26a456588e9b563b1e1e","status":"created"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"93f822075aefe096f69a66e1623bdbf907230c49950ef41738c00f6b91682425","proof_value":"68818ecc8cf007fd07bf82c0c2aa1b456b91d7d560d0a642c442b0e34a6bca245143a99b04c14e2499d2a9009c8a22fb6438f09da55daf10185834e6dcb48604","proof_purpose":"Authentication"}}`
 	var vc verifiable.Iden3Credential
 
 	err := commonJSON.Unmarshal([]byte(jsonLDDocument), &vc)
@@ -338,30 +336,13 @@ func TestParserParseClaimWithoutSubjectID(t *testing.T) {
 	updatable := coreClaim.GetFlagUpdatable()
 	assert.Equal(t, vc.Updatable, updatable)
 
-	hIndex, hValue, err := schemaUtils.IndexValueHash(*coreClaim)
-	require.NoError(t, err)
-
-	xBigInt, ok := new(big.Int).SetString("12747559771369266961976321746772881814229091957322087014312756428846389160887",
-		10)
-	assert.True(t, ok)
-	yBigInt, ok := new(big.Int).SetString("7732074634595480184356588475330446395691728690271550550016720788712795268212",
-		10)
-	assert.True(t, ok)
-	assert.Equal(t,
-		"f11cb68c61628ed00bad0f797a6756bd16faa983019af7f20daeb2600c437d28",
-		hIndex.Hex())
-	assert.Equal(t,
-		"449c53013992e70856c3cb7c7a10ac0b3aa455de305f4af5a93b9ade4592f319",
-		hValue.Hex())
-	indexSlots, _ := coreClaim.RawSlots()
-	assert.Equal(t, xBigInt, indexSlots[2].ToInt())
-	assert.Equal(t, yBigInt, indexSlots[3].ToInt())
+	err = schemaUtils.VerifyClaimHash(&vc, coreClaim)
+	assert.Nil(t, err)
 
 }
 func TestParserParseClaimWithSubjectID(t *testing.T) {
 
-	jsonLDDocument := `{"id":"2caf3139-7f69-4f9c-a2cb-5a35cff78aab","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":3473370693766599700,"credentialSubject":{"countryCode":980,"documentType":1,"id":"114RrowVvS5fz1XDmTG1EXBuYsruvdYzGByqFBvpHc","type":"KYCCountryOfResidenceCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW/claims/revocation/status/3473370693766599916","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld","type":"JsonSchemaValidator2018"},"proof":[{"@type":"BJJSignature2021","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","created":1642497726,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"eaa341a91db8b914d61326d9642c35ac2ca4f6dbb1a87609f84b669685141f11","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"5ce2c11a4474fe4c6041e5105b0b381c0efb203ef0ce4d88c4ed32d3d8877001","value":"9a47b0353868f5c0ec3eae7a20bab97cbfd789b334424ab41c9bd40c1f762823"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"ddba158931e361d48f195417413a2ec931441847200fe276bcb1648a4e184c1e","proof_value":"40dd0fb06386d78021d999c4b49d659dd90333a64d87d27870297d31188f95948e86ea2d37f605295074f16a837b6a9bc6189d90aaed1be10bcaca06292a4005","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"115mN2C7gh65EpfKt6skXeKGcJ53PACCSGfapzYkAW","h_index":"6a3978073c5828f2760381ba02b24bdfddf0456a244fe5d485e1135ee472042e","h_value":"1d4895af94c1d4abfe658876f75baf527711d20b130cba4589e879afdaed7520","state":{"tx_id":"0x8537e0645996e34a8115da9a60b307094580e840a030668127393826d61cd0d1","block_timestamp":1642497740,"block_number":11836551,"claims_tree_root":"0511047e551c7e0d2ae1884636fbdf86c1a5a0156938b6ea857a4e34e06a7a0c","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"c5803aeb2c6d0a357855e070c24fddd5c4ccfef4692cfbf5e1c9068581d53712"},"mtp":{"existence":true,"siblings":["5691303581499283741098849603802493433441417335538778353796518252917364457995","0","0","0","0","0","0","651137301185586690938826662242457730822130240763746109003863565068434268764"]}}]}`
-
+	jsonLDDocument := `{"id":"4102dcf4-9382-443a-8108-959e631b5d2f","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":2761125786,"credentialSubject":{"birthday":19960424,"documentType":1,"id":"118akjaAsZ2i3bSSYEaM88mCMpXAcL6WvpZH68fKZn","type":"KYCAgeCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/1129q213BgoVEnnvUGB4TsmNuScS1icbiN2C1RBpPF/claims/revocation/status/2761125786","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v2.json-ld","type":"KYCAgeCredential"},"proof":[{"@type":"BJJSignature2021","issuer":"1129q213BgoVEnnvUGB4TsmNuScS1icbiN2C1RBpPF","h_index":"2c3a63fb838bbc1809c1e80a19139019fe37b24b1623ce2daba44183872cc41d","h_value":"463b48e77f0661d31a56f61681c97b6223b1412505e3b04c7a4e0b08f3181819","created":1650898533,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"1129q213BgoVEnnvUGB4TsmNuScS1icbiN2C1RBpPF","h_index":"b530c7ed22879305e899914ba8a378c713bd023144cb79808a1d2adf4947a517","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"f93fd2d63e1961711b996de149efe0a5297e8651203eb42f6a90245e82fa9500","value":"a4b6b022a2b95f34ad63b4ef589ea60282af283e833f26a456588e9b563b1e1e","status":"created"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"93f822075aefe096f69a66e1623bdbf907230c49950ef41738c00f6b91682425","proof_value":"842a7044245669d898bb42106573469fa3e56805eaeab78cbd06ecda0cd82490a1c03d3438705a764b5cef11d764c16d17dd86d9463966c703286ccb80139d00","proof_purpose":"Authentication"},{"@type":"Iden3SparseMerkleProof","issuer":"1129q213BgoVEnnvUGB4TsmNuScS1icbiN2C1RBpPF","h_index":"2c3a63fb838bbc1809c1e80a19139019fe37b24b1623ce2daba44183872cc41d","h_value":"463b48e77f0661d31a56f61681c97b6223b1412505e3b04c7a4e0b08f3181819","state":{"tx_id":"0x7482579da9942ce9c218174fb509ab15fa9f94e70cb29d63cb7072b306b3b866","block_timestamp":1650900717,"block_number":26082637,"root_of_roots":"ffa2d0eec32ee4588b5fdac7aaa2d136d5d3ab96bb25d8507570a391dfd14922","claims_tree_root":"682409da4fdaf072f30314e0578848662975d2d3aa967a46b0b678745368e12b","revocation_tree_root":"0000000000000000000000000000000000000000000000000000000000000000","value":"0d3a999d58f26f1ccc21bbe745ee9d62efdc618613caf930009c533e2e56831f","status":"confirmed"},"mtp":{"existence":true,"siblings":["264989163946140659119067438613111086251856808194270247179339188846199980025","0","0","412703772382477972262931479259998079304255691105270144442886052862988158651"]}}]}`
 	var vc verifiable.Iden3Credential
 
 	err := commonJSON.Unmarshal([]byte(jsonLDDocument), &vc)
@@ -385,34 +366,6 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, subjectID, id.String())
 
-	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
+	err = schemaUtils.VerifyClaimHash(&vc, coreClaim)
 	assert.Nil(t, err)
-	assert.Equal(t, "ce38102464833febf36e714922a83050",
-		string(schemaClaimBytes))
-
-	revNonce := coreClaim.GetRevocationNonce()
-	assert.Equal(t, vc.RevNonce, revNonce)
-
-	expTime, _ := coreClaim.GetExpirationDate()
-	assert.Equal(t, vc.Expiration.Unix(), expTime.Unix())
-
-	updatable := coreClaim.GetFlagUpdatable()
-	assert.Equal(t, vc.Updatable, updatable)
-
-	hIndex, hValue, err := schemaUtils.IndexValueHash(*coreClaim)
-	require.NoError(t, err)
-	xBigInt, ok := new(big.Int).SetString("980", 10)
-	assert.True(t, ok)
-	yBigInt, ok := new(big.Int).SetString("1", 10)
-	assert.True(t, ok)
-	assert.Equal(t,
-		"28876d2aeb56324aaf9c506b7313f19d309b223cbc047eb4528f2a6fdb8d1d1c",
-		hIndex.Hex())
-	assert.Equal(t,
-		"4da320609775b1caa029c7058f27069eccfb70560c582e8df7319ce54124b00c",
-		hValue.Hex())
-	indexSlots, _ := coreClaim.RawSlots()
-	assert.Equal(t, xBigInt, indexSlots[2].ToInt())
-	assert.Equal(t, yBigInt, indexSlots[3].ToInt())
-
 }
