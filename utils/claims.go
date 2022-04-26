@@ -3,11 +3,11 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/iden3/go-merkletree-sql"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	core "github.com/iden3/go-iden3-core"
+	"github.com/iden3/go-merkletree-sql"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
@@ -179,10 +179,18 @@ func VerifyClaimHash(credential *verifiable.Iden3Credential,
 			if err != nil {
 				return err
 			}
-			if basicProof.HIndex != merkletree.NewHashFromBigInt(hi).Hex() {
+			indexHash, err := merkletree.NewHashFromBigInt(hi)
+			if err != nil {
+				return err
+			}
+			if basicProof.HIndex != indexHash.Hex() {
 				return errIndexHashNotEqual
 			}
-			if basicProof.HValue != merkletree.NewHashFromBigInt(hv).Hex() {
+			valueHash, err := merkletree.NewHashFromBigInt(hv)
+			if err != nil {
+				return err
+			}
+			if basicProof.HValue != valueHash.Hex() {
 				return errValueHashNotEqual
 			}
 		}
@@ -197,10 +205,18 @@ func VerifyClaimHash(credential *verifiable.Iden3Credential,
 			return err
 		}
 
-		if basicProof.HIndex != merkletree.NewHashFromBigInt(hi).Hex() {
+		indexHash, err := merkletree.NewHashFromBigInt(hi)
+		if err != nil {
+			return err
+		}
+		if basicProof.HIndex != indexHash.Hex() {
 			return errIndexHashNotEqual
 		}
-		if basicProof.HValue != merkletree.NewHashFromBigInt(hv).Hex() {
+		valueHash, err := merkletree.NewHashFromBigInt(hv)
+		if err != nil {
+			return err
+		}
+		if basicProof.HValue != valueHash.Hex() {
 			return errValueHashNotEqual
 		}
 	default:
