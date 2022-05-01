@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-merkletree-sql"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
@@ -163,10 +163,10 @@ func CreateSchemaHash(schemaBytes []byte,
 func VerifyClaimHash(credential *verifiable.Iden3Credential,
 	claim *core.Claim) error {
 
-	hi, hv, err := claim.HiHv()
-	if err != nil {
-		return err
-	}
+	//hi, hv, err := claim.HiHv()
+	//if err != nil {
+	//	return err
+	//}
 	switch proof := credential.Proof.(type) {
 	case []interface{}:
 		for _, p := range proof {
@@ -179,18 +179,21 @@ func VerifyClaimHash(credential *verifiable.Iden3Credential,
 			if err != nil {
 				return err
 			}
-			indexHash, err := merkletree.NewHashFromBigInt(hi)
-			if err != nil {
-				return err
-			}
-			if basicProof.HIndex != indexHash.Hex() {
-				return errIndexHashNotEqual
-			}
-			valueHash, err := merkletree.NewHashFromBigInt(hv)
-			if err != nil {
-				return err
-			}
-			if basicProof.HValue != valueHash.Hex() {
+			//indexHash, err := merkletree.NewHashFromBigInt(hi)
+			//if err != nil {
+			//	return err
+			//}
+			//if basicProof.HIndex != indexHash.Hex() {
+			//	return errIndexHashNotEqual
+			//}
+			//valueHash, err := merkletree.NewHashFromBigInt(hv)
+			//if err != nil {
+			//	return err
+			//}
+			//if basicProof.HValue != valueHash.Hex() {
+			//	return errValueHashNotEqual
+			//}
+			if reflect.DeepEqual(basicProof.IssuerAuthClaim, claim) {
 				return errValueHashNotEqual
 			}
 		}
@@ -205,24 +208,35 @@ func VerifyClaimHash(credential *verifiable.Iden3Credential,
 			return err
 		}
 
-		indexHash, err := merkletree.NewHashFromBigInt(hi)
-		if err != nil {
-			return err
-		}
-		if basicProof.HIndex != indexHash.Hex() {
-			return errIndexHashNotEqual
-		}
-		valueHash, err := merkletree.NewHashFromBigInt(hv)
-		if err != nil {
-			return err
-		}
-		if basicProof.HValue != valueHash.Hex() {
+		if reflect.DeepEqual(basicProof.IssuerAuthClaim, bigIntArrToStringArr(claim.RawSlotsAsInts())) {
 			return errValueHashNotEqual
 		}
+		//indexHash, err := merkletree.NewHashFromBigInt(hi)
+		//if err != nil {
+		//	return err
+		//}
+		//if basicProof.HIndex != indexHash.Hex() {
+		//	return errIndexHashNotEqual
+		//}
+		//valueHash, err := merkletree.NewHashFromBigInt(hv)
+		//if err != nil {
+		//	return err
+		//}
+		//if basicProof.HValue != valueHash.Hex() {
+		//	return errValueHashNotEqual
+		//}
 	default:
 		return errors.New("proof can't be parsed")
 	}
 
 	return nil
 
+}
+
+func bigIntArrToStringArr(array []*big.Int) []string {
+	res := make([]string, 0)
+	for i := range array {
+		res = append(res, array[i].String())
+	}
+	return res
 }
