@@ -1,8 +1,10 @@
 package verifiable
 
 import (
-	mt "github.com/iden3/go-merkletree-sql"
 	"math/big"
+
+	core "github.com/iden3/go-iden3-core"
+	mt "github.com/iden3/go-merkletree-sql"
 )
 
 // MTPProof JSON-LD merkle tree proof
@@ -37,8 +39,9 @@ type SignatureProof struct {
 type BasicProof struct {
 	Type   string `json:"@type"`
 	Issuer string `json:"issuer"`
-	HIndex string `json:"h_index"`
-	HValue string `json:"h_value"`
+	//HIndex string `json:"h_index"`
+	//HValue string `json:"h_value"`
+	IssuerAuthClaim *core.Claim `json:"claim"`
 }
 
 // MTP is merkle tree mtp but in lower case and with type
