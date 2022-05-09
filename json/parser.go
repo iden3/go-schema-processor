@@ -3,6 +3,7 @@ package json
 import (
 	"encoding/json"
 	"fmt"
+
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/utils"
@@ -64,11 +65,6 @@ func (s Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 			return nil, err
 		}
 		claim.SetIndexID(id)
-	}
-
-	err = utils.VerifyClaimHash(credential, claim)
-	if err != nil {
-		return nil, err
 	}
 
 	return claim, nil

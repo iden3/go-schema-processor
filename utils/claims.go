@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"reflect"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-schema-processor/processor"
-	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
 )
 
@@ -61,9 +59,6 @@ func CheckDataInField(data []byte) bool {
 	a := new(big.Int).SetBytes(swapEndianness(data))
 	return a.Cmp(q) == -1
 }
-
-var errIndexHashNotEqual = errors.New("claim index hash in credential and in resulted claim are not equal")
-var errValueHashNotEqual = errors.New("claim value hash in credential and in resulted claim are not equal")
 
 // FillClaimSlots fullfils index and value fields to iden3 slots
 func FillClaimSlots(content []byte,
@@ -157,86 +152,4 @@ func CreateSchemaHash(schemaBytes []byte,
 	h := crypto.Keccak256(schemaBytes, []byte(credentialType))
 	copy(sHash[:], h[len(h)-16:])
 	return sHash
-}
-
-// VerifyClaimHash verifies that hashes of index and value of claim are equal to proof in credential
-func VerifyClaimHash(credential *verifiable.Iden3Credential,
-	claim *core.Claim) error {
-
-	//hi, hv, err := claim.HiHv()
-	//if err != nil {
-	//	return err
-	//}
-	switch proof := credential.Proof.(type) {
-	case []interface{}:
-		for _, p := range proof {
-			var basicProof verifiable.BasicProof
-			proofBytes, err := json.Marshal(p)
-			if err != nil {
-				return err
-			}
-			err = json.Unmarshal(proofBytes, &basicProof)
-			if err != nil {
-				return err
-			}
-			//indexHash, err := merkletree.NewHashFromBigInt(hi)
-			//if err != nil {
-			//	return err
-			//}
-			//if basicProof.HIndex != indexHash.Hex() {
-			//	return errIndexHashNotEqual
-			//}
-			//valueHash, err := merkletree.NewHashFromBigInt(hv)
-			//if err != nil {
-			//	return err
-			//}
-			//if basicProof.HValue != valueHash.Hex() {
-			//	return errValueHashNotEqual
-			//}
-			if reflect.DeepEqual(basicProof.IssuerAuthClaim, claim) {
-				return errValueHashNotEqual
-			}
-		}
-	case interface{}:
-		var basicProof verifiable.BasicProof
-		proofBytes, err := json.Marshal(proof)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(proofBytes, &basicProof)
-		if err != nil {
-			return err
-		}
-
-		if reflect.DeepEqual(basicProof.IssuerAuthClaim, bigIntArrToStringArr(claim.RawSlotsAsInts())) {
-			return errValueHashNotEqual
-		}
-		//indexHash, err := merkletree.NewHashFromBigInt(hi)
-		//if err != nil {
-		//	return err
-		//}
-		//if basicProof.HIndex != indexHash.Hex() {
-		//	return errIndexHashNotEqual
-		//}
-		//valueHash, err := merkletree.NewHashFromBigInt(hv)
-		//if err != nil {
-		//	return err
-		//}
-		//if basicProof.HValue != valueHash.Hex() {
-		//	return errValueHashNotEqual
-		//}
-	default:
-		return errors.New("proof can't be parsed")
-	}
-
-	return nil
-
-}
-
-func bigIntArrToStringArr(array []*big.Int) []string {
-	res := make([]string, 0)
-	for i := range array {
-		res = append(res, array[i].String())
-	}
-	return res
 }
