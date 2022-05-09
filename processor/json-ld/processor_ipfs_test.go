@@ -3,7 +3,6 @@ package jsonld
 import (
 	"context"
 	commonJSON "encoding/json"
-	schemaUtils "github.com/iden3/go-schema-processor/utils"
 	"math/big"
 	"os"
 	"testing"
@@ -350,7 +349,4 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
 	updatable := coreClaim.GetFlagUpdatable()
 	assert.Equal(t, vc.Updatable, updatable)
-
-	err = schemaUtils.VerifyClaimHash(&vc, coreClaim)
-	assert.Nil(t, err)
 }
