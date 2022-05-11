@@ -13,6 +13,7 @@ type Iden3Credential struct {
 	Updatable         bool                   `json:"updatable"`
 	Version           uint32                 `json:"version"`
 	RevNonce          uint64                 `json:"rev_nonce"`
+	SubjectPosition   string                 `json:"subject_position,omitempty"`
 	CredentialSubject map[string]interface{} `json:"credentialSubject"`
 	CredentialStatus  *CredentialStatus      `json:"credentialStatus,omitempty"`
 	CredentialSchema  struct {
