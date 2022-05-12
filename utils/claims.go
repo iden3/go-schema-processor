@@ -11,6 +11,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	// SubjectPositionIndex save subject in index part of claim. By default.
+	SubjectPositionIndex = "index"
+	// SubjectPositionValue save subject in value part of claim.
+	SubjectPositionValue = "value"
+)
+
 var q *big.Int
 
 //nolint //reason - needed
