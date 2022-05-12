@@ -1,8 +1,6 @@
 package verifiable
 
 import (
-	"math/big"
-
 	core "github.com/iden3/go-iden3-core"
 	mt "github.com/iden3/go-merkletree-sql"
 )
@@ -71,55 +69,4 @@ type ProofData struct {
 type ZKProof struct {
 	Proof      *ProofData `json:"proof"`
 	PubSignals []string   `json:"pub_signals"`
-}
-
-// ProofType is a type that must be used for proof definition
-type ProofType string
-
-// String returns string representation of ProofType
-func (p ProofType) String() string {
-	return string(p)
-}
-
-var (
-	// ZeroKnowledgeProofType describes zkp type
-	ZeroKnowledgeProofType ProofType = "zeroknowledge"
-	// SignatureProofType describes signature
-	SignatureProofType ProofType = "signature"
-)
-
-// ProofRequest is a request for zk / signature proof generation
-type ProofRequest interface {
-	GetType() ProofType
-	GetRules() map[string]interface{}
-	GetID() string
-	GetChallenge() *big.Int
-}
-
-// ZeroKnowledgeProofRequest represents structure of zkp object
-type ZeroKnowledgeProofRequest struct {
-	Type      ProofType              `json:"type"`
-	CircuitID string                 `json:"circuit_id"`
-	Challenge *big.Int               `json:"challenge"`
-	Rules     map[string]interface{} `json:"rules,omitempty"`
-}
-
-// GetType returns type from zkp request
-func (r *ZeroKnowledgeProofRequest) GetType() ProofType {
-	return r.Type
-}
-
-// GetID returns id from zkp request
-func (r *ZeroKnowledgeProofRequest) GetID() string {
-	return r.CircuitID
-}
-
-// GetRules rules from zkp request
-func (r *ZeroKnowledgeProofRequest) GetRules() map[string]interface{} {
-	return r.Rules
-}
-
-// GetChallenge challenge from zkp request
-func (r *ZeroKnowledgeProofRequest) GetChallenge() *big.Int {
-	return r.Challenge
 }
