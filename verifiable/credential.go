@@ -17,6 +17,7 @@ type Iden3Credential struct {
 	RevNonce          uint64                 `json:"rev_nonce"`
 	CredentialSubject map[string]interface{} `json:"credentialSubject"`
 	CredentialStatus  *CredentialStatus      `json:"credentialStatus,omitempty"`
+	SubjectPosition   string                 `json:"subject_position,omitempty"`
 	CredentialSchema  struct {
 		ID   string `json:"@id"`
 		Type string `json:"type"`
