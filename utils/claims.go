@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/pkg/errors"
@@ -51,19 +50,19 @@ func FieldToByteArray(field interface{}) ([]byte, error) {
 	default:
 		return nil, errors.New("field type is not supported")
 	}
-	return swapEndianness(bigIntField.Bytes()), nil
+	return SwapEndianness(bigIntField.Bytes()), nil
 }
 
 // DataFillsSlot  checks if newData fills into slot capacity ()
 func DataFillsSlot(slot, newData []byte) bool {
 	slot = append(slot, newData...)
-	a := new(big.Int).SetBytes(swapEndianness(slot))
+	a := new(big.Int).SetBytes(SwapEndianness(slot))
 	return a.Cmp(q) == -1
 }
 
 // CheckDataInField  checks if data is in Q field
 func CheckDataInField(data []byte) bool {
-	a := new(big.Int).SetBytes(swapEndianness(data))
+	a := new(big.Int).SetBytes(SwapEndianness(data))
 	return a.Cmp(q) == -1
 }
 
@@ -134,7 +133,9 @@ func FillClaimSlots(content []byte,
 	return result, nil
 }
 
-func swapEndianness(buf []byte) []byte {
+// SwapEndianness swaps the endianness of the value encoded in buf. If buf is
+// Big-Endian, the result will be Little-Endian and vice-versa.
+func SwapEndianness(buf []byte) []byte {
 	newBuf := make([]byte, len(buf))
 	for i, b := range buf {
 		newBuf[len(buf)-1-i] = b
@@ -156,7 +157,7 @@ func IndexOf(field string, fields []string) int {
 func CreateSchemaHash(schemaBytes []byte,
 	credentialType string) core.SchemaHash {
 	var sHash core.SchemaHash
-	h := crypto.Keccak256(schemaBytes, []byte(credentialType))
+	h := Keccak256(schemaBytes, []byte(credentialType))
 	copy(sHash[:], h[len(h)-16:])
 	return sHash
 }

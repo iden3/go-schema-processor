@@ -3,14 +3,12 @@ module github.com/iden3/go-schema-processor
 go 1.17
 
 require (
-	github.com/ethereum/go-ethereum v1.10.15
 	github.com/iden3/go-iden3-core v0.1.0
-	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/iden3/go-merkletree-sql v1.0.1
 	github.com/ipfs/go-ipfs-api v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/qri-io/jsonschema v0.2.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.4
 	golang.org/x/crypto v0.0.0-20220126234351-aa10faf2a1f8
 )
 
@@ -19,6 +17,7 @@ require (
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/iden3/go-iden3-crypto v0.0.13 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
 	github.com/ipfs/go-ipfs-files v0.0.9 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
@@ -42,5 +41,5 @@ require (
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	go.opencensus.io v0.22.4 // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
