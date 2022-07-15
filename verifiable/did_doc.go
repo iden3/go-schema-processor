@@ -2,7 +2,7 @@ package verifiable
 
 // DIDDocument defines current supported did doc model.
 type DIDDocument struct {
-	Context []string  `json:"context"`
+	Context []string  `json:"@context"`
 	ID      string    `json:"id"`
 	Service []Service `json:"service"`
 }
