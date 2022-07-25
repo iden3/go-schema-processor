@@ -14,17 +14,24 @@ type Service struct {
 	ServiceEndpoint string `json:"serviceEndpoint"`
 }
 
+// PushService describes the services of push notifications
 type PushService struct {
 	Service
 	Metadata PushMetadata `json:"metadata"`
 }
+
+// PushMetadata describes the structure of the data for push notifications
 type PushMetadata struct {
 	Devices []EncryptedDeviceMetadata `json:"devices"`
 }
+
+// EncryptedDeviceMetadata describes the structure of encrypted device metadata
 type EncryptedDeviceMetadata struct {
 	Ciphertext string `json:"ciphertext"` // base64 encoded
 	Alg        string `json:"alg"`
 }
+
+// DeviceMetadata describes the structure of device metadata
 type DeviceMetadata struct {
 	AppID     string `json:"app_id"`
 	PushToken string `json:"push_token"`
