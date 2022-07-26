@@ -96,7 +96,7 @@ func TestParserWithPositionedData(t *testing.T) {
 func TestValidator(t *testing.T) {
 	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
 	loader := loaders.HTTP{URL: url}
-	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{Type: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator),
 		processor.WithSchemaLoader(loader))
@@ -125,7 +125,7 @@ func TestValidator(t *testing.T) {
 func TestValidatorWithInvalidField(t *testing.T) {
 	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
 	loader := loaders.HTTP{URL: url}
-	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{Type: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator),
 		processor.WithSchemaLoader(loader))
@@ -157,7 +157,7 @@ func TestValidatorWithInvalidField(t *testing.T) {
 func TestValidatorWithPositionedData(t *testing.T) {
 	url := "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc.json-ld"
 	loader := loaders.HTTP{URL: url}
-	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{Type: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator),
 		processor.WithSchemaLoader(loader))

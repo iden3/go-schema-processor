@@ -114,7 +114,7 @@ func TestParserWithPositionedDataPFSLoader(t *testing.T) {
 func TestValidatorPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc")
-	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{Type: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator),
 		processor.WithSchemaLoader(loader))
@@ -143,7 +143,7 @@ func TestValidatorPFSLoader(t *testing.T) {
 func TestValidatorWithInvalidFieldIPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc")
-	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{Type: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator),
 		processor.WithSchemaLoader(loader))
@@ -175,7 +175,7 @@ func TestValidatorWithInvalidFieldIPFSLoader(t *testing.T) {
 func TestValidatorWithPositionedDataIPFSLoader(t *testing.T) {
 
 	loader := getIPFSLoader("kyc")
-	validator := jsonld.Validator{ClaimType: "KYCAgeCredential"}
+	validator := jsonld.Validator{Type: "KYCAgeCredential"}
 
 	p := New(processor.WithValidator(validator),
 		processor.WithSchemaLoader(loader))
