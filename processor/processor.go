@@ -17,7 +17,6 @@ type Processor struct {
 // Validator is interface to validate data and documents
 type Validator interface {
 	ValidateData(data, schema []byte) error
-	ValidateDocument(doc, schema []byte) error
 }
 
 // SchemaLoader is interface to load schema
@@ -108,12 +107,4 @@ func (s *Processor) ValidateData(data, schema []byte) error {
 		return errValidatorNotDefined
 	}
 	return s.Validator.ValidateData(data, schema)
-}
-
-// ValidateDocument will validate a document content by given schema.
-func (s *Processor) ValidateDocument(data, schema []byte) error {
-	if s.Validator == nil {
-		return errValidatorNotDefined
-	}
-	return s.Validator.ValidateDocument(data, schema)
 }
