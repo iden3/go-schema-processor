@@ -3,18 +3,17 @@ package jsonld
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 )
 
 // Validator is responsible for document verification
 type Validator struct {
-	ClaimType string
+	Type string
 }
 
 // ValidateData validates JSON data by JSON-LD Schema
 func (v Validator) ValidateData(data, schema []byte) error {
 
-	claimContext, err := getClaimContext(v.ClaimType, schema)
+	claimContext, err := getClaimContext(v.Type, schema)
 	if err != nil {
 		return err
 	}
@@ -34,9 +33,4 @@ func (v Validator) ValidateData(data, schema []byte) error {
 	//TODO: validate positioned data
 
 	return nil
-}
-
-// ValidateDocument validates JSON data by JSON-LD Schema
-func (v Validator) ValidateDocument(doc, schema []byte) error {
-	return errors.New("not implemented")
 }

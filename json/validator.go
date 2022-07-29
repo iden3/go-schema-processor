@@ -26,8 +26,3 @@ func (v Validator) ValidateData(data, schema []byte) error {
 	}
 	return nil
 }
-
-// ValidateDocument validate json document by json schema
-func (v Validator) ValidateDocument(doc, schema []byte) error {
-	return errors.New("not implemented")
-}
