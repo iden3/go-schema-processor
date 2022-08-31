@@ -11,10 +11,36 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
-type entryKey2 []interface{}
+type Path []interface{}
 
-type entry2 struct {
-	key   entryKey2
+func (p Path) reverse() {
+	for i, j := 0, len(p)-1; i < j; i, j = i+1, j-1 {
+		p[i], p[j] = p[j], p[i]
+	}
+}
+
+func (p Path) Key() (*big.Int, error) {
+	var err error
+	intKeyParts := make([]*big.Int, len(p))
+	for i := range p {
+		switch v := p[i].(type) {
+		case string:
+			intKeyParts[i], err = poseidon.HashBytes([]byte(v))
+			if err != nil {
+				return nil, err
+			}
+		case int:
+			intKeyParts[i] = big.NewInt(int64(v))
+		default:
+			return nil, fmt.Errorf("unexpected type %T", v)
+		}
+	}
+
+	return poseidon.Hash(intKeyParts)
+}
+
+type RDFEntry struct {
+	key   Path
 	value string
 }
 
@@ -74,8 +100,8 @@ func newRelationship(quads []*ld.Quad) (*relationship, error) {
 	return &r, nil
 }
 
-func (r *relationship) path(n *ld.Quad, idx *int) (entryKey2, error) {
-	var k []interface{}
+func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
+	var k Path
 
 	if n == nil {
 		return nil, errors.New("quad is nil")
@@ -141,19 +167,13 @@ func (r *relationship) path(n *ld.Quad, idx *int) (entryKey2, error) {
 		nextKey = parent.subject
 	}
 
-	reverse(k)
+	k.reverse()
 	return k, nil
-}
-
-func reverse(s []interface{}) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
 }
 
 // EntriesFromRDF creates entries from RDF dataset suitable to add to
 // merkle tree
-func EntriesFromRDF(ds *ld.RDFDataset) ([]entry2, error) {
+func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 	if len(ds.Graphs) != 1 {
 		return nil, errors.New("support only dataset with one @default graph")
 	}
@@ -180,7 +200,7 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]entry2, error) {
 	//	return nil, err
 	//}
 
-	entries := make([]entry2, len(quads))
+	entries := make([]RDFEntry, len(quads))
 	for i, q := range quads {
 		switch qo := q.Object.(type) {
 		case *ld.IRI, *ld.Literal:
@@ -256,10 +276,10 @@ func getQuadKey(q *ld.Quad) (quadKey, error) {
 }
 
 func AddEntriesToMerkleTree(ctx context.Context, mt *merkletree.MerkleTree,
-	entries []entry2) error {
+	entries []RDFEntry) error {
 
 	for _, e := range entries {
-		key, err := mkKey(e.key)
+		key, err := e.key.Key()
 		if err != nil {
 			return err
 		}
@@ -276,28 +296,6 @@ func AddEntriesToMerkleTree(ctx context.Context, mt *merkletree.MerkleTree,
 	}
 
 	return nil
-}
-
-// keyParts is an array of json key parts: either string or int (object key
-// or array index)
-func mkKey(keyParts []interface{}) (*big.Int, error) {
-	var err error
-	intKeyParts := make([]*big.Int, len(keyParts))
-	for i := range keyParts {
-		switch v := keyParts[i].(type) {
-		case string:
-			intKeyParts[i], err = poseidon.HashBytes([]byte(v))
-			if err != nil {
-				return nil, err
-			}
-		case int:
-			intKeyParts[i] = big.NewInt(int64(v))
-		default:
-			return nil, fmt.Errorf("unexpected type %T", v)
-		}
-	}
-
-	return poseidon.Hash(intKeyParts)
 }
 
 func mkValueString(val string) (*big.Int, error) {

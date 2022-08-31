@@ -89,7 +89,7 @@ func TestEntriesFromRDF(t *testing.T) {
 		}
 	}
 
-	wantEntries := []entry2{
+	wantEntries := []RDFEntry{
 		{
 			key: []interface{}{
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
@@ -299,11 +299,11 @@ func TestProof(t *testing.T) {
 	require.NoError(t, err)
 
 	// [https://www.w3.org/2018/credentials#credentialSubject 1 http://schema.org/birthDate] => 1958-07-18
-	path := []interface{}{
+	path := Path{
 		"https://www.w3.org/2018/credentials#credentialSubject", 1,
 		"http://schema.org/birthDate"}
 
-	key, err := mkKey(path)
+	key, err := path.Key()
 	require.NoError(t, err)
 
 	val, err := mkValueString("1958-07-18")
