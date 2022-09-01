@@ -22,7 +22,7 @@ func getDataset(t testing.TB) *ld.RDFDataset {
   "id": "https://issuer.oidp.uscis.gov/credentials/83627465",
   "type": ["VerifiableCredential", "PermanentResidentCard"],
   "issuer": "did:example:489398593",
-  "identifier": "83627465",
+  "identifier": 83627465,
   "name": "Permanent Resident Card",
   "description": "Government of Example Permanent Resident Card.",
   "issuanceDate": "2019-12-03T12:19:52Z",
@@ -240,7 +240,7 @@ func TestEntriesFromRDF(t *testing.T) {
 		},
 		{
 			key:   []interface{}{"http://schema.org/identifier"},
-			value: "83627465",
+			value: int64(83627465),
 		},
 		{
 			key:   []interface{}{"http://schema.org/name"},
@@ -303,10 +303,37 @@ func TestProof(t *testing.T) {
 		"https://www.w3.org/2018/credentials#credentialSubject", 1,
 		"http://schema.org/birthDate"}
 
-	key, err := path.Key()
+	entry, err := NewRDFEntry(path, "1958-07-18")
 	require.NoError(t, err)
 
-	val, err := mkValueString("1958-07-18")
+	key, val, err := entry.KeyValueHashes()
+	require.NoError(t, err)
+
+	p, _, err := mt.GenerateProof(ctx, key, nil)
+	require.NoError(t, err)
+
+	ok := merkletree.VerifyProof(mt.Root(), p, key, val)
+	require.True(t, ok)
+}
+
+func TestProofInteger(t *testing.T) {
+	dataset := getDataset(t)
+
+	entries, err := EntriesFromRDF(dataset)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	mt, err := merkletree.NewMerkleTree(ctx, memory.NewMemoryStorage(), 40)
+	require.NoError(t, err)
+
+	err = AddEntriesToMerkleTree(ctx, mt, entries)
+	require.NoError(t, err)
+
+	entry, err := NewRDFEntry(Path{"http://schema.org/identifier"}, 83627465)
+	require.NoError(t, err)
+
+	key, val, err := entry.KeyValueHashes()
 	require.NoError(t, err)
 
 	p, _, err := mt.GenerateProof(ctx, key, nil)

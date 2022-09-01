@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql"
@@ -40,8 +41,58 @@ func (p Path) Key() (*big.Int, error) {
 }
 
 type RDFEntry struct {
-	key   Path
-	value string
+	key Path
+	// valid types are: int64, string, bool
+	value interface{}
+}
+
+func NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
+	e := RDFEntry{key: key}
+	if len(key) == 0 {
+		return e, errors.New("key length is zero")
+	}
+
+	switch v := value.(type) {
+	case int:
+		e.value = int64(v)
+	case int64, string, bool:
+		e.value = value
+	default:
+		return e, fmt.Errorf("incorrect value type: %T", value)
+	}
+
+	return e, nil
+}
+
+func (e RDFEntry) KeyHash() (*big.Int, error) {
+	return e.key.Key()
+}
+
+func (e RDFEntry) ValueHash() (*big.Int, error) {
+	switch et := e.value.(type) {
+	case int64:
+		return mkValueInt(et)
+	case bool:
+		return mkValueBool(et)
+	case string:
+		return mkValueString(et)
+	default:
+		return nil, fmt.Errorf("unexpected value type: %T", e.value)
+	}
+}
+
+func (e RDFEntry) KeyValueHashes() (*big.Int, *big.Int, error) {
+	kh, err := e.KeyHash()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vh, err := e.ValueHash()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return kh, vh, nil
 }
 
 type quadKey struct {
@@ -195,15 +246,36 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 		return nil, err
 	}
 
-	//parents, err := findDependencies(quads)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	entries := make([]RDFEntry, len(quads))
 	for i, q := range quads {
 		switch qo := q.Object.(type) {
-		case *ld.IRI, *ld.Literal:
+		case *ld.Literal:
+			if qo == nil {
+				return nil, errors.New("object Literal is nil")
+			}
+			switch qo.Datatype {
+			case "http://www.w3.org/2001/XMLSchema#boolean":
+				switch qo.Value {
+				case "false":
+					entries[i].value = false
+				case "true":
+					entries[i].value = true
+				default:
+					return nil, errors.New("incorrect boolean value")
+				}
+			case "http://www.w3.org/2001/XMLSchema#integer",
+				"http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
+				"http://www.w3.org/2001/XMLSchema#nonPositiveInteger",
+				"http://www.w3.org/2001/XMLSchema#negativeInteger",
+				"http://www.w3.org/2001/XMLSchema#positiveInteger":
+				entries[i].value, err = strconv.ParseInt(qo.Value, 10, 64)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				entries[i].value = qo.GetValue()
+			}
+		case *ld.IRI:
 			if qo == nil {
 				return nil, errors.New("object IRI is nil")
 			}
@@ -279,12 +351,7 @@ func AddEntriesToMerkleTree(ctx context.Context, mt *merkletree.MerkleTree,
 	entries []RDFEntry) error {
 
 	for _, e := range entries {
-		key, err := e.key.Key()
-		if err != nil {
-			return err
-		}
-
-		val, err := mkValueString(e.value)
+		key, val, err := e.KeyValueHashes()
 		if err != nil {
 			return err
 		}
@@ -300,4 +367,16 @@ func AddEntriesToMerkleTree(ctx context.Context, mt *merkletree.MerkleTree,
 
 func mkValueString(val string) (*big.Int, error) {
 	return poseidon.HashBytes([]byte(val))
+}
+
+func mkValueBool(val bool) (*big.Int, error) {
+	if val {
+		return poseidon.Hash([]*big.Int{big.NewInt(1)})
+	} else {
+		return poseidon.Hash([]*big.Int{big.NewInt(0)})
+	}
+}
+
+func mkValueInt(val int64) (*big.Int, error) {
+	return poseidon.Hash([]*big.Int{big.NewInt(val)})
 }
