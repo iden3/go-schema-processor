@@ -2,10 +2,12 @@ package merklize
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql"
@@ -18,6 +20,50 @@ func (p Path) reverse() {
 	for i, j := 0, len(p)-1; i < j; i, j = i+1, j-1 {
 		p[i], p[j] = p[j], p[i]
 	}
+}
+
+// PathFromContext parses context and do its best to generate full Path
+// from shortcut line field1.field2.field3...
+func PathFromContext(ctxBytes []byte, path string) (Path, error) {
+	var out Path
+
+	var ctxObj map[string]interface{}
+	err := json.Unmarshal(ctxBytes, &ctxObj)
+	if err != nil {
+		return out, err
+	}
+
+	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxObj["@context"])
+	if err != nil {
+		return out, err
+	}
+
+	parts := strings.Split(path, ".")
+
+	for _, term := range parts {
+		if ldCtx == nil {
+			return out, errors.New("context is nil")
+		}
+
+		m := ldCtx.GetTermDefinition(term)
+		p, ok := m["@id"]
+		if !ok {
+			return out, fmt.Errorf("no @id attribute for term: %v", term)
+		}
+
+		nextCtx, ok := m["@context"]
+		if ok {
+			var err error
+			ldCtx, err = ldCtx.Parse(nextCtx)
+			if err != nil {
+				return out, err
+			}
+		}
+
+		out = append(out, p)
+	}
+
+	return out, nil
 }
 
 func (p Path) Key() (*big.Int, error) {

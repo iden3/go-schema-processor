@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/iden3/go-merkletree-sql"
@@ -414,4 +415,20 @@ func logDataset(in *ld.RDFDataset) {
 				g.Graph, graph)
 		}
 	}
+}
+
+func TestPathFromContext(t *testing.T) {
+	// this file downloaded from here: https://www.w3.org/2018/credentials/v1
+	ctxBytes, err := os.ReadFile("testdata/credentials_v1.json")
+	require.NoError(t, err)
+
+	in := "VerifiableCredential.credentialSchema.JsonSchemaValidator2018"
+	result, err := PathFromContext(ctxBytes, in)
+	require.NoError(t, err)
+
+	want := Path{
+		"https://www.w3.org/2018/credentials#VerifiableCredential",
+		"https://www.w3.org/2018/credentials#credentialSchema",
+		"https://www.w3.org/2018/credentials#JsonSchemaValidator2018"}
+	require.Equal(t, want, result)
 }
