@@ -81,18 +81,20 @@ func (e RDFEntry) ValueHash() (*big.Int, error) {
 	}
 }
 
-func (e RDFEntry) KeyValueHashes() (*big.Int, *big.Int, error) {
-	kh, err := e.KeyHash()
+func (e RDFEntry) KeyValueHashes() (
+	keyHash *big.Int, valueHash *big.Int, err error) {
+
+	keyHash, err = e.KeyHash()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	vh, err := e.ValueHash()
+	valueHash, err = e.ValueHash()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return kh, vh, nil
+	return keyHash, valueHash, nil
 }
 
 type quadKey struct {
