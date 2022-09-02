@@ -24,6 +24,8 @@ func SetHasher(h Hasher) {
 	defaultHasher = h
 }
 
+// Options type allows to change hashing algorithm and create Path and RDFEntry
+// instances with hasher different from default one.
 type Options struct {
 	Hasher Hasher
 }
