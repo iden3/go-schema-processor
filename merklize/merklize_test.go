@@ -90,195 +90,197 @@ func TestEntriesFromRDF(t *testing.T) {
 		}
 	}
 
+	mkPath := func(parts ...interface{}) Path {
+		p, err := NewPath(parts...)
+		require.NoError(t, err)
+		return p
+	}
+
 	wantEntries := []RDFEntry{
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"http://schema.org/birthDate"},
+				"http://schema.org/birthDate"),
 			value: "1958-07-17",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"http://schema.org/familyName"},
+				"http://schema.org/familyName"),
 			value: "SMITH",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"http://schema.org/gender"},
+				"http://schema.org/gender"),
 			value: "Male",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"http://schema.org/givenName"},
+				"http://schema.org/givenName"),
 			value: "JOHN",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"http://schema.org/image"},
+				"http://schema.org/image"),
 			value: "data:image/png;base64,iVBORw0KGgokJggg==",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0},
+				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0),
 			value: "http://schema.org/Person",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1},
+				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1),
 			value: "https://w3id.org/citizenship#PermanentResident",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"https://w3id.org/citizenship#birthCountry"},
+				"https://w3id.org/citizenship#birthCountry"),
 			value: "Bahamas",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"https://w3id.org/citizenship#commuterClassification"},
+				"https://w3id.org/citizenship#commuterClassification"),
 			value: "C1",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"https://w3id.org/citizenship#lprCategory"},
+				"https://w3id.org/citizenship#lprCategory"),
 			value: "C09",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"https://w3id.org/citizenship#lprNumber"},
+				"https://w3id.org/citizenship#lprNumber"),
 			value: "999-999-999",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
-				"https://w3id.org/citizenship#residentSince"},
+				"https://w3id.org/citizenship#residentSince"),
 			value: "2015-01-01",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"http://schema.org/birthDate"},
+				"http://schema.org/birthDate"),
 			value: "1958-07-18",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"http://schema.org/familyName"},
+				"http://schema.org/familyName"),
 			value: "SMITH",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"http://schema.org/gender"},
+				"http://schema.org/gender"),
 			value: "Male",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"http://schema.org/givenName"},
+				"http://schema.org/givenName"),
 			value: "JOHN",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"http://schema.org/image"},
+				"http://schema.org/image"),
 			value: "data:image/png;base64,iVBORw0KGgokJggg==",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0},
+				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0),
 			value: "http://schema.org/Person",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1},
+				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1),
 			value: "https://w3id.org/citizenship#PermanentResident",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"https://w3id.org/citizenship#birthCountry"},
+				"https://w3id.org/citizenship#birthCountry"),
 			value: "Bahamas",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"https://w3id.org/citizenship#commuterClassification"},
+				"https://w3id.org/citizenship#commuterClassification"),
 			value: "C1",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"https://w3id.org/citizenship#lprCategory"},
+				"https://w3id.org/citizenship#lprCategory"),
 			value: "C09",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"https://w3id.org/citizenship#lprNumber"},
+				"https://w3id.org/citizenship#lprNumber"),
 			value: "999-999-999",
 		},
 		{
-			key: []interface{}{
+			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
-				"https://w3id.org/citizenship#residentSince"},
+				"https://w3id.org/citizenship#residentSince"),
 			value: "2015-01-01",
 		},
 		{
-			key:   []interface{}{"http://schema.org/description"},
+			key:   mkPath("http://schema.org/description"),
 			value: "Government of Example Permanent Resident Card.",
 		},
 		{
-			key:   []interface{}{"http://schema.org/identifier"},
+			key:   mkPath("http://schema.org/identifier"),
 			value: int64(83627465),
 		},
 		{
-			key:   []interface{}{"http://schema.org/name"},
+			key:   mkPath("http://schema.org/name"),
 			value: "Permanent Resident Card",
 		},
 		{
-			key: []interface{}{
-				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0},
+			key:   mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0),
 			value: "https://w3id.org/citizenship#PermanentResidentCard",
 		},
 		{
-			key: []interface{}{
-				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1},
+			key:   mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1),
 			value: "https://www.w3.org/2018/credentials#VerifiableCredential",
 		},
 		{
-			key: []interface{}{
-				"https://www.w3.org/2018/credentials#credentialSubject", 0},
+			key: mkPath("https://www.w3.org/2018/credentials#credentialSubject",
+				0),
 			value: "did:example:b34ca6cd37bbf23",
 		},
 		{
-			key: []interface{}{
-				"https://www.w3.org/2018/credentials#credentialSubject", 1},
+			key: mkPath("https://www.w3.org/2018/credentials#credentialSubject",
+				1),
 			value: "did:example:b34ca6cd37bbf24",
 		},
 		{
-			key: []interface{}{
-				"https://www.w3.org/2018/credentials#expirationDate"},
+			key:   mkPath("https://www.w3.org/2018/credentials#expirationDate"),
 			value: "2029-12-03T12:19:52Z",
 		},
 		{
-			key: []interface{}{
-				"https://www.w3.org/2018/credentials#issuanceDate"},
+			key:   mkPath("https://www.w3.org/2018/credentials#issuanceDate"),
 			value: "2019-12-03T12:19:52Z",
 		},
 		{
-			key:   []interface{}{"https://www.w3.org/2018/credentials#issuer"},
+			key:   mkPath("https://www.w3.org/2018/credentials#issuer"),
 			value: "did:example:489398593",
 		},
 	}
@@ -300,9 +302,10 @@ func TestProof(t *testing.T) {
 	require.NoError(t, err)
 
 	// [https://www.w3.org/2018/credentials#credentialSubject 1 http://schema.org/birthDate] => 1958-07-18
-	path := Path{
+	path, err := NewPath(
 		"https://www.w3.org/2018/credentials#credentialSubject", 1,
-		"http://schema.org/birthDate"}
+		"http://schema.org/birthDate")
+	require.NoError(t, err)
 
 	entry, err := NewRDFEntry(path, "1958-07-18")
 	require.NoError(t, err)
@@ -331,7 +334,10 @@ func TestProofInteger(t *testing.T) {
 	err = AddEntriesToMerkleTree(ctx, mt, entries)
 	require.NoError(t, err)
 
-	entry, err := NewRDFEntry(Path{"http://schema.org/identifier"}, 83627465)
+	path, err := NewPath("http://schema.org/identifier")
+	require.NoError(t, err)
+
+	entry, err := NewRDFEntry(path, 83627465)
 	require.NoError(t, err)
 
 	key, val, err := entry.KeyValueHashes()
@@ -426,9 +432,11 @@ func TestPathFromContext(t *testing.T) {
 	result, err := PathFromContext(ctxBytes, in)
 	require.NoError(t, err)
 
-	want := Path{
+	want, err := NewPath(
 		"https://www.w3.org/2018/credentials#VerifiableCredential",
 		"https://www.w3.org/2018/credentials#credentialSchema",
-		"https://www.w3.org/2018/credentials#JsonSchemaValidator2018"}
+		"https://www.w3.org/2018/credentials#JsonSchemaValidator2018")
+	require.NoError(t, err)
+
 	require.Equal(t, want, result)
 }

@@ -14,41 +14,109 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
-type Path []interface{}
+var defaultHasher Hasher = PoseidonHasher{}
 
-func (p Path) reverse() {
-	for i, j := 0, len(p)-1; i < j; i, j = i+1, j-1 {
-		p[i], p[j] = p[j], p[i]
+// SetHasher changes default hasher
+func SetHasher(h Hasher) {
+	if h == nil {
+		panic("hasher is nil")
 	}
+	defaultHasher = h
+}
+
+type Options struct {
+	Hasher Hasher
+}
+
+func (o Options) getHasher() Hasher {
+	if o.Hasher != nil {
+		return o.Hasher
+	}
+	return defaultHasher
+}
+
+func (o Options) NewPath(parts ...interface{}) (Path, error) {
+	p := Path{hasher: o.getHasher()}
+	err := p.Append(parts)
+	return p, err
+}
+
+func (o Options) PathFromContext(ctxBytes []byte, path string) (Path, error) {
+	out := Path{hasher: o.getHasher()}
+	err := out.pathFromContext(ctxBytes, path)
+	return out, err
+}
+
+func (o Options) NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
+	e := RDFEntry{
+		key:    key,
+		hasher: o.getHasher(),
+	}
+	if len(key.parts) == 0 {
+		return e, errors.New("key length is zero")
+	}
+
+	switch v := value.(type) {
+	case int:
+		e.value = int64(v)
+	case int64, string, bool:
+		e.value = value
+	default:
+		return e, fmt.Errorf("incorrect value type: %T", value)
+	}
+
+	return e, nil
+}
+
+type Path struct {
+	parts  []interface{}
+	hasher Hasher
+}
+
+func (p *Path) reverse() {
+	for i, j := 0, len(p.parts)-1; i < j; i, j = i+1, j-1 {
+		p.parts[i], p.parts[j] = p.parts[j], p.parts[i]
+	}
+}
+
+func NewPath(parts ...interface{}) (Path, error) {
+	p := Path{}
+	err := p.Append(parts...)
+	return p, err
 }
 
 // PathFromContext parses context and do its best to generate full Path
 // from shortcut line field1.field2.field3...
 func PathFromContext(ctxBytes []byte, path string) (Path, error) {
 	var out Path
+	err := out.pathFromContext(ctxBytes, path)
+	return out, err
+}
+
+func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 
 	var ctxObj map[string]interface{}
 	err := json.Unmarshal(ctxBytes, &ctxObj)
 	if err != nil {
-		return out, err
+		return err
 	}
 
 	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxObj["@context"])
 	if err != nil {
-		return out, err
+		return err
 	}
 
 	parts := strings.Split(path, ".")
 
 	for _, term := range parts {
 		if ldCtx == nil {
-			return out, errors.New("context is nil")
+			return errors.New("context is nil")
 		}
 
 		m := ldCtx.GetTermDefinition(term)
-		p, ok := m["@id"]
+		id, ok := m["@id"]
 		if !ok {
-			return out, fmt.Errorf("no @id attribute for term: %v", term)
+			return fmt.Errorf("no @id attribute for term: %v", term)
 		}
 
 		nextCtx, ok := m["@context"]
@@ -56,23 +124,28 @@ func PathFromContext(ctxBytes []byte, path string) (Path, error) {
 			var err error
 			ldCtx, err = ldCtx.Parse(nextCtx)
 			if err != nil {
-				return out, err
+				return err
 			}
 		}
 
-		out = append(out, p)
+		p.parts = append(p.parts, id)
 	}
 
-	return out, nil
+	return nil
 }
 
-func (p Path) Key() (*big.Int, error) {
+func (p *Path) Key() (*big.Int, error) {
 	var err error
-	intKeyParts := make([]*big.Int, len(p))
-	for i := range p {
-		switch v := p[i].(type) {
+	h := p.hasher
+	if h == nil {
+		h = defaultHasher
+	}
+
+	intKeyParts := make([]*big.Int, len(p.parts))
+	for i := range p.parts {
+		switch v := p.parts[i].(type) {
 		case string:
-			intKeyParts[i], err = poseidon.HashBytes([]byte(v))
+			intKeyParts[i], err = h.HashBytes([]byte(v))
 			if err != nil {
 				return nil, err
 			}
@@ -83,18 +156,32 @@ func (p Path) Key() (*big.Int, error) {
 		}
 	}
 
-	return poseidon.Hash(intKeyParts)
+	return h.Hash(intKeyParts)
+}
+
+func (p *Path) Append(parts ...interface{}) error {
+	for i := range parts {
+		switch parts[i].(type) {
+		case string, int:
+		default:
+			return fmt.Errorf("incorrect part type: %T", parts)
+		}
+	}
+
+	p.parts = append(p.parts, parts...)
+	return nil
 }
 
 type RDFEntry struct {
 	key Path
 	// valid types are: int64, string, bool
-	value interface{}
+	value  interface{}
+	hasher Hasher
 }
 
 func NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
 	e := RDFEntry{key: key}
-	if len(key) == 0 {
+	if len(key.parts) == 0 {
 		return e, errors.New("key length is zero")
 	}
 
@@ -117,11 +204,11 @@ func (e RDFEntry) KeyHash() (*big.Int, error) {
 func (e RDFEntry) ValueHash() (*big.Int, error) {
 	switch et := e.value.(type) {
 	case int64:
-		return mkValueInt(et)
+		return e.mkValueInt(et)
 	case bool:
-		return mkValueBool(et)
+		return e.mkValueBool(et)
 	case string:
-		return mkValueString(et)
+		return e.mkValueString(et)
 	default:
 		return nil, fmt.Errorf("unexpected value type: %T", e.value)
 	}
@@ -203,37 +290,43 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 	var k Path
 
 	if n == nil {
-		return nil, errors.New("quad is nil")
+		return k, errors.New("quad is nil")
 	}
 
 	var subject ld.IRI
 	switch qs := n.Subject.(type) {
 	case *ld.IRI:
 		if qs == nil {
-			return nil, errors.New("subject IRI is nil")
+			return k, errors.New("subject IRI is nil")
 		}
 		subject = *qs
 	case *ld.BlankNode:
-		return nil, errors.New("[3] BlankNode is not supported yet")
+		return k, errors.New("[3] BlankNode is not supported yet")
 	default:
-		return nil, errors.New("unexpected Quad's Subject type")
+		return k, errors.New("unexpected Quad's Subject type")
 	}
 
 	var predicate ld.IRI
 	switch qp := n.Predicate.(type) {
 	case *ld.IRI:
 		if qp == nil {
-			return nil, errors.New("predicate IRI is nil")
+			return k, errors.New("predicate IRI is nil")
 		}
 		predicate = *qp
 	default:
-		return nil, errors.New("unexpected Quad's Predicate type")
+		return k, errors.New("unexpected Quad's Predicate type")
 	}
 
 	if idx != nil {
-		k = append(k, *idx)
+		err := k.Append(*idx)
+		if err != nil {
+			return k, err
+		}
 	}
-	k = append(k, predicate.Value)
+	err := k.Append(predicate.Value)
+	if err != nil {
+		return k, err
+	}
 	nextKey := subject
 	for {
 		parent, ok := r.parents[nextKey]
@@ -243,22 +336,28 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 
 		children, ok := r.children[parent.subject]
 		if !ok {
-			return nil, errors.New("[assertion] parent not found in children")
+			return k, errors.New("[assertion] parent not found in children")
 		}
 
 		if len(children) == 1 {
-			k = append(k, parent.predicate.Value)
+			err = k.Append(parent.predicate.Value)
+			if err != nil {
+				return k, err
+			}
 		} else {
 			found := false
 			for i, child := range children {
 				if child.Value == nextKey.Value {
 					found = true
-					k = append(k, i, parent.predicate.Value)
+					err = k.Append(i, parent.predicate.Value)
+					if err != nil {
+						return k, err
+					}
 					break
 				}
 			}
 			if !found {
-				return nil, errors.New(
+				return k, errors.New(
 					"[assertion] child not found in parent's relations")
 			}
 		}
@@ -413,18 +512,41 @@ func AddEntriesToMerkleTree(ctx context.Context, mt *merkletree.MerkleTree,
 	return nil
 }
 
-func mkValueString(val string) (*big.Int, error) {
-	return poseidon.HashBytes([]byte(val))
+func (e RDFEntry) getHasher() Hasher {
+	h := e.hasher
+	if h == nil {
+		h = defaultHasher
+	}
+	return h
 }
 
-func mkValueBool(val bool) (*big.Int, error) {
+func (e RDFEntry) mkValueString(val string) (*big.Int, error) {
+	return e.getHasher().HashBytes([]byte(val))
+}
+
+func (e RDFEntry) mkValueBool(val bool) (*big.Int, error) {
 	if val {
-		return poseidon.Hash([]*big.Int{big.NewInt(1)})
+		return e.getHasher().Hash([]*big.Int{big.NewInt(1)})
 	} else {
-		return poseidon.Hash([]*big.Int{big.NewInt(0)})
+		return e.getHasher().Hash([]*big.Int{big.NewInt(0)})
 	}
 }
 
-func mkValueInt(val int64) (*big.Int, error) {
-	return poseidon.Hash([]*big.Int{big.NewInt(val)})
+func (e RDFEntry) mkValueInt(val int64) (*big.Int, error) {
+	return e.getHasher().Hash([]*big.Int{big.NewInt(val)})
+}
+
+type Hasher interface {
+	Hash(inpBI []*big.Int) (*big.Int, error)
+	HashBytes(msg []byte) (*big.Int, error)
+}
+
+type PoseidonHasher struct{}
+
+func (p PoseidonHasher) Hash(inpBI []*big.Int) (*big.Int, error) {
+	return poseidon.Hash(inpBI)
+}
+
+func (p PoseidonHasher) HashBytes(msg []byte) (*big.Int, error) {
+	return poseidon.HashBytes(msg)
 }
