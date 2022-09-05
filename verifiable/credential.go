@@ -35,6 +35,9 @@ type CredentialStatus struct {
 // SparseMerkleTreeProof is CredentialStatusType
 const SparseMerkleTreeProof CredentialStatusType = "SparseMerkleTreeProof"
 
+// Iden3ReverseSparseMerkleTreeProof is CredentialStatusType
+const Iden3ReverseSparseMerkleTreeProof CredentialStatusType = "Iden3ReverseSparseMerkleTreeProof"
+
 // CredentialStatusType type for understanding revocation type
 type CredentialStatusType string
 
