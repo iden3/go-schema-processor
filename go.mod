@@ -3,7 +3,6 @@ module github.com/iden3/go-schema-processor
 go 1.17
 
 require (
-	github.com/iden3/go-iden3-core v0.1.0
 	github.com/iden3/go-merkletree-sql v1.0.1
 	github.com/ipfs/go-ipfs-api v0.3.0
 	github.com/pkg/errors v0.9.1
@@ -17,6 +16,7 @@ require (
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/iden3/go-iden3-core v0.1.1-0.20220914112439-b215b223c4fe // indirect
 	github.com/iden3/go-iden3-crypto v0.0.13 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
 	github.com/ipfs/go-ipfs-files v0.0.9 // indirect
