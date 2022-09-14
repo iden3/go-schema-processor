@@ -90,15 +90,17 @@ func (p Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 	}
 
 	if subjectID != nil {
-		did, err := core.ParseDID(fmt.Sprintf("%v", subjectID))
+		var id core.ID
+		id, err = core.IDFromString(fmt.Sprintf("%v", subjectID))
 		if err != nil {
 			return nil, err
 		}
+
 		switch credential.SubjectPosition {
 		case "", utils.SubjectPositionIndex:
-			claim.SetIndexID(did.ID)
+			claim.SetIndexID(id)
 		case utils.SubjectPositionValue:
-			claim.SetValueID(did.ID)
+			claim.SetValueID(id)
 		default:
 			return nil, errors.New("unknown subject position")
 		}
