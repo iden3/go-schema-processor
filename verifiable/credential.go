@@ -25,7 +25,7 @@ type Iden3Credential struct {
 	Proof interface{} `json:"proof,omitempty"`
 }
 
-// StatusIssuer information that the issuer is keeping about a client's revocation status.
+// StatusIssuer represents the URL to fetch claim revocation info directly from the issuer.
 type StatusIssuer struct {
 	ID   string               `json:"id"`
 	Type CredentialStatusType `json:"type"`
