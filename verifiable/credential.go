@@ -25,10 +25,18 @@ type Iden3Credential struct {
 	Proof interface{} `json:"proof,omitempty"`
 }
 
-// CredentialStatus contains type and revocation Url
-type CredentialStatus struct {
+// StatusIssuer represents the URL to fetch claim revocation info directly from the issuer.
+type StatusIssuer struct {
 	ID   string               `json:"id"`
 	Type CredentialStatusType `json:"type"`
+}
+
+// CredentialStatus contains type and revocation Url
+type CredentialStatus struct {
+	ID           string               `json:"id"`
+	Type         CredentialStatusType `json:"type"`
+	Issuer       string               `json:"issuer,omitempty"`
+	StatusIssuer *StatusIssuer        `json:"statusIssuer,omitempty"`
 }
 
 //nolint:gosec //reason: no need for security
