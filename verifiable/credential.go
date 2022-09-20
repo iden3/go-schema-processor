@@ -11,7 +11,7 @@ type Iden3Credential struct {
 	ID                string                 `json:"id"`
 	Context           []string               `json:"@context"`
 	Type              []string               `json:"@type"`
-	Expiration        time.Time              `json:"expiration,omitempty"`
+	Expiration        time.Time              `json:"expirationDate,omitempty"`
 	Updatable         bool                   `json:"updatable"`
 	Version           uint32                 `json:"version"`
 	RevNonce          uint64                 `json:"rev_nonce"`
@@ -19,7 +19,7 @@ type Iden3Credential struct {
 	CredentialStatus  *CredentialStatus      `json:"credentialStatus,omitempty"`
 	SubjectPosition   string                 `json:"subject_position,omitempty"`
 	CredentialSchema  struct {
-		ID   string `json:"@id"`
+		ID   string `json:"id"`
 		Type string `json:"type"`
 	} `json:"credentialSchema"`
 	Proof interface{} `json:"proof,omitempty"`
@@ -40,8 +40,8 @@ type CredentialStatus struct {
 }
 
 //nolint:gosec //reason: no need for security
-// SparseMerkleTreeProof is CredentialStatusType
-const SparseMerkleTreeProof CredentialStatusType = "SparseMerkleTreeProof"
+// Iden3SparseMerkleTreeProof is CredentialStatusType
+const Iden3SparseMerkleTreeProof CredentialStatusType = "Iden3SparseMerkleTreeProof"
 
 // Iden3ReverseSparseMerkleTreeProof is CredentialStatusType
 const Iden3ReverseSparseMerkleTreeProof CredentialStatusType = "Iden3ReverseSparseMerkleTreeProof"
