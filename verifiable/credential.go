@@ -11,7 +11,7 @@ type Iden3Credential struct {
 	ID                string                 `json:"id"`
 	Context           []string               `json:"@context"`
 	Type              []string               `json:"@type"`
-	Expiration        time.Time              `json:"expirationDate,omitempty"`
+	Expiration        *time.Time             `json:"expirationDate,omitempty"`
 	Updatable         bool                   `json:"updatable"`
 	Version           uint32                 `json:"version"`
 	RevNonce          uint64                 `json:"rev_nonce"`

@@ -5,6 +5,7 @@ import (
 	mt "github.com/iden3/go-merkletree-sql"
 )
 
+// ProofType represent proofs types.
 type ProofType string
 
 // IssuerData is the data that is used to create a proof
