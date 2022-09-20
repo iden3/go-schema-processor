@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/iden3/go-merkletree-sql"
@@ -13,8 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getDataset(t testing.TB) *ld.RDFDataset {
-	in := `{
+const testDocument = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://w3id.org/citizenship/v1",
@@ -59,8 +59,10 @@ func getDataset(t testing.TB) *ld.RDFDataset {
     }
   ]
 }`
+
+func getDataset(t testing.TB) *ld.RDFDataset {
 	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(in), &obj)
+	err := json.Unmarshal([]byte(testDocument), &obj)
 	if err != nil {
 		panic(err)
 	}
@@ -347,6 +349,30 @@ func TestProofInteger(t *testing.T) {
 	require.NoError(t, err)
 
 	ok := merkletree.VerifyProof(mt.Root(), p, key, val)
+	require.True(t, ok)
+}
+
+func TestMerklizer_Proof(t *testing.T) {
+	ctx := context.Background()
+	mz, err := Merklize(ctx, strings.NewReader(testDocument))
+	require.NoError(t, err)
+
+	// [https://www.w3.org/2018/credentials#credentialSubject 1 http://schema.org/birthDate] => 1958-07-18
+	path, err := NewPath(
+		"https://www.w3.org/2018/credentials#credentialSubject", 1,
+		"http://schema.org/birthDate")
+	require.NoError(t, err)
+
+	p, err := mz.Proof(ctx, path)
+	require.NoError(t, err)
+
+	pathKey, err := path.Key()
+	require.NoError(t, err)
+
+	valueKey, err := mz.HashValue("1958-07-18")
+	require.NoError(t, err)
+
+	ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
 	require.True(t, ok)
 }
 

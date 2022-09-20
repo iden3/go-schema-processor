@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql"
+	"github.com/iden3/go-merkletree-sql/db/memory"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -204,16 +206,7 @@ func (e RDFEntry) KeyHash() (*big.Int, error) {
 }
 
 func (e RDFEntry) ValueHash() (*big.Int, error) {
-	switch et := e.value.(type) {
-	case int64:
-		return e.mkValueInt(et)
-	case bool:
-		return e.mkValueBool(et)
-	case string:
-		return e.mkValueString(et)
-	default:
-		return nil, fmt.Errorf("unexpected value type: %T", e.value)
-	}
+	return hashValue(e.getHasher(), e.value)
 }
 
 func (e RDFEntry) KeyValueHashes() (
@@ -496,7 +489,11 @@ func getQuadKey(q *ld.Quad) (quadKey, error) {
 	return key, nil
 }
 
-func AddEntriesToMerkleTree(ctx context.Context, mt *merkletree.MerkleTree,
+type mtAppender interface {
+	Add(context.Context, *big.Int, *big.Int) error
+}
+
+func AddEntriesToMerkleTree(ctx context.Context, mt mtAppender,
 	entries []RDFEntry) error {
 
 	for _, e := range entries {
@@ -522,22 +519,6 @@ func (e RDFEntry) getHasher() Hasher {
 	return h
 }
 
-func (e RDFEntry) mkValueString(val string) (*big.Int, error) {
-	return e.getHasher().HashBytes([]byte(val))
-}
-
-func (e RDFEntry) mkValueBool(val bool) (*big.Int, error) {
-	if val {
-		return e.getHasher().Hash([]*big.Int{big.NewInt(1)})
-	} else {
-		return e.getHasher().Hash([]*big.Int{big.NewInt(0)})
-	}
-}
-
-func (e RDFEntry) mkValueInt(val int64) (*big.Int, error) {
-	return e.getHasher().Hash([]*big.Int{big.NewInt(val)})
-}
-
 type Hasher interface {
 	Hash(inpBI []*big.Int) (*big.Int, error)
 	HashBytes(msg []byte) (*big.Int, error)
@@ -551,4 +532,163 @@ func (p PoseidonHasher) Hash(inpBI []*big.Int) (*big.Int, error) {
 
 func (p PoseidonHasher) HashBytes(msg []byte) (*big.Int, error) {
 	return poseidon.HashBytes(msg)
+}
+
+type MerkleTree interface {
+	Add(context.Context, *big.Int, *big.Int) error
+	GenerateProof(context.Context, *big.Int) (*merkletree.Proof, error)
+	Root() *merkletree.Hash
+}
+
+type mtSqlAdapter merkletree.MerkleTree
+
+func (a *mtSqlAdapter) Add(ctx context.Context, key, value *big.Int) error {
+	return (*merkletree.MerkleTree)(a).Add(ctx, key, value)
+}
+
+func (a *mtSqlAdapter) GenerateProof(ctx context.Context,
+	key *big.Int) (*merkletree.Proof, error) {
+	p, _, err := (*merkletree.MerkleTree)(a).GenerateProof(ctx, key, nil)
+	return p, err
+}
+
+func (a *mtSqlAdapter) Root() *merkletree.Hash {
+	return (*merkletree.MerkleTree)(a).Root()
+}
+
+func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
+	return (*mtSqlAdapter)(mt)
+}
+
+type Merklizer struct {
+	mt     MerkleTree
+	hasher Hasher
+}
+
+type MerklizeOption func(m *Merklizer)
+
+func WithHasher(h Hasher) MerklizeOption {
+	return func(m *Merklizer) {
+		m.hasher = h
+	}
+}
+
+func WithMerkleTree(mt MerkleTree) MerklizeOption {
+	return func(m *Merklizer) {
+		m.mt = mt
+	}
+}
+
+func Merklize(ctx context.Context, in io.Reader,
+	opts ...MerklizeOption) (*Merklizer, error) {
+
+	mz := &Merklizer{}
+	for _, o := range opts {
+		o(mz)
+	}
+
+	// if merkletree is not set with options, initialize new in-memory MT.
+	if mz.mt == nil {
+		mt, err := merkletree.NewMerkleTree(ctx, memory.NewMemoryStorage(), 40)
+		if err != nil {
+			return nil, err
+		}
+		mz.mt = MerkleTreeSQLAdapter(mt)
+	}
+
+	// if hasher is not set with options, initialize it to default
+	if mz.hasher == nil {
+		mz.hasher = defaultHasher
+	}
+
+	var obj map[string]interface{}
+	err := json.NewDecoder(in).Decode(&obj)
+	if err != nil {
+		return nil, err
+	}
+
+	proc := ld.NewJsonLdProcessor()
+	options := ld.NewJsonLdOptions("")
+	options.Algorithm = "URDNA2015"
+
+	normDoc, err := proc.Normalize(obj, options)
+	if err != nil {
+		return nil, err
+	}
+
+	dataset, ok := normDoc.(*ld.RDFDataset)
+	if !ok {
+		return nil, errors.New("[assertion] expected *ld.RDFDataset type")
+	}
+
+	entries, err := EntriesFromRDF(dataset)
+	if err != nil {
+		return nil, err
+	}
+
+	err = AddEntriesToMerkleTree(ctx, mz.mt, entries)
+	if err != nil {
+		return nil, err
+	}
+
+	return mz, nil
+}
+
+func (m *Merklizer) Proof(ctx context.Context,
+	path interface{}) (*merkletree.Proof, error) {
+
+	var realPath Path
+	switch p := path.(type) {
+	case string:
+		// TODO
+		panic("not implemented")
+	case Path:
+		realPath = p
+	default:
+		return nil, errors.New("path should be of type either string or Path")
+	}
+
+	keyHash, err := realPath.Key()
+	if err != nil {
+		return nil, err
+	}
+
+	return m.mt.GenerateProof(ctx, keyHash)
+}
+
+func (m *Merklizer) HashValue(value interface{}) (*big.Int, error) {
+	return hashValue(m.hasher, value)
+}
+
+func (m *Merklizer) Root() *merkletree.Hash {
+	return m.mt.Root()
+}
+
+func hashValue(h Hasher, v interface{}) (*big.Int, error) {
+	switch et := v.(type) {
+	case int64:
+		return mkValueInt(h, et)
+	case bool:
+		return mkValueBool(h, et)
+	case string:
+		return mkValueString(h, et)
+	default:
+		return nil, fmt.Errorf("unexpected value type: %T", v)
+	}
+}
+
+func mkValueInt(h Hasher, val int64) (*big.Int, error) {
+	return h.Hash([]*big.Int{big.NewInt(val)})
+}
+
+func mkValueBool(h Hasher, val bool) (*big.Int, error) {
+	if val {
+		return h.Hash([]*big.Int{big.NewInt(1)})
+	} else {
+		return h.Hash([]*big.Int{big.NewInt(0)})
+	}
+}
+
+func mkValueString(h Hasher, val string) (*big.Int, error) {
+	return h.HashBytes([]byte(val))
 }
