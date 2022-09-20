@@ -7,11 +7,11 @@ import (
 
 // IssuerData is the data that is used to create a proof
 type IssuerData struct {
-	ID               *core.ID    `json:"id,omitempty"`
-	State            State       `json:"state,omitempty"`
-	AuthClaim        *core.Claim `json:"auth_claim,omitempty"`
-	MTP              *mt.Proof   `json:"mtp,omitempty"`
-	RevocationStatus string      `json:"revocation_status,omitempty"`
+	ID               *core.ID          `json:"id,omitempty"`
+	State            State             `json:"state,omitempty"`
+	AuthClaim        *core.Claim       `json:"auth_claim,omitempty"`
+	MTP              *mt.Proof         `json:"mtp,omitempty"`
+	RevocationStatus *CredentialStatus `json:"revocation_status,omitempty"`
 }
 
 // State represents the state of the issuer
