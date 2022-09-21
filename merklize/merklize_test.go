@@ -381,6 +381,13 @@ func TestNewRelationship(t *testing.T) {
 		i := ld.NewIRI(in)
 		return *i
 	}
+	nID := func(iri ld.IRI) nodeID {
+		id, err := newNodeID(&iri)
+		if err != nil {
+			panic(err)
+		}
+		return id
+	}
 	dataset := getDataset(t)
 	if false {
 		logDataset(dataset)
@@ -389,20 +396,20 @@ func TestNewRelationship(t *testing.T) {
 	rs, err := newRelationship(dataset.Graphs["@default"])
 	require.NoError(t, err)
 	wantRS := &relationship{
-		parents: map[ld.IRI]quadKey{
-			iri("did:example:b34ca6cd37bbf23"): {
-				subject:   iri("https://issuer.oidp.uscis.gov/credentials/83627465"),
+		parents: map[nodeID]quadKey{
+			nID(iri("did:example:b34ca6cd37bbf23")): {
+				subjectID: nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")),
 				predicate: iri("https://www.w3.org/2018/credentials#credentialSubject"),
 			},
-			iri("did:example:b34ca6cd37bbf24"): {
-				subject:   iri("https://issuer.oidp.uscis.gov/credentials/83627465"),
+			nID(iri("did:example:b34ca6cd37bbf24")): {
+				subjectID: nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")),
 				predicate: iri("https://www.w3.org/2018/credentials#credentialSubject"),
 			},
 		},
-		children: map[ld.IRI][]ld.IRI{
-			iri("https://issuer.oidp.uscis.gov/credentials/83627465"): {
-				iri("did:example:b34ca6cd37bbf23"),
-				iri("did:example:b34ca6cd37bbf24"),
+		children: map[nodeID][]nodeID{
+			nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")): {
+				nID(iri("did:example:b34ca6cd37bbf23")),
+				nID(iri("did:example:b34ca6cd37bbf24")),
 			},
 		},
 	}
@@ -465,4 +472,79 @@ func TestPathFromContext(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, want, result)
+}
+
+func TestPathFromContext2(t *testing.T) {
+	t.Skip("not ready")
+	in := "credentialSubject.1.birthDate"
+	result, err := PathFromContext([]byte(testDocument), in)
+	require.NoError(t, err)
+
+	want, err := NewPath(
+		"https://www.w3.org/2018/credentials#credentialSubject",
+		1,
+		"http://schema.org/birthDate")
+	require.NoError(t, err)
+
+	require.Equal(t, want, result)
+}
+
+func TestXX1(t *testing.T) {
+	t.Skip("not ready")
+	in := `{
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Colorado Springs",
+        "addressRegion": "CO",
+        "postalCode": "80840",
+        "streetAddress": "100 Main Street"
+    },
+    "colleague": [
+        "http://www.example.com/JohnColleague.html",
+        "http://www.example.com/JameColleague.html"
+    ],
+    "email": "info@example.com",
+    "name": "Jane Doe",
+    "alumniOf": "Dartmouth",
+    "birthDate": "1979-10-12"
+}`
+	//_ = in
+	var obj map[string]interface{}
+	err := json.Unmarshal([]byte(in), &obj)
+	if err != nil {
+		panic(err)
+	}
+
+	proc := ld.NewJsonLdProcessor()
+	options := ld.NewJsonLdOptions("")
+	options.Algorithm = "URDNA2015"
+
+	out4, err := proc.Normalize(obj, options)
+	require.NoError(t, err)
+
+	out5, ok := out4.(*ld.RDFDataset)
+	require.True(t, ok, "%[1]T\n%[1]v", out4)
+
+	quads := out5.Graphs["@default"]
+	for i, q := range quads {
+		t.Logf(`#%[1]v
+Subject: %[2]T %[2]v
+Predicate: %[3]T %[3]v
+Object: %[4]T %[4]v
+Graph: %[5]T %[5]v`,
+			i, q.Subject, q.Predicate, q.Object, q.Graph)
+	}
+
+	//for k := range out5.Graphs {
+	//	log.Printf("%v", k)
+	//}
+
+	entries, err := EntriesFromRDF(out5)
+	require.NoError(t, err)
+
+	for _, e := range entries {
+		t.Logf("%v => %v", e.key, e.value)
+	}
 }

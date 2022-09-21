@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -73,7 +75,7 @@ func (o Options) NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
 }
 
 type Path struct {
-	parts  []interface{}
+	parts  []interface{} // string or int types
 	hasher Hasher
 }
 
@@ -111,8 +113,22 @@ func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 	}
 
 	parts := strings.Split(path, ".")
+	re, err := regexp.Compile(`^\d+$`)
+	if err != nil {
+		return err
+	}
 
 	for _, term := range parts {
+
+		if re.Match([]byte(term)) {
+			i64, err := strconv.ParseInt(term, 10, 32)
+			if err != nil {
+				return err
+			}
+			p.parts = append(p.parts, int(i64))
+			continue
+		}
+
 		if ldCtx == nil {
 			return errors.New("context is nil")
 		}
@@ -225,46 +241,74 @@ func (e RDFEntry) KeyValueHashes() (
 	return keyHash, valueHash, nil
 }
 
+// Identifies ld.Node by string representation of Type and Value.
+// This type allows us to use ld.Node as keys in maps.
+type nodeID struct {
+	tp  string
+	val string
+}
+
+func newNodeID(n ld.Node) (nodeID, error) {
+	var id nodeID
+
+	if n == nil {
+		return id, errors.New("ld.Node is nil")
+	}
+
+	id.tp = reflect.TypeOf(n).Name()
+
+	switch val := n.(type) {
+	case *ld.IRI:
+		if val == nil {
+			return id, errors.New("ld.Node is nil")
+		}
+		id.val = val.Value
+	case *ld.BlankNode:
+		if val == nil {
+			return id, errors.New("ld.Node is nil")
+		}
+		id.val = val.Attribute
+	default:
+		return id, errors.New("ld.Node type is not *ld.IRI or *ld.BlankNode")
+	}
+
+	return id, nil
+}
+
 type quadKey struct {
-	subject   ld.IRI
+	subjectID nodeID
 	predicate ld.IRI
 }
 
 type relationship struct {
 	// mapping from child Subject to its parent
-	parents map[ld.IRI]quadKey
+	parents map[nodeID]quadKey
 	// mapping from parent to array of children
-	children map[ld.IRI][]ld.IRI
+	children map[nodeID][]nodeID
 }
 
 func newRelationship(quads []*ld.Quad) (*relationship, error) {
 	r := relationship{
-		parents:  make(map[ld.IRI]quadKey),
-		children: make(map[ld.IRI][]ld.IRI),
+		parents:  make(map[nodeID]quadKey),
+		children: make(map[nodeID][]nodeID),
 	}
 
-	subjectSet := make(map[ld.IRI]struct{})
+	subjectSet := make(map[nodeID]struct{})
 	for _, q := range quads {
-		switch s := q.Subject.(type) {
-		case *ld.IRI:
-			if s == nil {
-				return nil, errors.New("subject is nil")
-			}
-			subjectSet[*s] = struct{}{}
-		case *ld.BlankNode:
-			return nil, errors.New("[2] BlankNode is not supported yet")
-		default:
-			continue
+		subjID, err := newNodeID(q.Subject)
+		if err != nil {
+			return nil, err
 		}
+		subjectSet[subjID] = struct{}{}
 	}
 
 	for _, q := range quads {
-		objIRI, ok := q.Object.(*ld.IRI)
-		if !ok || objIRI == nil {
+		objID, err := newNodeID(q.Object)
+		if err != nil {
 			continue
 		}
 
-		_, ok = subjectSet[*objIRI]
+		_, ok := subjectSet[objID]
 		if !ok {
 			continue
 		}
@@ -273,9 +317,10 @@ func newRelationship(quads []*ld.Quad) (*relationship, error) {
 		if err != nil {
 			return nil, err
 		}
-		r.parents[*objIRI] = qk
 
-		r.children[qk.subject] = append(r.children[qk.subject], *objIRI)
+		r.parents[objID] = qk
+
+		r.children[qk.subjectID] = append(r.children[qk.subjectID], objID)
 	}
 
 	return &r, nil
@@ -288,17 +333,9 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 		return k, errors.New("quad is nil")
 	}
 
-	var subject ld.IRI
-	switch qs := n.Subject.(type) {
-	case *ld.IRI:
-		if qs == nil {
-			return k, errors.New("subject IRI is nil")
-		}
-		subject = *qs
-	case *ld.BlankNode:
-		return k, errors.New("[3] BlankNode is not supported yet")
-	default:
-		return k, errors.New("unexpected Quad's Subject type")
+	subjID, err := newNodeID(n.Subject)
+	if err != nil {
+		return k, err
 	}
 
 	var predicate ld.IRI
@@ -318,18 +355,20 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 			return k, err
 		}
 	}
-	err := k.Append(predicate.Value)
+
+	err = k.Append(predicate.Value)
 	if err != nil {
 		return k, err
 	}
-	nextKey := subject
+
+	nextKey := subjID
 	for {
 		parent, ok := r.parents[nextKey]
 		if !ok {
 			break
 		}
 
-		children, ok := r.children[parent.subject]
+		children, ok := r.children[parent.subjectID]
 		if !ok {
 			return k, errors.New("[assertion] parent not found in children")
 		}
@@ -342,7 +381,7 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 		} else {
 			found := false
 			for i, child := range children {
-				if child.Value == nextKey.Value {
+				if child == nextKey {
 					found = true
 					err = k.Append(i, parent.predicate.Value)
 					if err != nil {
@@ -357,7 +396,7 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 			}
 		}
 
-		nextKey = parent.subject
+		nextKey = parent.subjectID
 	}
 
 	k.reverse()
@@ -388,8 +427,9 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 		return nil, err
 	}
 
-	entries := make([]RDFEntry, len(quads))
-	for i, q := range quads {
+	entries := make([]RDFEntry, 0, len(quads))
+	for _, q := range quads {
+		var e RDFEntry
 		switch qo := q.Object.(type) {
 		case *ld.Literal:
 			if qo == nil {
@@ -399,9 +439,9 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 			case "http://www.w3.org/2001/XMLSchema#boolean":
 				switch qo.Value {
 				case "false":
-					entries[i].value = false
+					e.value = false
 				case "true":
-					entries[i].value = true
+					e.value = true
 				default:
 					return nil, errors.New("incorrect boolean value")
 				}
@@ -410,19 +450,30 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 				"http://www.w3.org/2001/XMLSchema#nonPositiveInteger",
 				"http://www.w3.org/2001/XMLSchema#negativeInteger",
 				"http://www.w3.org/2001/XMLSchema#positiveInteger":
-				entries[i].value, err = strconv.ParseInt(qo.Value, 10, 64)
+				e.value, err = strconv.ParseInt(qo.Value, 10, 64)
 				if err != nil {
 					return nil, err
 				}
 			default:
-				entries[i].value = qo.GetValue()
+				e.value = qo.GetValue()
 			}
 		case *ld.IRI:
 			if qo == nil {
 				return nil, errors.New("object IRI is nil")
 			}
-			entries[i].value = qo.GetValue()
+			e.value = qo.GetValue()
 		case *ld.BlankNode:
+			nodeID, err := newNodeID(qo)
+			if err != nil {
+				return nil, err
+			}
+			_, ok := rs.parents[nodeID]
+			if ok {
+				// this node is a reference to known children,
+				// skip it and do not put it into merkle tree because it
+				// has no defined @id attribute
+				continue
+			}
 			return nil, errors.New("[1] BlankNode is not supported yet")
 		default:
 			return nil, errors.New("unexpected Quad's Object type")
@@ -444,10 +495,12 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 			*idx = seenCount[qKey]
 			seenCount[qKey]++
 		}
-		entries[i].key, err = rs.path(q, idx)
+		e.key, err = rs.path(q, idx)
 		if err != nil {
 			return nil, err
 		}
+
+		entries = append(entries, e)
 	}
 
 	return entries, nil
@@ -474,11 +527,11 @@ func getQuadKey(q *ld.Quad) (quadKey, error) {
 		return key, errors.New("quad is nil")
 	}
 
-	subject, ok := q.Subject.(*ld.IRI)
-	if !ok || subject == nil {
-		return key, errors.New("subject is not of IRI type or nil")
+	var err error
+	key.subjectID, err = newNodeID(q.Subject)
+	if err != nil {
+		return key, err
 	}
-	key.subject = *subject
 
 	predicate, ok := q.Predicate.(*ld.IRI)
 	if !ok || predicate == nil {
