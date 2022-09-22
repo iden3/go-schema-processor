@@ -33,10 +33,11 @@ type StatusIssuer struct {
 
 // CredentialStatus contains type and revocation Url
 type CredentialStatus struct {
-	ID           string               `json:"id"`
-	Type         CredentialStatusType `json:"type"`
-	Issuer       string               `json:"issuer,omitempty"`
-	StatusIssuer *StatusIssuer        `json:"statusIssuer,omitempty"`
+	ID              string               `json:"id"`
+	Type            CredentialStatusType `json:"type"`
+	Issuer          string               `json:"issuer,omitempty"`
+	RevocationNonce *uint64              `json:"revocationNonce,omitempty"`
+	StatusIssuer    *StatusIssuer        `json:"statusIssuer,omitempty"`
 }
 
 //nolint:gosec //reason: no need for security
