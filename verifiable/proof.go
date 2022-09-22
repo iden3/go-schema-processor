@@ -29,12 +29,9 @@ type State struct {
 	Status             string  `json:"status,omitempty"`
 }
 
-// BJJSignatureProofType schema type
-const BJJSignatureProofType = "BJJSignature2021"
-
 // BJJSignatureProof2021 JSON-LD BBJJSignatureProof
 type BJJSignatureProof2021 struct {
-	Type       string     `json:"type"`
+	Type       ProofType  `json:"type"`
 	IssuerData IssuerData `json:"issuer_data"`
 	Signature  string     `json:"signature"`
 }
@@ -45,6 +42,9 @@ type Iden3SparseMerkleProof struct {
 	IssuerData IssuerData `json:"issuer_data"`
 	MTP        *mt.Proof  `json:"mtp"`
 }
+
+// BJJSignatureProofType schema type
+const BJJSignatureProofType ProofType = "BJJSignature2021"
 
 // Iden3SparseMerkleProofType schema
 const Iden3SparseMerkleProofType ProofType = "Iden3SparseMerkleProof"
