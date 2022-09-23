@@ -509,7 +509,6 @@ func TestXX1(t *testing.T) {
     "alumniOf": "Dartmouth",
     "birthDate": "1979-10-12"
 }`
-	//_ = in
 	var obj map[string]interface{}
 	err := json.Unmarshal([]byte(in), &obj)
 	if err != nil {
@@ -536,10 +535,6 @@ Graph: %[5]T %[5]v`,
 			i, q.Subject, q.Predicate, q.Object, q.Graph)
 	}
 
-	//for k := range out5.Graphs {
-	//	log.Printf("%v", k)
-	//}
-
 	entries, err := EntriesFromRDF(out5)
 	require.NoError(t, err)
 
@@ -557,7 +552,6 @@ func TestXX2(t *testing.T) {
 	activeCtx := ld.NewContext(nil, nil)
 	newCtx, err := activeCtx.Parse(ctxObj["@context"])
 	require.NoError(t, err)
-	//t.Log(newCtx)
 	td := newCtx.GetTermDefinition("type")
 	t.Log(td)
 }

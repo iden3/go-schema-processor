@@ -136,7 +136,7 @@ func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 	parts := strings.Split(path, ".")
 
 	for _, term := range parts {
-		if numRE.Match([]byte(term)) {
+		if numRE.MatchString(term) {
 			i64, err := strconv.ParseInt(term, 10, 32)
 			if err != nil {
 				return err
@@ -185,7 +185,7 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	term := pathParts[0]
 	newPathParts := pathParts[1:]
 
-	if numRE.Match([]byte(term)) {
+	if numRE.MatchString(term) {
 		i64, err := strconv.ParseInt(term, 10, 32)
 		if err != nil {
 			return nil, err
@@ -235,7 +235,8 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	elemOrderedKeys := ld.GetOrderedKeys(docObjMap)
 	typeScopedContext := ldCtx
 	for _, key := range elemOrderedKeys {
-		expandedProperty, err := ldCtx.ExpandIri(key, false, true, nil, nil)
+		var expandedProperty string
+		expandedProperty, err = ldCtx.ExpandIri(key, false, true, nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -491,7 +492,7 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 	}
 
 	if idx != nil {
-		err := k.Append(*idx)
+		err = k.Append(*idx)
 		if err != nil {
 			return k, err
 		}
@@ -604,11 +605,11 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 			}
 			e.value = qo.GetValue()
 		case *ld.BlankNode:
-			nodeID, err := newNodeID(qo)
+			nID, err := newNodeID(qo)
 			if err != nil {
 				return nil, err
 			}
-			_, ok := rs.parents[nodeID]
+			_, ok := rs.parents[nID]
 			if ok {
 				// this node is a reference to known children,
 				// skip it and do not put it into merkle tree because it
@@ -734,24 +735,24 @@ type MerkleTree interface {
 	Root() *merkletree.Hash
 }
 
-type mtSqlAdapter merkletree.MerkleTree
+type mtSQLAdapter merkletree.MerkleTree
 
-func (a *mtSqlAdapter) Add(ctx context.Context, key, value *big.Int) error {
+func (a *mtSQLAdapter) Add(ctx context.Context, key, value *big.Int) error {
 	return (*merkletree.MerkleTree)(a).Add(ctx, key, value)
 }
 
-func (a *mtSqlAdapter) GenerateProof(ctx context.Context,
+func (a *mtSQLAdapter) GenerateProof(ctx context.Context,
 	key *big.Int) (*merkletree.Proof, error) {
 	p, _, err := (*merkletree.MerkleTree)(a).GenerateProof(ctx, key, nil)
 	return p, err
 }
 
-func (a *mtSqlAdapter) Root() *merkletree.Hash {
+func (a *mtSQLAdapter) Root() *merkletree.Hash {
 	return (*merkletree.MerkleTree)(a).Root()
 }
 
 func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
-	return (*mtSqlAdapter)(mt)
+	return (*mtSQLAdapter)(mt)
 }
 
 type Merklizer struct {
@@ -834,7 +835,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 	var realPath Path
 	switch p := path.(type) {
 	case string:
-		// TODO
+		// TODO do implement this on till PR
 		panic("not implemented")
 	case Path:
 		realPath = p
