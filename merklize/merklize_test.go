@@ -474,10 +474,9 @@ func TestPathFromContext(t *testing.T) {
 	require.Equal(t, want, result)
 }
 
-func TestPathFromContext2(t *testing.T) {
-	t.Skip("not ready")
+func TestPathFromDocument(t *testing.T) {
 	in := "credentialSubject.1.birthDate"
-	result, err := PathFromContext([]byte(testDocument), in)
+	result, err := PathFromDocument([]byte(testDocument), in)
 	require.NoError(t, err)
 
 	want, err := NewPath(
@@ -547,4 +546,18 @@ Graph: %[5]T %[5]v`,
 	for _, e := range entries {
 		t.Logf("%v => %v", e.key, e.value)
 	}
+}
+
+func TestXX2(t *testing.T) {
+	t.Skip("not ready")
+	var ctxObj map[string]interface{}
+	err := json.Unmarshal([]byte(testDocument), &ctxObj)
+	require.NoError(t, err)
+	t.Log(ctxObj["@context"])
+	activeCtx := ld.NewContext(nil, nil)
+	newCtx, err := activeCtx.Parse(ctxObj["@context"])
+	require.NoError(t, err)
+	//t.Log(newCtx)
+	td := newCtx.GetTermDefinition("type")
+	t.Log(td)
 }

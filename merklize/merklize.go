@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -99,6 +100,26 @@ func PathFromContext(ctxBytes []byte, path string) (Path, error) {
 	return out, err
 }
 
+func PathFromDocument(docBytes []byte, path string) (Path, error) {
+	var docObj map[string]interface{}
+	err := json.Unmarshal(docBytes, &docObj)
+	if err != nil {
+		return Path{}, err
+	}
+
+	pathParts := strings.Split(path, ".")
+	if len(pathParts) == 0 {
+		return Path{}, errors.New("path is empty")
+	}
+
+	pathPartsI, err := pathFromDocument(nil, docObj, pathParts, false)
+	if err != nil {
+		return Path{}, err
+	}
+
+	return Path{parts: pathPartsI}, nil
+}
+
 func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 
 	var ctxObj map[string]interface{}
@@ -113,14 +134,9 @@ func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 	}
 
 	parts := strings.Split(path, ".")
-	re, err := regexp.Compile(`^\d+$`)
-	if err != nil {
-		return err
-	}
 
 	for _, term := range parts {
-
-		if re.Match([]byte(term)) {
+		if numRE.Match([]byte(term)) {
 			i64, err := strconv.ParseInt(term, 10, 32)
 			if err != nil {
 				return err
@@ -152,6 +168,131 @@ func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 	}
 
 	return nil
+}
+
+var numRE = regexp.MustCompile(`^\d+$`)
+
+// Create path JSON-LD document.
+// If acceptArray is true, the previous element was index, and we accept an
+// array
+func pathFromDocument(ldCtx *ld.Context, docObj interface{},
+	pathParts []string, acceptArray bool) ([]interface{}, error) {
+
+	if len(pathParts) == 0 {
+		return nil, nil
+	}
+
+	term := pathParts[0]
+	newPathParts := pathParts[1:]
+
+	if numRE.Match([]byte(term)) {
+		i64, err := strconv.ParseInt(term, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+
+		moreParts, err := pathFromDocument(ldCtx, docObj, newPathParts, true)
+		if err != nil {
+			return nil, err
+		}
+
+		return append([]interface{}{int(i64)}, moreParts...), nil
+	}
+
+	var docObjMap map[string]interface{}
+
+	switch docObjT := docObj.(type) {
+	case []interface{}:
+		if len(docObjT) == 0 {
+			return nil, errors.New("can't generate path on zero-sized array")
+		}
+
+		if !acceptArray {
+			return nil, errors.New("unexpected array element")
+		}
+
+		return pathFromDocument(ldCtx, docObjT[0], pathParts, false)
+	case map[string]interface{}:
+		// pass
+		docObjMap = docObjT
+	default:
+		return nil, fmt.Errorf("expect array or object type, got: %T", docObj)
+	}
+
+	if ldCtx == nil {
+		ldCtx = ld.NewContext(nil, nil)
+	}
+
+	var err error
+	ctxData, haveCtx := docObjMap["@context"]
+	if haveCtx {
+		ldCtx, err = ldCtx.Parse(ctxData)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	elemOrderedKeys := ld.GetOrderedKeys(docObjMap)
+	typeScopedContext := ldCtx
+	for _, key := range elemOrderedKeys {
+		expandedProperty, err := ldCtx.ExpandIri(key, false, true, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if expandedProperty != "@type" {
+			continue
+		}
+
+		types := make([]string, 0)
+		switch v := docObjMap[key].(type) {
+		case []interface{}:
+			for _, t := range v {
+				if typeStr, isString := t.(string); isString {
+					types = append(types, typeStr)
+				} else {
+					return nil, fmt.Errorf(
+						"@type value must be an array of strings: %T", t)
+				}
+			}
+			sort.Strings(types)
+		case string:
+			types = append(types, v)
+		default:
+			return nil, fmt.Errorf("unexpected @type field type: %T",
+				docObjMap[key])
+		}
+
+		for _, tt := range types {
+			td := typeScopedContext.GetTermDefinition(tt)
+			if ctxObj, hasCtx := td["@context"]; hasCtx {
+				ldCtx, err = ldCtx.Parse(ctxObj)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+		break
+	}
+
+	m := ldCtx.GetTermDefinition(term)
+	id, ok := m["@id"]
+	if !ok {
+		return nil, fmt.Errorf("no @id attribute for term: %v", term)
+	}
+	idStr, ok := id.(string)
+	if !ok {
+		return nil, fmt.Errorf("@id attr is not of type string: %T", id)
+	}
+
+	moreParts, err := pathFromDocument(ldCtx, docObjMap[term], newPathParts,
+		true)
+	if err != nil {
+		return nil, err
+	}
+
+	prts := append([]interface{}{idStr}, moreParts...)
+	return prts, nil
 }
 
 func (p *Path) Key() (*big.Int, error) {
