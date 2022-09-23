@@ -16,7 +16,7 @@ require (
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
-	github.com/iden3/go-iden3-core v0.1.1-0.20220914112439-b215b223c4fe // indirect
+	github.com/iden3/go-iden3-core v0.1.1-0.20220923135459-cda2655fb250 // inderect
 	github.com/iden3/go-iden3-crypto v0.0.13 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
 	github.com/ipfs/go-ipfs-files v0.0.9 // indirect

@@ -7,7 +7,7 @@ import (
 
 // IssuerData is the data that is used to create a proof
 type IssuerData struct {
-	ID               *core.DID   `json:"id,omitempty"`
+	ID               string      `json:"id,omitempty"`
 	State            State       `json:"state,omitempty"`
 	AuthClaim        *core.Claim `json:"auth_claim,omitempty"`
 	MTP              *mt.Proof   `json:"mtp,omitempty"`
