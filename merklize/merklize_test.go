@@ -357,23 +357,38 @@ func TestMerklizer_Proof(t *testing.T) {
 	mz, err := Merklize(ctx, strings.NewReader(testDocument))
 	require.NoError(t, err)
 
-	// [https://www.w3.org/2018/credentials#credentialSubject 1 http://schema.org/birthDate] => 1958-07-18
-	path, err := NewPath(
-		"https://www.w3.org/2018/credentials#credentialSubject", 1,
-		"http://schema.org/birthDate")
-	require.NoError(t, err)
+	t.Run("test with path as Path", func(t *testing.T) {
+		// [https://www.w3.org/2018/credentials#credentialSubject 1 http://schema.org/birthDate] => 1958-07-18
+		path, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", 1,
+			"http://schema.org/birthDate")
+		require.NoError(t, err)
 
-	p, err := mz.Proof(ctx, path)
-	require.NoError(t, err)
+		p, pathHash, err := mz.Proof(ctx, path)
+		require.NoError(t, err)
 
-	pathKey, err := path.Key()
-	require.NoError(t, err)
+		pathKey, err := path.Key()
+		require.NoError(t, err)
 
-	valueKey, err := mz.HashValue("1958-07-18")
-	require.NoError(t, err)
+		require.True(t, pathHash.Cmp(pathKey) == 0)
 
-	ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
-	require.True(t, ok)
+		valueKey, err := mz.HashValue("1958-07-18")
+		require.NoError(t, err)
+
+		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
+		require.True(t, ok)
+	})
+
+	t.Run("test with path as shortcut string", func(t *testing.T) {
+		p, pathKey, err := mz.Proof(ctx, "credentialSubject.1.birthDate")
+		require.NoError(t, err)
+
+		valueKey, err := mz.HashValue("1958-07-18")
+		require.NoError(t, err)
+
+		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
+		require.True(t, ok)
+	})
 }
 
 func TestNewRelationship(t *testing.T) {

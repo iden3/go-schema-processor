@@ -756,6 +756,7 @@ func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 }
 
 type Merklizer struct {
+	srcDoc []byte
 	mt     MerkleTree
 	hasher Hasher
 }
@@ -796,8 +797,14 @@ func Merklize(ctx context.Context, in io.Reader,
 		mz.hasher = defaultHasher
 	}
 
+	var err error
+	mz.srcDoc, err = io.ReadAll(in)
+	if err != nil {
+		return nil, err
+	}
+
 	var obj map[string]interface{}
-	err := json.NewDecoder(in).Decode(&obj)
+	err = json.Unmarshal(mz.srcDoc, &obj)
 	if err != nil {
 		return nil, err
 	}
@@ -829,26 +836,33 @@ func Merklize(ctx context.Context, in io.Reader,
 	return mz, nil
 }
 
+// Proof generate and return Proof and Path hash to verify this proof.
 func (m *Merklizer) Proof(ctx context.Context,
-	path interface{}) (*merkletree.Proof, error) {
+	path interface{}) (*merkletree.Proof, *big.Int, error) {
 
 	var realPath Path
+	var err error
 	switch p := path.(type) {
 	case string:
-		// TODO do implement this on till PR
-		panic("not implemented")
+		realPath, err = PathFromDocument(m.srcDoc, p)
+		if err != nil {
+			return nil, nil, err
+		}
+		realPath.hasher = m.hasher
 	case Path:
 		realPath = p
 	default:
-		return nil, errors.New("path should be of type either string or Path")
+		return nil, nil,
+			errors.New("path should be of type either string or Path")
 	}
 
 	keyHash, err := realPath.Key()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return m.mt.GenerateProof(ctx, keyHash)
+	proof, err := m.mt.GenerateProof(ctx, keyHash)
+	return proof, keyHash, err
 }
 
 func (m *Merklizer) HashValue(value interface{}) (*big.Int, error) {
