@@ -92,15 +92,15 @@ func NewPath(parts ...interface{}) (Path, error) {
 	return p, err
 }
 
-// PathFromContext parses context and do its best to generate full Path
+// NewPathFromContext parses context and do its best to generate full Path
 // from shortcut line field1.field2.field3...
-func PathFromContext(ctxBytes []byte, path string) (Path, error) {
+func NewPathFromContext(ctxBytes []byte, path string) (Path, error) {
 	var out Path
 	err := out.pathFromContext(ctxBytes, path)
 	return out, err
 }
 
-func PathFromDocument(docBytes []byte, path string) (Path, error) {
+func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
 	var docObj map[string]interface{}
 	err := json.Unmarshal(docBytes, &docObj)
 	if err != nil {
@@ -844,7 +844,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 	var err error
 	switch p := path.(type) {
 	case string:
-		realPath, err = PathFromDocument(m.srcDoc, p)
+		realPath, err = NewPathFromDocument(m.srcDoc, p)
 		if err != nil {
 			return nil, nil, err
 		}

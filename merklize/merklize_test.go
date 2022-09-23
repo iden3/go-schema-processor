@@ -389,6 +389,11 @@ func TestMerklizer_Proof(t *testing.T) {
 		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
 		require.True(t, ok)
 	})
+
+	mzRoot := mz.Root()
+	require.Equal(t,
+		"b456dfaf6d7e7dfc77740e6155fa1183bd00c6fad45cead1c6cfb9d818178e04",
+		mzRoot.Hex())
 }
 
 func TestNewRelationship(t *testing.T) {
@@ -477,7 +482,7 @@ func TestPathFromContext(t *testing.T) {
 	require.NoError(t, err)
 
 	in := "VerifiableCredential.credentialSchema.JsonSchemaValidator2018"
-	result, err := PathFromContext(ctxBytes, in)
+	result, err := NewPathFromContext(ctxBytes, in)
 	require.NoError(t, err)
 
 	want, err := NewPath(
@@ -491,7 +496,7 @@ func TestPathFromContext(t *testing.T) {
 
 func TestPathFromDocument(t *testing.T) {
 	in := "credentialSubject.1.birthDate"
-	result, err := PathFromDocument([]byte(testDocument), in)
+	result, err := NewPathFromDocument([]byte(testDocument), in)
 	require.NoError(t, err)
 
 	want, err := NewPath(
