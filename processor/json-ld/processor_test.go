@@ -3,6 +3,7 @@ package jsonld
 import (
 	"context"
 	commonJSON "encoding/json"
+	core "github.com/iden3/go-iden3-core"
 	"math/big"
 	"testing"
 
@@ -353,7 +354,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
   "credentialSubject": {
     "birthday": 19960424,
     "documentType": 1,
-    "id": "118akjaAsZ2i3bSSYEaM88mCMpXAcL6WvpZH68fKZn",
+    "id": "did:iden3:polygon:mumbai:4RzkkAj2G1ugUEdSo676p5ot7dgQqZ8riTfv4Ev1YX2",
     "type": "KYCAgeCredential"
   },
   "credentialStatus": {
@@ -438,5 +439,9 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	assert.Nil(t, err)
 	id, err := coreClaim.GetID()
 	assert.Nil(t, err)
-	assert.Equal(t, subjectID, id.String())
+
+	subjectDID, err := core.ParseDID(subjectID)
+	assert.Nil(t, err)
+
+	assert.Equal(t, subjectDID.ID.String(), id.String())
 }

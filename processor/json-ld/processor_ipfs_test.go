@@ -3,6 +3,7 @@ package jsonld
 import (
 	"context"
 	commonJSON "encoding/json"
+	core "github.com/iden3/go-iden3-core"
 	"math/big"
 	"os"
 	"testing"
@@ -313,7 +314,7 @@ func TestParserForBigIntegersIPFSLoader(t *testing.T) {
 
 func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 
-	jsonLDDocument := `{"id":"e65a0bfb-d1a0-4f8d-bbd4-7705a17f6b5d","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","ipfs://QmP8NrKqoBKjmKwMsC8pwBCBxXR2PhwSepwXx31gnJxAbP"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":1427136406,"credentialSubject":{"countryCode":980,"documentType":1,"id":"116iPg7dwEP5VqNr1DHQKo4JRbypL2ccJryV3626yV","type":"KYCCountryOfResidenceCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz/claims/revocation/status/1427136406","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"ipfs://QmP8NrKqoBKjmKwMsC8pwBCBxXR2PhwSepwXx31gnJxAbP","type":"KYCCountryOfResidenceCredential"},"proof":{"@type":"BJJSignature2021","issuer":"118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz","h_index":"6e43eefcb286da6410752683af39ac01fe4c2b71bb6bc33153f817c1ff72b323","h_value":"095192dcc00fc43d0df69c59905b150376c317a92f0f29e5cb958cd2856b8908","created":1650903921,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz","h_index":"90feb35f5b65f0b51d24d88a933dd6bde9809dc0d5bfe1f48219864036e61105","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"4a215db950a071439fee5c2d4862d6fab89c2f7b1e06735e1c23e96b0584142e","value":"c4000e554cc3a6a725e0298b816e1952c3b1681bbed44e0a84fc6957b908900f","status":"created"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"d2050abbe1e4d788621e5e54ef0e40081d3e1a1e5753b08e159608f60eb48715","proof_value":"6b3b95fa5365df397cb2d0d638fc2d9ec2e7bb687937a50d3c9aa8820343c01c80821f66eea8c706cf836040e7b58dc85513b3aad99abbc7067cbe1ee6a36701","proof_purpose":"Authentication"}}`
+	jsonLDDocument := `{"id":"e65a0bfb-d1a0-4f8d-bbd4-7705a17f6b5d","@context":["https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential.json-ld","ipfs://QmP8NrKqoBKjmKwMsC8pwBCBxXR2PhwSepwXx31gnJxAbP"],"@type":["Iden3Credential"],"expiration":"2361-03-21T21:14:48+02:00","updatable":false,"version":0,"rev_nonce":1427136406,"credentialSubject":{"countryCode":980,"documentType":1,"id":"did:iden3:polygon:mumbai:4RzkkAj2G1ugUEdSo676p5ot7dgQqZ8riTfv4Ev1YX2","type":"KYCCountryOfResidenceCredential"},"credentialStatus":{"id":"http://localhost:8001/api/v1/identities/118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz/claims/revocation/status/1427136406","type":"SparseMerkleTreeProof"},"credentialSchema":{"@id":"ipfs://QmP8NrKqoBKjmKwMsC8pwBCBxXR2PhwSepwXx31gnJxAbP","type":"KYCCountryOfResidenceCredential"},"proof":{"@type":"BJJSignature2021","issuer":"118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz","h_index":"6e43eefcb286da6410752683af39ac01fe4c2b71bb6bc33153f817c1ff72b323","h_value":"095192dcc00fc43d0df69c59905b150376c317a92f0f29e5cb958cd2856b8908","created":1650903921,"issuer_mtp":{"@type":"Iden3SparseMerkleProof","issuer":"118HT4DprVZDh1hwxNbgXvj3WYfs7aJMejdKBCr3fz","h_index":"90feb35f5b65f0b51d24d88a933dd6bde9809dc0d5bfe1f48219864036e61105","h_value":"46993eb76d20c1880406798b1b9237092515c2d9949620510ec7196e43fd3205","state":{"claims_tree_root":"4a215db950a071439fee5c2d4862d6fab89c2f7b1e06735e1c23e96b0584142e","value":"c4000e554cc3a6a725e0298b816e1952c3b1681bbed44e0a84fc6957b908900f","status":"created"},"mtp":{"existence":true,"siblings":[]}},"verification_method":"d2050abbe1e4d788621e5e54ef0e40081d3e1a1e5753b08e159608f60eb48715","proof_value":"6b3b95fa5365df397cb2d0d638fc2d9ec2e7bb687937a50d3c9aa8820343c01c80821f66eea8c706cf836040e7b58dc85513b3aad99abbc7067cbe1ee6a36701","proof_purpose":"Authentication"}}`
 	var vc verifiable.Iden3Credential
 
 	err := commonJSON.Unmarshal([]byte(jsonLDDocument), &vc)
@@ -334,7 +335,10 @@ func TestParserParseClaimWithSubjectIDPFSLoader(t *testing.T) {
 	assert.Nil(t, err)
 	id, err := coreClaim.GetID()
 	assert.Nil(t, err)
-	assert.Equal(t, subjectID, id.String())
+	subjectDID, err := core.ParseDID(subjectID)
+	assert.Nil(t, err)
+
+	assert.Equal(t, subjectDID.ID.String(), id.String())
 
 	schemaClaimBytes, err := coreClaim.GetSchemaHash().MarshalText()
 	assert.Nil(t, err)
