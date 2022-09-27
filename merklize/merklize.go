@@ -334,6 +334,20 @@ func (p *Path) Append(parts ...interface{}) error {
 	return nil
 }
 
+// Prepend path's parts from the beginning
+func (p *Path) Prepend(parts ...interface{}) error {
+	for i := range parts {
+		switch parts[i].(type) {
+		case string, int:
+		default:
+			return fmt.Errorf("incorrect part type: %T", parts)
+		}
+	}
+
+	p.parts = append(parts, p.parts...)
+	return nil
+}
+
 type RDFEntry struct {
 	key Path
 	// valid types are: int64, string, bool
