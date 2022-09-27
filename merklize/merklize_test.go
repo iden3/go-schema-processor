@@ -364,13 +364,16 @@ func TestMerklizer_Proof(t *testing.T) {
 			"http://schema.org/birthDate")
 		require.NoError(t, err)
 
-		p, pathHash, err := mz.Proof(ctx, path)
+		p, path2, err := mz.Proof(ctx, path)
 		require.NoError(t, err)
 
 		pathKey, err := path.Key()
 		require.NoError(t, err)
 
-		require.True(t, pathHash.Cmp(pathKey) == 0)
+		pathKey2, err := path2.Key()
+		require.NoError(t, err)
+
+		require.True(t, pathKey2.Cmp(pathKey) == 0)
 
 		valueKey, err := mz.HashValue("1958-07-18")
 		require.NoError(t, err)
@@ -380,10 +383,13 @@ func TestMerklizer_Proof(t *testing.T) {
 	})
 
 	t.Run("test with path as shortcut string", func(t *testing.T) {
-		p, pathKey, err := mz.Proof(ctx, "credentialSubject.1.birthDate")
+		p, path, err := mz.Proof(ctx, "credentialSubject.1.birthDate")
 		require.NoError(t, err)
 
 		valueKey, err := mz.HashValue("1958-07-18")
+		require.NoError(t, err)
+
+		pathKey, err := path.Key()
 		require.NoError(t, err)
 
 		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)

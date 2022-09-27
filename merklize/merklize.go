@@ -852,7 +852,7 @@ func Merklize(ctx context.Context, in io.Reader,
 
 // Proof generate and return Proof and Path hash to verify this proof.
 func (m *Merklizer) Proof(ctx context.Context,
-	path interface{}) (*merkletree.Proof, *big.Int, error) {
+	path interface{}) (*merkletree.Proof, Path, error) {
 
 	var realPath Path
 	var err error
@@ -860,23 +860,23 @@ func (m *Merklizer) Proof(ctx context.Context,
 	case string:
 		realPath, err = NewPathFromDocument(m.srcDoc, p)
 		if err != nil {
-			return nil, nil, err
+			return nil, realPath, err
 		}
 		realPath.hasher = m.hasher
 	case Path:
 		realPath = p
 	default:
-		return nil, nil,
+		return nil, realPath,
 			errors.New("path should be of type either string or Path")
 	}
 
 	keyHash, err := realPath.Key()
 	if err != nil {
-		return nil, nil, err
+		return nil, realPath, err
 	}
 
 	proof, err := m.mt.GenerateProof(ctx, keyHash)
-	return proof, keyHash, err
+	return proof, realPath, err
 }
 
 func (m *Merklizer) HashValue(value interface{}) (*big.Int, error) {
