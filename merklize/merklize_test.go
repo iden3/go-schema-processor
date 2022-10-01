@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iden3/go-merkletree-sql"
 	"github.com/iden3/go-merkletree-sql/db/memory"
@@ -103,7 +106,7 @@ func TestEntriesFromRDF(t *testing.T) {
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://schema.org/birthDate"),
-			value: "1958-07-17",
+			value: time.Date(1958, 7, 17, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			key: mkPath(
@@ -169,13 +172,13 @@ func TestEntriesFromRDF(t *testing.T) {
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"https://w3id.org/citizenship#residentSince"),
-			value: "2015-01-01",
+			value: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://schema.org/birthDate"),
-			value: "1958-07-18",
+			value: time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			key: mkPath(
@@ -241,7 +244,7 @@ func TestEntriesFromRDF(t *testing.T) {
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"https://w3id.org/citizenship#residentSince"),
-			value: "2015-01-01",
+			value: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			key:   mkPath("http://schema.org/description"),
@@ -274,12 +277,14 @@ func TestEntriesFromRDF(t *testing.T) {
 			value: "did:example:b34ca6cd37bbf24",
 		},
 		{
-			key:   mkPath("https://www.w3.org/2018/credentials#expirationDate"),
-			value: "2029-12-03T12:19:52Z",
+			key: mkPath("https://www.w3.org/2018/credentials#expirationDate"),
+			//value: "2029-12-03T12:19:52Z",
+			value: time.Date(2029, 12, 03, 12, 19, 52, 0, time.UTC),
 		},
 		{
-			key:   mkPath("https://www.w3.org/2018/credentials#issuanceDate"),
-			value: "2019-12-03T12:19:52Z",
+			key: mkPath("https://www.w3.org/2018/credentials#issuanceDate"),
+			//value: "2019-12-03T12:19:52Z",
+			value: time.Date(2019, 12, 03, 12, 19, 52, 0, time.UTC),
 		},
 		{
 			key:   mkPath("https://www.w3.org/2018/credentials#issuer"),
@@ -512,6 +517,38 @@ func TestPathFromDocument(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, want, result)
+}
+
+func TestMkValueInt(t *testing.T) {
+	//testCases := struct {}
+	v, err := mkValueInt(defaultHasher, -1)
+	require.NoError(t, err)
+	require.Equal(t,
+		"21888242871839275222246405745257275088548364400416034343698204186575808495616",
+		v.Text(10))
+
+	v, err = mkValueInt(defaultHasher, -2)
+	require.NoError(t, err)
+	require.Equal(t,
+		"21888242871839275222246405745257275088548364400416034343698204186575808495615",
+		v.Text(10))
+
+	want := new(big.Int).Add(defaultHasher.Prime(), big.NewInt(math.MinInt64))
+	require.Equal(t,
+		"21888242871839275222246405745257275088548364400416034343688980814538953719809",
+		want.Text(10))
+
+	v, err = mkValueInt(defaultHasher, int64(math.MinInt64))
+	require.NoError(t, err)
+	require.Equal(t,
+		"21888242871839275222246405745257275088548364400416034343688980814538953719809",
+		v.Text(10))
+
+	v, err = mkValueInt(defaultHasher, int(math.MinInt64))
+	require.NoError(t, err)
+	require.Equal(t,
+		"21888242871839275222246405745257275088548364400416034343688980814538953719809",
+		v.Text(10))
 }
 
 func TestXX1(t *testing.T) {

@@ -12,7 +12,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/iden3/go-iden3-crypto/constants"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql"
 	"github.com/iden3/go-merkletree-sql/db/memory"
@@ -66,7 +68,7 @@ func (o Options) NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
 	switch v := value.(type) {
 	case int:
 		e.value = int64(v)
-	case int64, string, bool:
+	case int64, string, bool, time.Time:
 		e.value = value
 	default:
 		return e, fmt.Errorf("incorrect value type: %T", value)
@@ -348,14 +350,25 @@ func (p *Path) Prepend(parts ...interface{}) error {
 	return nil
 }
 
+//type RDFEntryValueType interface {
+//	int | int32 | int64 | uint | uint32 | uint64 | string | bool | time.Time
+//}
+
+//type RDFEntry[T RDFEntryValueType] struct {
+//	key Path
+//	// valid types are: int64, string, bool, time.Time
+//	value  T
+//	hasher Hasher
+//}
+
 type RDFEntry struct {
 	key Path
-	// valid types are: int64, string, bool
-	value  interface{}
+	// valid types are: int64, string, bool, time.Time
+	value  any
 	hasher Hasher
 }
 
-func NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
+func NewRDFEntry(key Path, value any) (RDFEntry, error) {
 	e := RDFEntry{key: key}
 	if len(key.parts) == 0 {
 		return e, errors.New("key length is zero")
@@ -559,6 +572,8 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 	return k, nil
 }
 
+var dateRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+
 // EntriesFromRDF creates entries from RDF dataset suitable to add to
 // merkle tree
 func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
@@ -607,6 +622,16 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 				"http://www.w3.org/2001/XMLSchema#negativeInteger",
 				"http://www.w3.org/2001/XMLSchema#positiveInteger":
 				e.value, err = strconv.ParseInt(qo.Value, 10, 64)
+				if err != nil {
+					return nil, err
+				}
+			case "http://www.w3.org/2001/XMLSchema#dateTime":
+				if dateRE.MatchString(qo.Value) {
+					e.value, err = time.ParseInLocation("2006-01-02",
+						qo.Value, time.UTC)
+				} else {
+					e.value, err = time.Parse(time.RFC3339Nano, qo.Value)
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -731,6 +756,7 @@ func (e RDFEntry) getHasher() Hasher {
 type Hasher interface {
 	Hash(inpBI []*big.Int) (*big.Int, error)
 	HashBytes(msg []byte) (*big.Int, error)
+	Prime() *big.Int
 }
 
 type PoseidonHasher struct{}
@@ -741,6 +767,10 @@ func (p PoseidonHasher) Hash(inpBI []*big.Int) (*big.Int, error) {
 
 func (p PoseidonHasher) HashBytes(msg []byte) (*big.Int, error) {
 	return poseidon.HashBytes(msg)
+}
+
+func (p PoseidonHasher) Prime() *big.Int {
+	return new(big.Int).Set(constants.Q)
 }
 
 type MerkleTree interface {
@@ -891,17 +921,37 @@ func hashValue(h Hasher, v interface{}) (*big.Int, error) {
 	switch et := v.(type) {
 	case int64:
 		return mkValueInt(h, et)
+	case int32:
+		return mkValueInt(h, et)
+	case int:
+		return mkValueInt(h, et)
+	case uint64:
+		return mkValueUInt(h, et)
+	case uint32:
+		return mkValueUInt(h, et)
+	case uint:
+		return mkValueUInt(h, et)
 	case bool:
 		return mkValueBool(h, et)
 	case string:
 		return mkValueString(h, et)
+	case time.Time:
+		return mkValueTime(h, et)
 	default:
 		return nil, fmt.Errorf("unexpected value type: %T", v)
 	}
 }
 
-func mkValueInt(h Hasher, val int64) (*big.Int, error) {
-	return h.Hash([]*big.Int{big.NewInt(val)})
+func mkValueInt[I int64 | int32 | int](h Hasher, val I) (*big.Int, error) {
+	if val >= 0 {
+		return big.NewInt(int64(val)), nil
+	} else {
+		return new(big.Int).Add(h.Prime(), big.NewInt(int64(val))), nil
+	}
+}
+
+func mkValueUInt[I uint64 | uint32 | uint](h Hasher, val I) (*big.Int, error) {
+	return new(big.Int).SetUint64(uint64(val)), nil
 }
 
 func mkValueBool(h Hasher, val bool) (*big.Int, error) {
@@ -914,4 +964,8 @@ func mkValueBool(h Hasher, val bool) (*big.Int, error) {
 
 func mkValueString(h Hasher, val string) (*big.Int, error) {
 	return h.HashBytes([]byte(val))
+}
+
+func mkValueTime(h Hasher, val time.Time) (*big.Int, error) {
+	return mkValueInt(h, val.UnixNano())
 }
