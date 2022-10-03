@@ -279,12 +279,12 @@ func TestEntriesFromRDF(t *testing.T) {
 		{
 			key: mkPath("https://www.w3.org/2018/credentials#expirationDate"),
 			//value: "2029-12-03T12:19:52Z",
-			value: time.Date(2029, 12, 03, 12, 19, 52, 0, time.UTC),
+			value: time.Date(2029, 12, 3, 12, 19, 52, 0, time.UTC),
 		},
 		{
 			key: mkPath("https://www.w3.org/2018/credentials#issuanceDate"),
 			//value: "2019-12-03T12:19:52Z",
-			value: time.Date(2019, 12, 03, 12, 19, 52, 0, time.UTC),
+			value: time.Date(2019, 12, 3, 12, 19, 52, 0, time.UTC),
 		},
 		{
 			key:   mkPath("https://www.w3.org/2018/credentials#issuer"),

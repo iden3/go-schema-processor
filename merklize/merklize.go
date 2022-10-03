@@ -350,16 +350,16 @@ func (p *Path) Prepend(parts ...interface{}) error {
 	return nil
 }
 
-//type RDFEntryValueType interface {
-//	int | int32 | int64 | uint | uint32 | uint64 | string | bool | time.Time
-//}
+// type RDFEntryValueType interface {
+// 	int | int32 | int64 | uint | uint32 | uint64 | string | bool | time.Time
+// }
 
-//type RDFEntry[T RDFEntryValueType] struct {
-//	key Path
-//	// valid types are: int64, string, bool, time.Time
-//	value  T
-//	hasher Hasher
-//}
+// type RDFEntry[T RDFEntryValueType] struct {
+// 	key Path
+// 	// valid types are: int64, string, bool, time.Time
+// 	value  T
+// 	hasher Hasher
+// }
 
 type RDFEntry struct {
 	key Path
