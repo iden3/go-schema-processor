@@ -377,7 +377,7 @@ func NewRDFEntry(key Path, value any) (RDFEntry, error) {
 	switch v := value.(type) {
 	case int:
 		e.value = int64(v)
-	case int64, string, bool:
+	case int64, string, bool, time.Time:
 		e.value = value
 	default:
 		return e, fmt.Errorf("incorrect value type: %T", value)
