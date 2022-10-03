@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -520,35 +519,39 @@ func TestPathFromDocument(t *testing.T) {
 }
 
 func TestMkValueInt(t *testing.T) {
-	//testCases := struct {}
-	v, err := mkValueInt(defaultHasher, -1)
-	require.NoError(t, err)
-	require.Equal(t,
-		"21888242871839275222246405745257275088548364400416034343698204186575808495616",
-		v.Text(10))
+	testCases := []struct {
+		in   int64
+		want string
+	}{
+		{
+			in:   -1,
+			want: "21888242871839275222246405745257275088548364400416034343698204186575808495616",
+		},
+		{
+			in:   -2,
+			want: "21888242871839275222246405745257275088548364400416034343698204186575808495615",
+		},
+		{
+			in:   math.MinInt64,
+			want: "21888242871839275222246405745257275088548364400416034343688980814538953719809",
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(fmt.Sprintf("#%v", i+1), func(t *testing.T) {
+			v, err := mkValueInt(defaultHasher, tc.in)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, v.Text(10))
+		})
+	}
 
-	v, err = mkValueInt(defaultHasher, -2)
-	require.NoError(t, err)
-	require.Equal(t,
-		"21888242871839275222246405745257275088548364400416034343698204186575808495615",
-		v.Text(10))
-
-	want := new(big.Int).Add(defaultHasher.Prime(), big.NewInt(math.MinInt64))
-	require.Equal(t,
-		"21888242871839275222246405745257275088548364400416034343688980814538953719809",
-		want.Text(10))
-
-	v, err = mkValueInt(defaultHasher, int64(math.MinInt64))
-	require.NoError(t, err)
-	require.Equal(t,
-		"21888242871839275222246405745257275088548364400416034343688980814538953719809",
-		v.Text(10))
-
-	v, err = mkValueInt(defaultHasher, int(math.MinInt64))
-	require.NoError(t, err)
-	require.Equal(t,
-		"21888242871839275222246405745257275088548364400416034343688980814538953719809",
-		v.Text(10))
+	t.Run("int value", func(t *testing.T) {
+		v, err := mkValueInt(defaultHasher, int(math.MinInt64))
+		require.NoError(t, err)
+		require.Equal(t,
+			"21888242871839275222246405745257275088548364400416034343688980814538953719809",
+			v.Text(10))
+	})
 }
 
 func TestXX1(t *testing.T) {
