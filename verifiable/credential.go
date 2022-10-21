@@ -3,7 +3,7 @@ package verifiable
 import (
 	"time"
 
-	mt "github.com/iden3/go-merkletree-sql"
+	mt "github.com/iden3/go-merkletree-sql/v2"
 )
 
 // Iden3Credential is struct that represents claim json-ld document

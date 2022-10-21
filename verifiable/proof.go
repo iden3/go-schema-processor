@@ -2,7 +2,7 @@ package verifiable
 
 import (
 	core "github.com/iden3/go-iden3-core"
-	mt "github.com/iden3/go-merkletree-sql"
+	mt "github.com/iden3/go-merkletree-sql/v2"
 )
 
 // IssuerData is the data that is used to create a proof
