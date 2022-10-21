@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/iden3/go-iden3-core v0.1.0
-	github.com/iden3/go-merkletree-sql v1.0.1
+	github.com/iden3/go-merkletree-sql/v2 v2.0.0
 	github.com/ipfs/go-ipfs-api v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/qri-io/jsonschema v0.2.1
