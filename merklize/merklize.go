@@ -875,7 +875,8 @@ func Merklize(ctx context.Context, in io.Reader,
 
 	mz.entries = make(map[string]RDFEntry, len(entries))
 	for _, e := range entries {
-		key, err := e.KeyHash()
+		var key *big.Int
+		key, err = e.KeyHash()
 		if err != nil {
 			return nil, err
 		}
@@ -912,7 +913,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 	proof, err := m.mt.GenerateProof(ctx, keyHash)
 
 	var value any
-	if proof.Existence == true {
+	if proof.Existence {
 		entry, ok := m.entries[keyHash.String()]
 		if !ok {
 			return nil, nil, errors.New(
