@@ -369,30 +369,34 @@ func TestMerklizer_Proof(t *testing.T) {
 			"http://schema.org/birthDate")
 		require.NoError(t, err)
 
-		p, path2, err := mz.Proof(ctx, path)
+		p, value, err := mz.Proof(ctx, path)
 		require.NoError(t, err)
 
 		pathKey, err := path.Key()
 		require.NoError(t, err)
 
-		pathKey2, err := path2.Key()
-		require.NoError(t, err)
-
-		require.True(t, pathKey2.Cmp(pathKey) == 0)
+		valueDateType, ok := value.(time.Time)
+		require.True(t, ok)
 
 		birthDate := time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC)
-		valueKey, err := mz.HashValue(birthDate)
+		birthDate.Equal(valueDateType)
+
+		valueKey, err := mz.HashValue(value)
 		require.NoError(t, err)
 
-		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
+		ok = merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
 		require.True(t, ok)
 	})
 
 	t.Run("test with path as shortcut string", func(t *testing.T) {
-		p, path, err := mz.Proof(ctx, "credentialSubject.1.birthCountry")
+		path, err := mz.ResolveDocPath("credentialSubject.1.birthCountry")
 		require.NoError(t, err)
 
-		valueKey, err := mz.HashValue("Bahamas")
+		p, value, err := mz.Proof(ctx, path)
+		require.NoError(t, err)
+
+		require.Equal(t, "Bahamas", value)
+		valueKey, err := mz.HashValue(value)
 		require.NoError(t, err)
 
 		pathKey, err := path.Key()

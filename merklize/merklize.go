@@ -800,9 +800,10 @@ func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 }
 
 type Merklizer struct {
-	srcDoc []byte
-	mt     MerkleTree
-	hasher Hasher
+	srcDoc  []byte
+	mt      MerkleTree
+	entries map[string]RDFEntry
+	hasher  Hasher
 }
 
 type MerklizeOption func(m *Merklizer)
@@ -872,6 +873,15 @@ func Merklize(ctx context.Context, in io.Reader,
 		return nil, err
 	}
 
+	mz.entries = make(map[string]RDFEntry, len(entries))
+	for _, e := range entries {
+		key, err := e.KeyHash()
+		if err != nil {
+			return nil, err
+		}
+		mz.entries[key.String()] = e
+	}
+
 	err = AddEntriesToMerkleTree(ctx, mz.mt, entries)
 	if err != nil {
 		return nil, err
@@ -880,33 +890,37 @@ func Merklize(ctx context.Context, in io.Reader,
 	return mz, nil
 }
 
-// Proof generate and return Proof and Path hash to verify this proof.
-func (m *Merklizer) Proof(ctx context.Context,
-	path interface{}) (*merkletree.Proof, Path, error) {
-
-	var realPath Path
-	var err error
-	switch p := path.(type) {
-	case string:
-		realPath, err = NewPathFromDocument(m.srcDoc, p)
-		if err != nil {
-			return nil, realPath, err
-		}
-		realPath.hasher = m.hasher
-	case Path:
-		realPath = p
-	default:
-		return nil, realPath,
-			errors.New("path should be of type either string or Path")
-	}
-
-	keyHash, err := realPath.Key()
+func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
+	realPath, err := NewPathFromDocument(m.srcDoc, path)
 	if err != nil {
-		return nil, realPath, err
+		return Path{}, err
+	}
+	realPath.hasher = m.hasher
+	return realPath, nil
+}
+
+// Proof generate and return Proof and Value by the given Path.
+// If the path is not found, it returns nil as value interface.
+func (m *Merklizer) Proof(ctx context.Context,
+	path Path) (*merkletree.Proof, any, error) {
+
+	keyHash, err := path.Key()
+	if err != nil {
+		return nil, nil, err
 	}
 
 	proof, err := m.mt.GenerateProof(ctx, keyHash)
-	return proof, realPath, err
+
+	var value any
+	if proof.Existence == true {
+		entry, ok := m.entries[keyHash.String()]
+		if !ok {
+			return nil, nil, errors.New(
+				"[assertion] no entry found while existence is true")
+		}
+		value = entry.value
+	}
+	return proof, value, err
 }
 
 func (m *Merklizer) HashValue(value interface{}) (*big.Int, error) {
