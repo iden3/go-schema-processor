@@ -5,6 +5,9 @@ import (
 	mt "github.com/iden3/go-merkletree-sql/v2"
 )
 
+// ProofType represent proofs types.
+type ProofType string
+
 // IssuerData is the data that is used to create a proof
 type IssuerData struct {
 	ID               *core.ID    `json:"id,omitempty"`
@@ -26,28 +29,28 @@ type State struct {
 	Status             string  `json:"status,omitempty"`
 }
 
-// BJJSignatureProofType schema type
-const BJJSignatureProofType = "BJJSignature2021"
-
 // BJJSignatureProof2021 JSON-LD BBJJSignatureProof
 type BJJSignatureProof2021 struct {
-	Type       string     `json:"@type"`
+	Type       ProofType  `json:"type"`
 	IssuerData IssuerData `json:"issuer_data"`
 	Signature  string     `json:"signature"`
 }
 
 // Iden3SparseMerkleProof JSON-LD structure
 type Iden3SparseMerkleProof struct {
-	Type       string     `json:"@type"`
+	Type       ProofType  `json:"type"`
 	IssuerData IssuerData `json:"issuer_data"`
 	MTP        *mt.Proof  `json:"mtp"`
 }
 
-// Iden3SparseMerkleProofType schema
-const Iden3SparseMerkleProofType = "Iden3SparseMerkleProof"
+// BJJSignatureProofType schema type
+const BJJSignatureProofType ProofType = "BJJSignature2021"
 
-// SparseMerkleProof schema
-const SparseMerkleProof = "SparseMerkleProof"
+// Iden3SparseMerkleProofType schema
+const Iden3SparseMerkleProofType ProofType = "Iden3SparseMerkleProof"
+
+// SparseMerkleTreeProofType schema
+const SparseMerkleTreeProofType ProofType = "SparseMerkleTreeProof"
 
 // ProofPurpose is alias for string, represents proof purpose
 type ProofPurpose string
