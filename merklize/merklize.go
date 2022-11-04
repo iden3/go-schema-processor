@@ -298,7 +298,7 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	return prts, nil
 }
 
-func (p *Path) Key() (*big.Int, error) {
+func (p *Path) MtEntry() (*big.Int, error) {
 	var err error
 	h := p.hasher
 	if h == nil {
@@ -368,6 +368,104 @@ type RDFEntry struct {
 	hasher Hasher
 }
 
+type Value interface {
+	MtEntry() (*big.Int, error)
+
+	IsTime() bool
+	AsTime() (time.Time, error)
+
+	IsString() bool
+	AsString() (string, error)
+
+	IsInt64() bool
+	AsInt64() (int64, error)
+
+	IsBool() bool
+	AsBool() (bool, error)
+}
+
+var ErrIncorrectType = errors.New("incorrect type")
+
+type value struct {
+	// valid types are: int64, string, bool, time.Time
+	value  any
+	hasher Hasher
+}
+
+func newValue(hasher Hasher, val any) (Value, error) {
+	switch val.(type) {
+	case int64, string, bool, time.Time:
+	default:
+		return nil, ErrIncorrectType
+	}
+	return &value{value: val, hasher: hasher}, nil
+}
+
+// MtEntry returns Merkle Tree entry for the value
+func (v *value) MtEntry() (*big.Int, error) {
+	return mkValueMtEntry(v.hasher, v.value)
+}
+
+// IsTime returns true is value is of type time.Time
+func (v *value) IsTime() bool {
+	_, ok := v.value.(time.Time)
+	return ok
+}
+
+// AsTime returns time.Time value or error if value is not Time.
+func (v *value) AsTime() (time.Time, error) {
+	tm, ok := v.value.(time.Time)
+	if !ok {
+		return time.Time{}, ErrIncorrectType
+	}
+	return tm, nil
+}
+
+// IsString returns true is value is of type string
+func (v *value) IsString() bool {
+	_, ok := v.value.(string)
+	return ok
+}
+
+// AsString returns string value or error if value is not of type string
+func (v *value) AsString() (string, error) {
+	str, ok := v.value.(string)
+	if !ok {
+		return "", ErrIncorrectType
+	}
+	return str, nil
+}
+
+// IsInt64 returns true is value is of type int64
+func (v *value) IsInt64() bool {
+	_, ok := v.value.(int64)
+	return ok
+}
+
+// AsInt64 returns int64 value or error if value is not of type int64
+func (v *value) AsInt64() (int64, error) {
+	i64, ok := v.value.(int64)
+	if !ok {
+		return 0, ErrIncorrectType
+	}
+	return i64, nil
+}
+
+// IsBool returns true is value is of type bool
+func (v *value) IsBool() bool {
+	_, ok := v.value.(bool)
+	return ok
+}
+
+// AsBool returns bool value or error if value is not of type bool
+func (v *value) AsBool() (bool, error) {
+	b, ok := v.value.(bool)
+	if !ok {
+		return false, ErrIncorrectType
+	}
+	return b, nil
+}
+
 func NewRDFEntry(key Path, value any) (RDFEntry, error) {
 	e := RDFEntry{key: key}
 	if len(key.parts) == 0 {
@@ -386,28 +484,28 @@ func NewRDFEntry(key Path, value any) (RDFEntry, error) {
 	return e, nil
 }
 
-func (e RDFEntry) KeyHash() (*big.Int, error) {
-	return e.key.Key()
+func (e RDFEntry) KeyMtEntry() (*big.Int, error) {
+	return e.key.MtEntry()
 }
 
-func (e RDFEntry) ValueHash() (*big.Int, error) {
-	return hashValue(e.getHasher(), e.value)
+func (e RDFEntry) ValueMtEntry() (*big.Int, error) {
+	return mkValueMtEntry(e.getHasher(), e.value)
 }
 
-func (e RDFEntry) KeyValueHashes() (
-	keyHash *big.Int, valueHash *big.Int, err error) {
+func (e RDFEntry) KeyValueMtEntries() (
+	keyMtEntry *big.Int, valueMtEntry *big.Int, err error) {
 
-	keyHash, err = e.KeyHash()
+	keyMtEntry, err = e.KeyMtEntry()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	valueHash, err = e.ValueHash()
+	valueMtEntry, err = e.ValueMtEntry()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return keyHash, valueHash, nil
+	return keyMtEntry, valueMtEntry, nil
 }
 
 // Identifies ld.Node by string representation of Type and Value.
@@ -731,7 +829,7 @@ func AddEntriesToMerkleTree(ctx context.Context, mt mtAppender,
 	entries []RDFEntry) error {
 
 	for _, e := range entries {
-		key, val, err := e.KeyValueHashes()
+		key, val, err := e.KeyValueMtEntries()
 		if err != nil {
 			return err
 		}
@@ -820,7 +918,9 @@ func WithMerkleTree(mt MerkleTree) MerklizeOption {
 	}
 }
 
-func Merklize(ctx context.Context, in io.Reader,
+// MerklizeJSONLD takes a JSON-LD document, parses it and returns a
+// Merklizer
+func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	opts ...MerklizeOption) (*Merklizer, error) {
 
 	mz := &Merklizer{}
@@ -876,7 +976,7 @@ func Merklize(ctx context.Context, in io.Reader,
 	mz.entries = make(map[string]RDFEntry, len(entries))
 	for _, e := range entries {
 		var key *big.Int
-		key, err = e.KeyHash()
+		key, err = e.KeyMtEntry()
 		if err != nil {
 			return nil, err
 		}
@@ -903,36 +1003,43 @@ func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
 // Proof generate and return Proof and Value by the given Path.
 // If the path is not found, it returns nil as value interface.
 func (m *Merklizer) Proof(ctx context.Context,
-	path Path) (*merkletree.Proof, any, error) {
+	path Path) (*merkletree.Proof, Value, error) {
 
-	keyHash, err := path.Key()
+	keyHash, err := path.MtEntry()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	proof, err := m.mt.GenerateProof(ctx, keyHash)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	var value any
+	var value Value
 	if proof.Existence {
 		entry, ok := m.entries[keyHash.String()]
 		if !ok {
 			return nil, nil, errors.New(
 				"[assertion] no entry found while existence is true")
 		}
-		value = entry.value
+		value, err = newValue(m.hasher, entry.value)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
+
 	return proof, value, err
 }
 
-func (m *Merklizer) HashValue(value interface{}) (*big.Int, error) {
-	return hashValue(m.hasher, value)
+func (m *Merklizer) MkValue(val any) (Value, error) {
+	return newValue(m.hasher, val)
 }
 
 func (m *Merklizer) Root() *merkletree.Hash {
 	return m.mt.Root()
 }
 
-func hashValue(h Hasher, v interface{}) (*big.Int, error) {
+func mkValueMtEntry(h Hasher, v interface{}) (*big.Int, error) {
 	switch et := v.(type) {
 	case int64:
 		return mkValueInt(h, et)
