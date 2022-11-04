@@ -372,7 +372,7 @@ func TestMerklizer_Proof(t *testing.T) {
 		p, value, err := mz.Proof(ctx, path)
 		require.NoError(t, err)
 
-		pathKey, err := path.MtEntry()
+		pathMtEntry, err := path.MtEntry()
 		require.NoError(t, err)
 
 		require.True(t, value.IsTime())
@@ -382,10 +382,10 @@ func TestMerklizer_Proof(t *testing.T) {
 		birthDate := time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC)
 		birthDate.Equal(valueDateType)
 
-		valueKey, err := value.MtEntry()
+		valueMtEntry, err := value.MtEntry()
 		require.NoError(t, err)
 
-		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
+		ok := merkletree.VerifyProof(mz.Root(), p, pathMtEntry, valueMtEntry)
 		require.True(t, ok)
 	})
 
@@ -400,13 +400,13 @@ func TestMerklizer_Proof(t *testing.T) {
 		valueStr, err := value.AsString()
 		require.NoError(t, err)
 		require.Equal(t, "Bahamas", valueStr)
-		mtValue, err := value.MtEntry()
+		valueMtEntry, err := value.MtEntry()
 		require.NoError(t, err)
 
-		pathKey, err := path.MtEntry()
+		pathMtEntry, err := path.MtEntry()
 		require.NoError(t, err)
 
-		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, mtValue)
+		ok := merkletree.VerifyProof(mz.Root(), p, pathMtEntry, valueMtEntry)
 		require.True(t, ok)
 	})
 
