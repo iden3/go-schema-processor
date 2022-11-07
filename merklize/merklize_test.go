@@ -317,7 +317,7 @@ func TestProof(t *testing.T) {
 	entry, err := NewRDFEntry(path, birthDate)
 	require.NoError(t, err)
 
-	key, val, err := entry.KeyValueHashes()
+	key, val, err := entry.KeyValueMtEntries()
 	require.NoError(t, err)
 
 	p, _, err := mt.GenerateProof(ctx, key, nil)
@@ -347,7 +347,7 @@ func TestProofInteger(t *testing.T) {
 	entry, err := NewRDFEntry(path, 83627465)
 	require.NoError(t, err)
 
-	key, val, err := entry.KeyValueHashes()
+	key, val, err := entry.KeyValueMtEntries()
 	require.NoError(t, err)
 
 	p, _, err := mt.GenerateProof(ctx, key, nil)
@@ -359,7 +359,7 @@ func TestProofInteger(t *testing.T) {
 
 func TestMerklizer_Proof(t *testing.T) {
 	ctx := context.Background()
-	mz, err := Merklize(ctx, strings.NewReader(testDocument))
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
 	require.NoError(t, err)
 
 	t.Run("test with path as Path", func(t *testing.T) {
@@ -369,36 +369,44 @@ func TestMerklizer_Proof(t *testing.T) {
 			"http://schema.org/birthDate")
 		require.NoError(t, err)
 
-		p, path2, err := mz.Proof(ctx, path)
+		p, value, err := mz.Proof(ctx, path)
 		require.NoError(t, err)
 
-		pathKey, err := path.Key()
+		pathMtEntry, err := path.MtEntry()
 		require.NoError(t, err)
 
-		pathKey2, err := path2.Key()
+		require.True(t, value.IsTime())
+		valueDateType, err := value.AsTime()
 		require.NoError(t, err)
-
-		require.True(t, pathKey2.Cmp(pathKey) == 0)
 
 		birthDate := time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC)
-		valueKey, err := mz.HashValue(birthDate)
+		birthDate.Equal(valueDateType)
+
+		valueMtEntry, err := value.MtEntry()
 		require.NoError(t, err)
 
-		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
+		ok := merkletree.VerifyProof(mz.Root(), p, pathMtEntry, valueMtEntry)
 		require.True(t, ok)
 	})
 
 	t.Run("test with path as shortcut string", func(t *testing.T) {
-		p, path, err := mz.Proof(ctx, "credentialSubject.1.birthCountry")
+		path, err := mz.ResolveDocPath("credentialSubject.1.birthCountry")
 		require.NoError(t, err)
 
-		valueKey, err := mz.HashValue("Bahamas")
+		p, value, err := mz.Proof(ctx, path)
 		require.NoError(t, err)
 
-		pathKey, err := path.Key()
+		require.True(t, value.IsString())
+		valueStr, err := value.AsString()
+		require.NoError(t, err)
+		require.Equal(t, "Bahamas", valueStr)
+		valueMtEntry, err := value.MtEntry()
 		require.NoError(t, err)
 
-		ok := merkletree.VerifyProof(mz.Root(), p, pathKey, valueKey)
+		pathMtEntry, err := path.MtEntry()
+		require.NoError(t, err)
+
+		ok := merkletree.VerifyProof(mz.Root(), p, pathMtEntry, valueMtEntry)
 		require.True(t, ok)
 	})
 
@@ -622,4 +630,59 @@ func TestXX2(t *testing.T) {
 	require.NoError(t, err)
 	td := newCtx.GetTermDefinition("type")
 	t.Log(td)
+}
+
+func TestValue(t *testing.T) {
+	// bool
+	v, err := newValue(defaultHasher, true)
+	require.NoError(t, err)
+	require.False(t, v.IsString())
+	require.True(t, v.IsBool())
+	require.False(t, v.IsInt64())
+	require.False(t, v.IsTime())
+	b, err := v.AsBool()
+	require.NoError(t, err)
+	require.True(t, b)
+	_, err = v.AsString()
+	require.ErrorIs(t, err, ErrIncorrectType)
+
+	// string
+	s, err := newValue(defaultHasher, "str")
+	require.NoError(t, err)
+	require.True(t, s.IsString())
+	require.False(t, s.IsBool())
+	require.False(t, s.IsInt64())
+	require.False(t, s.IsTime())
+	s2, err := s.AsString()
+	require.NoError(t, err)
+	require.Equal(t, "str", s2)
+	_, err = s.AsInt64()
+	require.ErrorIs(t, err, ErrIncorrectType)
+
+	// string
+	i, err := newValue(defaultHasher, int64(3))
+	require.NoError(t, err)
+	require.False(t, i.IsString())
+	require.False(t, i.IsBool())
+	require.True(t, i.IsInt64())
+	require.False(t, i.IsTime())
+	i2, err := i.AsInt64()
+	require.NoError(t, err)
+	require.Equal(t, int64(3), i2)
+	_, err = i.AsTime()
+	require.ErrorIs(t, err, ErrIncorrectType)
+
+	// time.Time
+	tm := time.Date(2022, 10, 20, 3, 4, 5, 6, time.UTC)
+	tm2, err := newValue(defaultHasher, tm)
+	require.NoError(t, err)
+	require.False(t, tm2.IsString())
+	require.False(t, tm2.IsBool())
+	require.False(t, tm2.IsInt64())
+	require.True(t, tm2.IsTime())
+	tm3, err := tm2.AsTime()
+	require.NoError(t, err)
+	require.True(t, tm3.Equal(tm))
+	_, err = tm2.AsBool()
+	require.ErrorIs(t, err, ErrIncorrectType)
 }
