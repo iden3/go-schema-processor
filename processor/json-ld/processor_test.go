@@ -353,7 +353,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
   "credentialSubject": {
     "birthday": 19960424,
     "documentType": 1,
-    "id": "118akjaAsZ2i3bSSYEaM88mCMpXAcL6WvpZH68fKZn",
+    "id": "114E6gSS2QRznP7cBCKtSRZ4Co7zB6QY4gTLssx3vD",
     "type": "KYCAgeCredential"
   },
   "credentialStatus": {
