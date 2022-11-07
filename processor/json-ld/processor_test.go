@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"testing"
 
+	core "github.com/iden3/go-iden3-core"
+
 	"github.com/iden3/go-schema-processor/json"
 	jsonld "github.com/iden3/go-schema-processor/json-ld"
 	"github.com/iden3/go-schema-processor/loaders"
@@ -353,7 +355,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
   "credentialSubject": {
     "birthday": 19960424,
     "documentType": 1,
-    "id": "114E6gSS2QRznP7cBCKtSRZ4Co7zB6QY4gTLssx3vD",
+    "id": "did:iden3:polygon:mumbai:x4DsJwEpcdMERM3JL76jTv9Qr2F3Ym9WmruhbJxcS",
     "type": "KYCAgeCredential"
   },
   "credentialStatus": {
@@ -438,5 +440,9 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
 	assert.Nil(t, err)
 	id, err := coreClaim.GetID()
 	assert.Nil(t, err)
-	assert.Equal(t, subjectID, id.String())
+
+	subjectDID, err := core.ParseDID(subjectID)
+	assert.Nil(t, err)
+
+	assert.Equal(t, subjectDID.ID.String(), id.String())
 }
