@@ -11,6 +11,9 @@ linters-settings:
     check-shadowing: true
   revive:
     min-confidence: 0.1
+    rules:
+      - name: package-comments
+        disabled: true
   maligned:
     suggest-new: true
   goconst:
