@@ -16,8 +16,8 @@ import (
 
 	"github.com/iden3/go-iden3-crypto/constants"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/iden3/go-merkletree-sql"
-	"github.com/iden3/go-merkletree-sql/db/memory"
+	"github.com/iden3/go-merkletree-sql/v2"
+	"github.com/iden3/go-merkletree-sql/v2/db/memory"
 	"github.com/piprate/json-gold/ld"
 )
 

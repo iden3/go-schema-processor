@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/iden3/go-merkletree-sql"
-	"github.com/iden3/go-merkletree-sql/db/memory"
+	"github.com/iden3/go-merkletree-sql/v2"
+	"github.com/iden3/go-merkletree-sql/v2/db/memory"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
 )
