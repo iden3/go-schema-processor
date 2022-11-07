@@ -3,9 +3,10 @@ package jsonld
 import (
 	"context"
 	commonJSON "encoding/json"
-	core "github.com/iden3/go-iden3-core"
 	"math/big"
 	"testing"
+
+	core "github.com/iden3/go-iden3-core"
 
 	"github.com/iden3/go-schema-processor/json"
 	jsonld "github.com/iden3/go-schema-processor/json-ld"
@@ -354,7 +355,7 @@ func TestParserParseClaimWithSubjectID(t *testing.T) {
   "credentialSubject": {
     "birthday": 19960424,
     "documentType": 1,
-    "id": "did:iden3:polygon:mumbai:4RzkkAj2G1ugUEdSo676p5ot7dgQqZ8riTfv4Ev1YX2",
+    "id": "did:iden3:polygon:mumbai:x4DsJwEpcdMERM3JL76jTv9Qr2F3Ym9WmruhbJxcS",
     "type": "KYCAgeCredential"
   },
   "credentialStatus": {
