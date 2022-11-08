@@ -18,6 +18,7 @@ type Iden3Credential struct {
 	CredentialSubject map[string]interface{} `json:"credentialSubject"`
 	CredentialStatus  *CredentialStatus      `json:"credentialStatus,omitempty"`
 	SubjectPosition   string                 `json:"subject_position,omitempty"`
+	MerklizedPosition string                 `json:"merklized,omitempty"`
 	CredentialSchema  struct {
 		ID   string `json:"id"`
 		Type string `json:"type"`
@@ -40,8 +41,9 @@ type CredentialStatus struct {
 	StatusIssuer    *StatusIssuer        `json:"statusIssuer,omitempty"`
 }
 
-//nolint:gosec //reason: no need for security
 // Iden3SparseMerkleTreeProof is CredentialStatusType
+//
+//nolint:gosec //reason: no need for security
 const Iden3SparseMerkleTreeProof CredentialStatusType = "Iden3SparseMerkleTreeProof"
 
 // Iden3ReverseSparseMerkleTreeProof is CredentialStatusType
