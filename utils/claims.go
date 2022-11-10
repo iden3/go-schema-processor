@@ -1,12 +1,10 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 
 	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-schema-processor/processor"
 	"github.com/pkg/errors"
 )
 
@@ -15,11 +13,18 @@ const (
 	SubjectPositionIndex = "index"
 	// SubjectPositionValue save subject in value part of claim.
 	SubjectPositionValue = "value"
+
+	// MerklizedRootPositionIndex merklized root is stored in index.
+	MerklizedRootPositionIndex = "index"
+	// MerklizedRootPositionValue merklized root is stored in value.
+	MerklizedRootPositionValue = "value"
+	// MerklizedRootPositionNone merklized root is not stored in the claim. By Default.
+	MerklizedRootPositionNone = ""
 )
 
 var q *big.Int
 
-//nolint //reason - needed
+// nolint //reason - needed
 func init() {
 	qString := "21888242871839275222246405745257275088548364400416034343698204186575808495617"
 	var ok bool
@@ -66,73 +71,6 @@ func CheckDataInField(data []byte) bool {
 	return a.Cmp(q) == -1
 }
 
-// FillClaimSlots fullfils index and value fields to iden3 slots
-func FillClaimSlots(content []byte,
-	indexFields, valueFields []string) (processor.ParsedSlots, error) {
-	var data map[string]interface{}
-
-	err := json.Unmarshal(content, &data)
-	if err != nil {
-		return processor.ParsedSlots{}, err
-	}
-
-	slotAFilled := false
-	result := processor.ParsedSlots{
-		IndexA: make([]byte, 0, 32),
-		IndexB: make([]byte, 0, 32),
-		ValueA: make([]byte, 0, 32),
-		ValueB: make([]byte, 0, 32),
-	}
-
-	for _, key := range indexFields {
-		// key is a property of data map to process
-		byteValue, err := FieldToByteArray(data[key])
-		if err != nil {
-			return processor.ParsedSlots{}, err
-		}
-
-		if !slotAFilled {
-			if DataFillsSlot(result.IndexA, byteValue) {
-				result.IndexA = append(result.IndexA, byteValue...)
-				continue
-			} else {
-				slotAFilled = true
-			}
-		}
-
-		if DataFillsSlot(result.IndexB, byteValue) {
-			result.IndexB = append(result.IndexB, byteValue...)
-		} else {
-			return processor.ParsedSlots{}, processor.ErrSlotsOverflow
-		}
-	}
-
-	slotAFilled = false
-	for _, key := range valueFields {
-		// key is a property of data map to process
-		byteValue, err := FieldToByteArray(data[key])
-		if err != nil {
-			return processor.ParsedSlots{}, err
-		}
-		if !slotAFilled {
-			if DataFillsSlot(result.ValueA, byteValue) {
-				result.ValueA = append(result.ValueA, byteValue...)
-				continue
-			} else {
-				slotAFilled = true
-			}
-		}
-
-		if DataFillsSlot(result.ValueB, byteValue) {
-			result.ValueB = append(result.ValueB, byteValue...)
-		} else {
-			return processor.ParsedSlots{}, processor.ErrSlotsOverflow
-		}
-	}
-
-	return result, nil
-}
-
 // SwapEndianness swaps the endianness of the value encoded in buf. If buf is
 // Big-Endian, the result will be Little-Endian and vice-versa.
 func SwapEndianness(buf []byte) []byte {
@@ -153,11 +91,10 @@ func IndexOf(field string, fields []string) int {
 	return -1
 }
 
-// CreateSchemaHash computes schema hash from content and credential type
-func CreateSchemaHash(schemaBytes []byte,
-	credentialType string) core.SchemaHash {
+// CreateSchemaHash computes schema hash from schemaID
+func CreateSchemaHash(schemaID []byte) core.SchemaHash {
 	var sHash core.SchemaHash
-	h := Keccak256(schemaBytes, []byte(credentialType))
+	h := Keccak256(schemaID)
 	copy(sHash[:], h[len(h)-16:])
 	return sHash
 }

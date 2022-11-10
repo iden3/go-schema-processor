@@ -8,18 +8,19 @@ import (
 
 // Iden3Credential is struct that represents claim json-ld document
 type Iden3Credential struct {
-	ID                string                 `json:"id"`
-	Context           []string               `json:"@context"`
-	Type              []string               `json:"@type"`
-	Expiration        *time.Time             `json:"expirationDate,omitempty"`
-	Updatable         bool                   `json:"updatable"`
-	Version           uint32                 `json:"version"`
-	RevNonce          uint64                 `json:"rev_nonce"`
-	CredentialSubject map[string]interface{} `json:"credentialSubject"`
-	CredentialStatus  *CredentialStatus      `json:"credentialStatus,omitempty"`
-	SubjectPosition   string                 `json:"subject_position,omitempty"`
-	MerklizedPosition string                 `json:"merklized,omitempty"`
-	CredentialSchema  struct {
+	ID                    string                 `json:"id"`
+	Context               []string               `json:"@context"`
+	Type                  []string               `json:"@type"`
+	Expiration            *time.Time             `json:"expirationDate,omitempty"`
+	IssuanceDate          *time.Time             `json:"issuanceDate,omitempty"`
+	Updatable             bool                   `json:"updatable"`
+	Version               uint32                 `json:"version"`
+	RevNonce              uint64                 `json:"revNonce"`
+	CredentialSubject     map[string]interface{} `json:"credentialSubject"`
+	CredentialStatus      *CredentialStatus      `json:"credentialStatus,omitempty"`
+	SubjectPosition       string                 `json:"subjectPosition,omitempty"`
+	MerklizedRootPosition string                 `json:"merklizedRootPosition,omitempty"`
+	CredentialSchema      struct {
 		ID   string `json:"id"`
 		Type string `json:"type"`
 	} `json:"credentialSchema"`
@@ -59,9 +60,9 @@ const JSONSchemaValidator2018 = "JsonSchemaValidator2018"
 type RevocationStatus struct {
 	Issuer struct {
 		State              *string `json:"state,omitempty"`
-		RootOfRoots        *string `json:"root_of_roots,omitempty"`
-		ClaimsTreeRoot     *string `json:"claims_tree_root,omitempty"`
-		RevocationTreeRoot *string `json:"revocation_tree_root,omitempty"`
+		RootOfRoots        *string `json:"rootOfRoots,omitempty"`
+		ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
+		RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
 	} `json:"issuer"`
 	MTP mt.Proof `json:"mtp"`
 }
