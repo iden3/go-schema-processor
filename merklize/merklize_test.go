@@ -90,12 +90,6 @@ func TestEntriesFromRDF(t *testing.T) {
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
 
-	if false {
-		for i, e := range entries {
-			t.Logf("%2v: %v => %v", i, e.key, e.value)
-		}
-	}
-
 	mkPath := func(parts ...interface{}) Path {
 		p, err := NewPath(parts...)
 		require.NoError(t, err)
@@ -435,7 +429,7 @@ func TestNewRelationship(t *testing.T) {
 		logDataset(dataset)
 	}
 
-	rs, err := newRelationship(dataset.Graphs["@default"])
+	rs, err := newRelationship(dataset.Graphs["@default"], PoseidonHasher{})
 	require.NoError(t, err)
 	wantRS := &relationship{
 		parents: map[nodeID]quadKey{
@@ -456,6 +450,7 @@ func TestNewRelationship(t *testing.T) {
 				},
 			},
 		},
+		hasher: PoseidonHasher{},
 	}
 	require.Equal(t, wantRS, rs)
 }

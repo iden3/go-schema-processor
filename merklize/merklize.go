@@ -96,7 +96,7 @@ func NewPath(parts ...interface{}) (Path, error) {
 // NewPathFromContext parses context and do its best to generate full Path
 // from shortcut line field1.field2.field3...
 func NewPathFromContext(ctxBytes []byte, path string) (Path, error) {
-	var out Path
+	var out = Path{hasher: defaultHasher}
 	err := out.pathFromContext(ctxBytes, path)
 	return out, err
 }
@@ -118,7 +118,7 @@ func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
 		return Path{}, err
 	}
 
-	return Path{parts: pathPartsI}, nil
+	return Path{parts: pathPartsI, hasher: defaultHasher}, nil
 }
 
 func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
@@ -552,12 +552,17 @@ type relationship struct {
 	// mapping from parent to mapping from field predicate to
 	// children under this perdicate
 	children map[nodeID]map[ld.IRI][]nodeID
+	hasher   Hasher
 }
 
-func newRelationship(quads []*ld.Quad) (*relationship, error) {
+func newRelationship(quads []*ld.Quad, hasher Hasher) (*relationship, error) {
 	r := relationship{
 		parents:  make(map[nodeID]quadKey),
 		children: make(map[nodeID]map[ld.IRI][]nodeID),
+		hasher:   hasher,
+	}
+	if r.hasher == nil {
+		r.hasher = defaultHasher
 	}
 
 	subjectSet := make(map[nodeID]struct{})
@@ -600,7 +605,7 @@ func newRelationship(quads []*ld.Quad) (*relationship, error) {
 }
 
 func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
-	var k Path
+	var k = Path{hasher: r.hasher}
 
 	if n == nil {
 		return k, errors.New("quad is nil")
@@ -685,6 +690,14 @@ var dateRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 // EntriesFromRDF creates entries from RDF dataset suitable to add to
 // merkle tree
 func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
+	return EntriesFromRDFWithHasher(ds, defaultHasher)
+}
+
+// EntriesFromRDF creates entries from RDF dataset suitable to add to
+// merkle tree
+func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
+	hasher Hasher) ([]RDFEntry, error) {
+
 	if len(ds.Graphs) != 1 {
 		return nil, errors.New("support only dataset with one @default graph")
 	}
@@ -701,7 +714,7 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 
 	seenCount := make(map[quadKey]int)
 
-	rs, err := newRelationship(quads)
+	rs, err := newRelationship(quads, hasher)
 	if err != nil {
 		return nil, err
 	}
