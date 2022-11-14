@@ -42,10 +42,10 @@ type CredentialStatus struct {
 	StatusIssuer    *StatusIssuer        `json:"statusIssuer,omitempty"`
 }
 
-// Iden3SparseMerkleTreeProof is CredentialStatusType
+// SparseMerkleTreeProof is CredentialStatusType
 //
 //nolint:gosec //reason: no need for security
-const Iden3SparseMerkleTreeProof CredentialStatusType = "Iden3SparseMerkleTreeProof"
+const SparseMerkleTreeProof CredentialStatusType = "SparseMerkleTreeProof"
 
 // Iden3ReverseSparseMerkleTreeProof is CredentialStatusType
 const Iden3ReverseSparseMerkleTreeProof CredentialStatusType = "Iden3ReverseSparseMerkleTreeProof"

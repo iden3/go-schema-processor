@@ -594,6 +594,9 @@ func newRelationship(quads []*ld.Quad) (*relationship, error) {
 }
 
 func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
+	if n.Predicate.GetValue() == "https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday" {
+		fmt.Println("lllll")
+	}
 	var k Path
 
 	if n == nil {

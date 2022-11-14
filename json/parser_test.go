@@ -1,11 +1,13 @@
 package json
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"testing"
 
 	core "github.com/iden3/go-iden3-core"
+	"github.com/iden3/go-schema-processor/merklize"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/stretchr/testify/require"
 )
@@ -105,5 +107,27 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 	require.Equal(t, credential.Updatable, claim.GetFlagUpdatable())
 	exp, _ := claim.GetExpirationDate()
 	require.Equal(t, credential.Expiration.Unix(), exp.Unix())
+
+	// proof of field
+
+	// get root
+	root := index[2]
+	root.ToInt()
+
+	path, err := merklize.NewPath(
+		"https://www.w3.org/2018/credentials#credentialSubject",
+		2,
+		"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday")
+	require.NoError(t, err)
+
+	mk, err := MerklizeCredential(credential)
+	require.NoError(t, err)
+
+	jsonP, v, err := mk.Proof(context.Background(), path)
+	require.NotNil(t, v)
+	me, err := v.MtEntry()
+	require.NoError(t, err)
+	require.Equal(t, true, jsonP.Existence)
+	require.Equal(t, int64(credential.CredentialSubject["birthday"].(float64)), me.Int64())
 
 }

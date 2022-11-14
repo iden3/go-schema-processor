@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/merklize"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/utils"
@@ -82,20 +81,20 @@ func (s Parser) ParseClaim(credential verifiable.Iden3Credential, schemaBytes []
 
 	switch credential.MerklizedRootPosition {
 	case utils.MerklizedRootPositionIndex:
-		mkRoot, err := merklizeCredential(credential)
+		mkRoot, err := MerklizeCredential(credential)
 		if err != nil {
 			return nil, err
 		}
-		err = claim.SetIndexMerklizedRoot(mkRoot.BigInt())
+		err = claim.SetIndexMerklizedRoot(mkRoot.Root().BigInt())
 		if err != nil {
 			return nil, err
 		}
 	case utils.MerklizedRootPositionValue:
-		mkRoot, err := merklizeCredential(credential)
+		mkRoot, err := MerklizeCredential(credential)
 		if err != nil {
 			return nil, err
 		}
-		err = claim.SetValueMerklizedRoot(mkRoot.BigInt())
+		err = claim.SetValueMerklizedRoot(mkRoot.Root().BigInt())
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +154,8 @@ func (s Parser) GetFieldSlotIndex(field string, schema []byte) (int, error) {
 	}
 }
 
-func merklizeCredential(credential verifiable.Iden3Credential) (*merkletree.Hash, error) {
+// MerklizeCredential merklizes verifiable credential
+func MerklizeCredential(credential verifiable.Iden3Credential) (*merklize.Merklizer, error) {
 
 	credentialBytes, err := json.Marshal(credential)
 
@@ -172,7 +172,7 @@ func merklizeCredential(credential verifiable.Iden3Credential) (*merkletree.Hash
 	if err != nil {
 		return nil, err
 	}
-	return mk.Root(), nil
+	return mk, nil
 
 }
 
