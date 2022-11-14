@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -89,7 +88,7 @@ func (p *Path) reverse() {
 }
 
 func NewPath(parts ...interface{}) (Path, error) {
-	p := Path{}
+	p := Path{hasher: defaultHasher}
 	err := p.Append(parts...)
 	return p, err
 }
@@ -522,7 +521,7 @@ func newNodeID(n ld.Node) (nodeID, error) {
 		return id, errors.New("ld.Node is nil")
 	}
 
-	id.tp = reflect.TypeOf(n).Name()
+	id.tp = fmt.Sprintf("%T", n)
 
 	switch val := n.(type) {
 	case *ld.IRI:
@@ -550,14 +549,15 @@ type quadKey struct {
 type relationship struct {
 	// mapping from child Subject to its parent
 	parents map[nodeID]quadKey
-	// mapping from parent to array of children
-	children map[nodeID][]nodeID
+	// mapping from parent to mapping from field predicate to
+	// children under this perdicate
+	children map[nodeID]map[ld.IRI][]nodeID
 }
 
 func newRelationship(quads []*ld.Quad) (*relationship, error) {
 	r := relationship{
 		parents:  make(map[nodeID]quadKey),
-		children: make(map[nodeID][]nodeID),
+		children: make(map[nodeID]map[ld.IRI][]nodeID),
 	}
 
 	subjectSet := make(map[nodeID]struct{})
@@ -587,16 +587,19 @@ func newRelationship(quads []*ld.Quad) (*relationship, error) {
 
 		r.parents[objID] = qk
 
-		r.children[qk.subjectID] = append(r.children[qk.subjectID], objID)
+		termChildren := r.children[qk.subjectID]
+		if termChildren == nil {
+			termChildren = make(map[ld.IRI][]nodeID)
+		}
+		termChildren[qk.predicate] = append(
+			termChildren[qk.predicate], objID)
+		r.children[qk.subjectID] = termChildren
 	}
 
 	return &r, nil
 }
 
 func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
-	if n.Predicate.GetValue() == "https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday" {
-		fmt.Println("lllll")
-	}
 	var k Path
 
 	if n == nil {
@@ -638,9 +641,13 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 			break
 		}
 
-		children, ok := r.children[parent.subjectID]
+		termChildren, ok := r.children[parent.subjectID]
 		if !ok {
 			return k, errors.New("[assertion] parent not found in children")
+		}
+		children, ok := termChildren[parent.predicate]
+		if !ok {
+			return k, errors.New("[assertion] predicate not found in children")
 		}
 
 		if len(children) == 1 {

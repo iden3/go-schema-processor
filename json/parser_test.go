@@ -116,7 +116,6 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 
 	path, err := merklize.NewPath(
 		"https://www.w3.org/2018/credentials#credentialSubject",
-		2,
 		"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday")
 	require.NoError(t, err)
 
@@ -128,6 +127,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 	me, err := v.MtEntry()
 	require.NoError(t, err)
 	require.Equal(t, true, jsonP.Existence)
-	require.Equal(t, int64(credential.CredentialSubject["birthday"].(float64)), me.Int64())
+	require.Equal(t, int64(credential.CredentialSubject["birthday"].(float64)),
+		me.Int64())
 
 }
