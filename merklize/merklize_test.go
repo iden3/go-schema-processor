@@ -64,9 +64,9 @@ const testDocument = `{
   ]
 }`
 
-func getDataset(t testing.TB, doc string) *ld.RDFDataset {
+func getDataset(t testing.TB) *ld.RDFDataset {
 	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(doc), &obj)
+	err := json.Unmarshal([]byte(testDocument), &obj)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,7 @@ func getDataset(t testing.TB, doc string) *ld.RDFDataset {
 }
 
 func TestEntriesFromRDF(t *testing.T) {
-	dataset := getDataset(t, testDocument)
+	dataset := getDataset(t)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -296,7 +296,7 @@ func TestEntriesFromRDF(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
-	dataset := getDataset(t, testDocument)
+	dataset := getDataset(t)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -330,7 +330,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestProofInteger(t *testing.T) {
-	dataset := getDataset(t, testDocument)
+	dataset := getDataset(t)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -430,7 +430,7 @@ func TestNewRelationship(t *testing.T) {
 		}
 		return id
 	}
-	dataset := getDataset(t, testDocument)
+	dataset := getDataset(t)
 	if false {
 		logDataset(dataset)
 	}
@@ -501,12 +501,14 @@ func logDataset(in *ld.RDFDataset) {
 	}
 }
 
+//nolint:deadcode,unused //reason: used in debugging
 func logEntries(es []RDFEntry) {
 	for i, e := range es {
 		log.Printf("Entry %v: %v => %v", i, fmtPath(e.key), e.value)
 	}
 }
 
+//nolint:deadcode,unused //reason: used in debugging
 func fmtPath(p Path) string {
 	var parts []string
 	for _, pi := range p.parts {
