@@ -2,9 +2,10 @@ package json
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/utils"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 )

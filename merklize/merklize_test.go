@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -62,9 +64,9 @@ const testDocument = `{
   ]
 }`
 
-func getDataset(t testing.TB) *ld.RDFDataset {
+func getDataset(t testing.TB, doc string) *ld.RDFDataset {
 	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(testDocument), &obj)
+	err := json.Unmarshal([]byte(doc), &obj)
 	if err != nil {
 		panic(err)
 	}
@@ -83,7 +85,7 @@ func getDataset(t testing.TB) *ld.RDFDataset {
 }
 
 func TestEntriesFromRDF(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -294,7 +296,7 @@ func TestEntriesFromRDF(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -328,7 +330,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestProofInteger(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -428,7 +430,7 @@ func TestNewRelationship(t *testing.T) {
 		}
 		return id
 	}
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 	if false {
 		logDataset(dataset)
 	}
@@ -446,10 +448,12 @@ func TestNewRelationship(t *testing.T) {
 				predicate: iri("https://www.w3.org/2018/credentials#credentialSubject"),
 			},
 		},
-		children: map[nodeID][]nodeID{
+		children: map[nodeID]map[ld.IRI][]nodeID{
 			nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")): {
-				nID(iri("did:example:b34ca6cd37bbf23")),
-				nID(iri("did:example:b34ca6cd37bbf24")),
+				iri("https://www.w3.org/2018/credentials#credentialSubject"): {
+					nID(iri("did:example:b34ca6cd37bbf23")),
+					nID(iri("did:example:b34ca6cd37bbf24")),
+				},
 			},
 		},
 	}
@@ -457,8 +461,9 @@ func TestNewRelationship(t *testing.T) {
 }
 
 func logDataset(in *ld.RDFDataset) {
+	fmt.Printf("Log dataset of %v keys\n", len(in.Graphs))
 	for s, gs := range in.Graphs {
-		fmt.Printf("[6] %v: %v\n", s, len(gs))
+		fmt.Printf("Key %v has %v entries\n", s, len(gs))
 		for i, g := range gs {
 			subject := "nil"
 			if g.Subject != nil {
@@ -482,7 +487,7 @@ func logDataset(in *ld.RDFDataset) {
 			if g.Graph != nil {
 				graph = g.Graph.GetValue()
 			}
-			fmt.Printf(`[7] %v:
+			fmt.Printf(`Entry %v:
 	Subject [%T]: %v
 	Predicate [%T]: %v
 	Object [%T]: %v %v
@@ -494,6 +499,27 @@ func logDataset(in *ld.RDFDataset) {
 				g.Graph, graph)
 		}
 	}
+}
+
+func logEntries(es []RDFEntry) {
+	for i, e := range es {
+		log.Printf("Entry %v: %v => %v", i, fmtPath(e.key), e.value)
+	}
+}
+
+func fmtPath(p Path) string {
+	var parts []string
+	for _, pi := range p.parts {
+		switch v := pi.(type) {
+		case string:
+			parts = append(parts, v)
+		case int:
+			parts = append(parts, strconv.Itoa(v))
+		default:
+			panic("not string or int")
+		}
+	}
+	return strings.Join(parts, " :: ")
 }
 
 func TestPathFromContext(t *testing.T) {
@@ -685,4 +711,62 @@ func TestValue(t *testing.T) {
 	require.True(t, tm3.Equal(tm))
 	_, err = tm2.AsBool()
 	require.ErrorIs(t, err, ErrIncorrectType)
+}
+
+// multiple types within another type
+var doc1 = `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld",
+        "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld"
+    ],
+    "@type": [
+        "VerifiableCredential",
+        "Iden3Credential",
+        "KYCAgeCredential"
+    ],
+    "version": 0,
+    "updatable": false,
+    "subjectPosition": "index",
+    "revNonce": 127366661,
+    "merklizedRootPosition": "index",
+    "id": "http://myid.com",
+    "expirationDate": "2361-03-21T21:14:48+02:00",
+    "credentialSubject": {
+        "type": "KYCAgeCredential",
+        "id": "did:iden3:polygon:mumbai:wyFiV4w71QgWPn6bYLsZoysFay66gKtVa9kfu6yMZ",
+        "documentType": 1,
+        "birthday": 19960424
+    },
+    "credentialStatus": {
+        "type": "SparseMerkleTreeProof",
+        "id": "http://localhost:8001/api/v1/identities/1195DjqzhZ9zpHbezahSevDMcxN41vs3Y6gb4noRW/claims/revocation/status/127366661"
+    },
+    "credentialSchema": {
+        "type": "JsonSchemaValidator2018",
+        "id": "http://json1.com"
+    }
+}`
+
+func TestExistenceProof(t *testing.T) {
+	ctx := context.Background()
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(doc1))
+	require.NoError(t, err)
+	path, err := mz.ResolveDocPath("credentialSubject.birthday")
+	require.NoError(t, err)
+
+	wantPath, err := NewPath(
+		"https://www.w3.org/2018/credentials#credentialSubject",
+		"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday")
+	require.NoError(t, err)
+	require.Equal(t, wantPath, path)
+
+	p, v, err := mz.Proof(ctx, path)
+	require.NoError(t, err)
+
+	require.True(t, p.Existence)
+	i, err := v.AsInt64()
+	require.NoError(t, err)
+	require.Equal(t, int64(19960424), i)
 }
