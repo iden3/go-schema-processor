@@ -41,7 +41,6 @@ type Parser struct {
 // ParseClaim creates Claim object from Iden3Credential
 func (s Parser) ParseClaim(credential verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error) {
 
-	//credentialType := fmt.Sprintf("%v", credential.CredentialSubject["type"])
 	subjectID := credential.CredentialSubject["id"]
 
 	slots, err := s.ParseSlots(credential, schemaBytes)
@@ -50,7 +49,7 @@ func (s Parser) ParseClaim(credential verifiable.Iden3Credential, schemaBytes []
 	}
 
 	claim, err := core.NewClaim(
-		utils.CreateSchemaHash(append([]byte(credential.CredentialSchema.ID))),
+		utils.CreateSchemaHash([]byte(credential.CredentialSchema.ID)),
 		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
 		core.WithRevocationNonce(credential.RevNonce),
@@ -158,9 +157,15 @@ func (s Parser) GetFieldSlotIndex(field string, schema []byte) (int, error) {
 func MerklizeCredential(credential verifiable.Iden3Credential) (*merklize.Merklizer, error) {
 
 	credentialBytes, err := json.Marshal(credential)
+	if err != nil {
+		return nil, err
+	}
 
 	var credentialAsMap map[string]interface{}
 	err = json.Unmarshal(credentialBytes, &credentialAsMap)
+	if err != nil {
+		return nil, err
+	}
 	delete(credentialAsMap, "proof")
 
 	credentialWithoutProofBytes, err := json.Marshal(credentialAsMap)

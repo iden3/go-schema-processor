@@ -124,6 +124,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 
 	jsonP, v, err := mk.Proof(context.Background(), path)
 	require.NotNil(t, v)
+	require.Nil(t, err)
 	me, err := v.MtEntry()
 	require.NoError(t, err)
 	require.Equal(t, true, jsonP.Existence)

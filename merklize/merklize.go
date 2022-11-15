@@ -693,7 +693,7 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 	return EntriesFromRDFWithHasher(ds, defaultHasher)
 }
 
-// EntriesFromRDF creates entries from RDF dataset suitable to add to
+// EntriesFromRDFWithHasher creates entries from RDF dataset suitable to add to with a provided Hasher
 // merkle tree
 func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 	hasher Hasher) ([]RDFEntry, error) {
@@ -874,26 +874,32 @@ func (e RDFEntry) getHasher() Hasher {
 	return h
 }
 
+// Hasher is an interface to hash data
 type Hasher interface {
 	Hash(inpBI []*big.Int) (*big.Int, error)
 	HashBytes(msg []byte) (*big.Int, error)
 	Prime() *big.Int
 }
 
+// PoseidonHasher is an applier of poseidon hash algorithm
 type PoseidonHasher struct{}
 
+// Hash returns poseidon hash on big int params
 func (p PoseidonHasher) Hash(inpBI []*big.Int) (*big.Int, error) {
 	return poseidon.Hash(inpBI)
 }
 
+// HashBytes returns poseidon hash on bytes
 func (p PoseidonHasher) HashBytes(msg []byte) (*big.Int, error) {
 	return poseidon.HashBytes(msg)
 }
 
+// Prime returns Q constant
 func (p PoseidonHasher) Prime() *big.Int {
 	return new(big.Int).Set(constants.Q)
 }
 
+// MerkleTree is merkle tree structure
 type MerkleTree interface {
 	Add(context.Context, *big.Int, *big.Int) error
 	GenerateProof(context.Context, *big.Int) (*merkletree.Proof, error)
@@ -902,24 +908,29 @@ type MerkleTree interface {
 
 type mtSQLAdapter merkletree.MerkleTree
 
+// Add adds entry to tree
 func (a *mtSQLAdapter) Add(ctx context.Context, key, value *big.Int) error {
 	return (*merkletree.MerkleTree)(a).Add(ctx, key, value)
 }
 
+// GenerateProof generates proof
 func (a *mtSQLAdapter) GenerateProof(ctx context.Context,
 	key *big.Int) (*merkletree.Proof, error) {
 	p, _, err := (*merkletree.MerkleTree)(a).GenerateProof(ctx, key, nil)
 	return p, err
 }
 
+// Root return merkle tree root
 func (a *mtSQLAdapter) Root() *merkletree.Hash {
 	return (*merkletree.MerkleTree)(a).Root()
 }
 
+// MerkleTreeSQLAdapter is merkle tree sql adapter
 func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 	return (*mtSQLAdapter)(mt)
 }
 
+// Merklizer is a struct to work with json-ld doc merklization
 type Merklizer struct {
 	srcDoc  []byte
 	mt      MerkleTree
@@ -927,14 +938,17 @@ type Merklizer struct {
 	hasher  Hasher
 }
 
+// MerklizeOption is options for merklizer
 type MerklizeOption func(m *Merklizer)
 
+// WithHasher sets Hasher option
 func WithHasher(h Hasher) MerklizeOption {
 	return func(m *Merklizer) {
 		m.hasher = h
 	}
 }
 
+// WithMerkleTree sets MerkleTree option
 func WithMerkleTree(mt MerkleTree) MerklizeOption {
 	return func(m *Merklizer) {
 		m.mt = mt
