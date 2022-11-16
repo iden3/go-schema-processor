@@ -94,6 +94,14 @@ func (s *Processor) ParseSlots(credential verifiable.Iden3Credential, schema []b
 	return s.Parser.ParseSlots(credential, schema)
 }
 
+// ParseClaim will serialize input data to index and value fields.
+func (s *Processor) ParseClaim(credential verifiable.Iden3Credential, schema []byte) (*core.Claim, error) {
+	if s.Parser == nil {
+		return nil, errParserNotDefined
+	}
+	return s.Parser.ParseClaim(credential, schema)
+}
+
 // GetFieldSlotIndex returns index of slot for specified field according to schema
 func (s *Processor) GetFieldSlotIndex(field string, schema []byte) (int, error) {
 	if s.Parser == nil {
