@@ -130,26 +130,30 @@ func (s Parser) ParseSlots(credential verifiable.Iden3Credential, schemaBytes []
 }
 
 // GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)
-func (s Parser) GetFieldSlotIndex(field string, schema []byte) (int, error) {
+func (s Parser) GetFieldSlotIndex(field string, schemaBytes []byte) (int, error) {
 
-	var schemaMetadata SchemaMetadata
+	var schema Schema
 
-	err := json.Unmarshal(schema, &schemaMetadata)
+	err := json.Unmarshal(schemaBytes, &schema)
 	if err != nil {
 		return 0, err
 	}
 
+	if schema.Metadata == nil || schema.Metadata.Serialization == nil {
+		return -1, errors.New("serialization info is not set")
+	}
+
 	switch field {
-	case schemaMetadata.Serialization.IndexDataSlotA:
+	case schema.Metadata.Serialization.IndexDataSlotA:
 		return 2, nil
-	case schemaMetadata.Serialization.IndexDataSlotB:
+	case schema.Metadata.Serialization.IndexDataSlotB:
 		return 3, nil
-	case schemaMetadata.Serialization.ValueDataSlotA:
+	case schema.Metadata.Serialization.ValueDataSlotA:
 		return 6, nil
-	case schemaMetadata.Serialization.ValueDataSlotB:
+	case schema.Metadata.Serialization.ValueDataSlotB:
 		return 7, nil
 	default:
-		return -1, errors.New("field serialization info is not set")
+		return -1, errors.Errorf("field `%s` not specified in serialization info", field)
 	}
 }
 

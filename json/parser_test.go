@@ -132,3 +132,14 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 		me.Int64())
 
 }
+
+func Test_GetFieldSlotIndex(t *testing.T) {
+	schemaBytes, err := os.ReadFile("testdata/schema-slots.json")
+	require.NoError(t, err)
+
+	parser := Parser{}
+	slotIndex, err := parser.GetFieldSlotIndex("birthday", schemaBytes)
+	require.NoError(t, err)
+
+	require.Equal(t, 2, slotIndex)
+}
