@@ -10,7 +10,7 @@ import (
 type Iden3Credential struct {
 	ID                    string                 `json:"id"`
 	Context               []string               `json:"@context"`
-	Type                  []string               `json:"@type"`
+	Type                  []string               `json:"type"`
 	Expiration            *time.Time             `json:"expirationDate,omitempty"`
 	IssuanceDate          *time.Time             `json:"issuanceDate,omitempty"`
 	Updatable             bool                   `json:"updatable"`
@@ -20,6 +20,7 @@ type Iden3Credential struct {
 	CredentialStatus      *CredentialStatus      `json:"credentialStatus,omitempty"`
 	SubjectPosition       string                 `json:"subjectPosition,omitempty"`
 	MerklizedRootPosition string                 `json:"merklizedRootPosition,omitempty"`
+	Issuer                string                 `json:"issuer"`
 	CredentialSchema      struct {
 		ID   string `json:"id"`
 		Type string `json:"type"`
