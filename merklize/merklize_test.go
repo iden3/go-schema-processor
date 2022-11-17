@@ -537,6 +537,22 @@ func TestPathFromContext(t *testing.T) {
 	require.Equal(t, want, result)
 }
 
+func TestFieldPathFromContext(t *testing.T) {
+	ctxBytes, err := os.ReadFile("testdata/credential_2.json-ld")
+	require.NoError(t, err)
+
+	typ := "KYCAgeCredential"
+	fieldPath := "birthday"
+	result, err := NewFieldPathFromContext(ctxBytes, typ, fieldPath)
+	require.NoError(t, err)
+
+	want, err := NewPath(
+		"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday")
+	require.NoError(t, err)
+
+	require.Equal(t, want, result)
+}
+
 func TestPathFromDocument(t *testing.T) {
 	in := "credentialSubject.1.birthDate"
 	result, err := NewPathFromDocument([]byte(testDocument), in)

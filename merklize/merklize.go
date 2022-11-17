@@ -87,6 +87,10 @@ func (p *Path) reverse() {
 	}
 }
 
+func (p *Path) Parts() []interface{} {
+	return p.parts
+}
+
 func NewPath(parts ...interface{}) (Path, error) {
 	p := Path{hasher: defaultHasher}
 	err := p.Append(parts...)
@@ -119,6 +123,30 @@ func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
 	}
 
 	return Path{parts: pathPartsI, hasher: defaultHasher}, nil
+}
+
+func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, error) {
+
+	if len(ctxType) == 0 {
+		return Path{}, errors.New("ctxType is empty")
+	}
+	if len(fieldPath) == 0 {
+		return Path{}, errors.New("fieldPath is empty")
+	}
+
+	fullPath, err := NewPathFromContext(ctxBytes, fmt.Sprintf("%s.%s", ctxType, fieldPath))
+	if err != nil {
+		return Path{}, err
+	}
+
+	typePath, err := NewPathFromContext(ctxBytes, ctxType)
+	if err != nil {
+		return Path{}, err
+	}
+
+	resPath := Path{parts: fullPath.parts[len(typePath.parts):], hasher: defaultHasher}
+
+	return resPath, nil
 }
 
 func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
