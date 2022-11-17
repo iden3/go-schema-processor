@@ -49,7 +49,10 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := Parser{}
-	claim, err := parser.ParseClaim(credential, schemaBytes)
+
+	credentialType := "Test"
+
+	claim, err := parser.ParseClaim(credential, credentialType, schemaBytes)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -86,7 +89,10 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := Parser{}
-	claim, err := parser.ParseClaim(credential, schemaBytes)
+
+	credentialType := "Test"
+
+	claim, err := parser.ParseClaim(credential, credentialType, schemaBytes)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()

@@ -39,17 +39,18 @@ type Parser struct {
 }
 
 // ParseClaim creates Claim object from Iden3Credential
-func (s Parser) ParseClaim(credential verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error) {
+func (s Parser) ParseClaim(credential verifiable.Iden3Credential, credentialType string,
+	jsonSchemaBytes []byte) (*core.Claim, error) {
 
 	subjectID := credential.CredentialSubject["id"]
 
-	slots, err := s.ParseSlots(credential, schemaBytes)
+	slots, err := s.ParseSlots(credential, jsonSchemaBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	claim, err := core.NewClaim(
-		utils.CreateSchemaHash([]byte(credential.CredentialSchema.ID)),
+		utils.CreateSchemaHash([]byte(credentialType)),
 		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
 		core.WithRevocationNonce(credential.RevNonce),
