@@ -1,13 +1,11 @@
 package json
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 
 	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-schema-processor/merklize"
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/utils"
 	"github.com/iden3/go-schema-processor/verifiable"
@@ -39,7 +37,7 @@ type Parser struct {
 }
 
 // ParseClaim creates Claim object from Iden3Credential
-func (s Parser) ParseClaim(credential verifiable.Iden3Credential, credentialType string,
+func (s Parser) ParseClaim(ctx context.Context, credential verifiable.Iden3Credential, credentialType string,
 	jsonSchemaBytes []byte) (*core.Claim, error) {
 
 	subjectID := credential.CredentialSubject["id"]
@@ -81,7 +79,7 @@ func (s Parser) ParseClaim(credential verifiable.Iden3Credential, credentialType
 
 	switch credential.MerklizedRootPosition {
 	case utils.MerklizedRootPositionIndex:
-		mkRoot, err := MerklizeCredential(credential)
+		mkRoot, err := credential.Merklize(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +88,7 @@ func (s Parser) ParseClaim(credential verifiable.Iden3Credential, credentialType
 			return nil, err
 		}
 	case utils.MerklizedRootPositionValue:
-		mkRoot, err := MerklizeCredential(credential)
+		mkRoot, err := credential.Merklize(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -156,34 +154,6 @@ func (s Parser) GetFieldSlotIndex(field string, schemaBytes []byte) (int, error)
 	default:
 		return -1, errors.Errorf("field `%s` not specified in serialization info", field)
 	}
-}
-
-// MerklizeCredential merklizes verifiable credential
-func MerklizeCredential(credential verifiable.Iden3Credential) (*merklize.Merklizer, error) {
-
-	credentialBytes, err := json.Marshal(credential)
-	if err != nil {
-		return nil, err
-	}
-
-	var credentialAsMap map[string]interface{}
-	err = json.Unmarshal(credentialBytes, &credentialAsMap)
-	if err != nil {
-		return nil, err
-	}
-	delete(credentialAsMap, "proof")
-
-	credentialWithoutProofBytes, err := json.Marshal(credentialAsMap)
-	if err != nil {
-		return nil, err
-	}
-
-	mk, err := merklize.MerklizeJSONLD(context.Background(), bytes.NewReader(credentialWithoutProofBytes))
-	if err != nil {
-		return nil, err
-	}
-	return mk, nil
-
 }
 
 // assignSlots assigns index and value fields to specific slot according array order

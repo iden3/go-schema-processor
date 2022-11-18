@@ -65,12 +65,6 @@ func DataFillsSlot(slot, newData []byte) bool {
 	return a.Cmp(q) == -1
 }
 
-// CheckDataInField  checks if data is in Q field
-func CheckDataInField(data []byte) bool {
-	a := new(big.Int).SetBytes(SwapEndianness(data))
-	return a.Cmp(q) == -1
-}
-
 // SwapEndianness swaps the endianness of the value encoded in buf. If buf is
 // Big-Endian, the result will be Little-Endian and vice-versa.
 func SwapEndianness(buf []byte) []byte {
@@ -79,16 +73,6 @@ func SwapEndianness(buf []byte) []byte {
 		newBuf[len(buf)-1-i] = b
 	}
 	return newBuf
-}
-
-// IndexOf returns field index in array of fields
-func IndexOf(field string, fields []string) int {
-	for k, v := range fields {
-		if field == v {
-			return k
-		}
-	}
-	return -1
 }
 
 // CreateSchemaHash computes schema hash from schemaID
