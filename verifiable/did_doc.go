@@ -36,11 +36,3 @@ type DeviceMetadata struct {
 	AppID     string `json:"app_id"`
 	PushToken string `json:"push_token"`
 }
-
-const (
-	// Iden3CommServiceType is service type for iden3comm protocol
-	Iden3CommServiceType = "iden3-communication"
-
-	// PushNotificationServiceType is service type for delivering push notifications to identity
-	PushNotificationServiceType = "push-notification"
-)

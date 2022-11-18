@@ -1,9 +1,13 @@
 package verifiable
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"time"
 
 	mt "github.com/iden3/go-merkletree-sql/v2"
+	"github.com/iden3/go-schema-processor/merklize"
 )
 
 // Iden3Credential is struct that represents claim json-ld document
@@ -25,7 +29,35 @@ type Iden3Credential struct {
 	Proof                 interface{}            `json:"proof,omitempty"`
 }
 
-// CredentialSchema is struct that represents credential schema
+// Merklize merklizes verifiable credential
+func (vc *Iden3Credential) Merklize(ctx context.Context) (*merklize.Merklizer, error) {
+
+	credentialBytes, err := json.Marshal(vc)
+	if err != nil {
+		return nil, err
+	}
+
+	var credentialAsMap map[string]interface{}
+	err = json.Unmarshal(credentialBytes, &credentialAsMap)
+	if err != nil {
+		return nil, err
+	}
+	delete(credentialAsMap, "proof")
+
+	credentialWithoutProofBytes, err := json.Marshal(credentialAsMap)
+	if err != nil {
+		return nil, err
+	}
+
+	mk, err := merklize.MerklizeJSONLD(ctx, bytes.NewReader(credentialWithoutProofBytes))
+	if err != nil {
+		return nil, err
+	}
+	return mk, nil
+
+}
+
+// CredentialSchema represent the information about credential schema
 type CredentialSchema struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
@@ -46,19 +78,8 @@ type CredentialStatus struct {
 	StatusIssuer    *StatusIssuer        `json:"statusIssuer,omitempty"`
 }
 
-// SparseMerkleTreeProof is CredentialStatusType
-//
-//nolint:gosec //reason: no need for security
-const SparseMerkleTreeProof CredentialStatusType = "SparseMerkleTreeProof"
-
-// Iden3ReverseSparseMerkleTreeProof is CredentialStatusType
-const Iden3ReverseSparseMerkleTreeProof CredentialStatusType = "Iden3ReverseSparseMerkleTreeProof"
-
 // CredentialStatusType type for understanding revocation type
 type CredentialStatusType string
-
-// JSONSchemaValidator2018 JSON schema
-const JSONSchemaValidator2018 = "JsonSchemaValidator2018"
 
 // RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
 type RevocationStatus struct {

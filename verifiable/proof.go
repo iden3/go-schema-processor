@@ -43,22 +43,8 @@ type Iden3SparseMerkleProof struct {
 	MTP        *mt.Proof  `json:"mtp"`
 }
 
-// BJJSignatureProofType schema type
-const BJJSignatureProofType ProofType = "BJJSignature2021"
-
-// Iden3SparseMerkleProofType schema
-const Iden3SparseMerkleProofType ProofType = "Iden3SparseMerkleProof"
-
-// SparseMerkleTreeProofType schema
-const SparseMerkleTreeProofType ProofType = "SparseMerkleTreeProof"
-
 // ProofPurpose is alias for string, represents proof purpose
 type ProofPurpose string
-
-const (
-	// ProofPurposeAuthentication is a proof for authentication
-	ProofPurposeAuthentication ProofPurpose = "Authentication"
-)
 
 // ProofData is structure that represents SnarkJS library result of proof generation
 type ProofData struct {

@@ -52,7 +52,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 
 	credentialType := "Test"
 
-	claim, err := parser.ParseClaim(credential, credentialType, schemaBytes)
+	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, schemaBytes)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -92,7 +92,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 
 	credentialType := "Test"
 
-	claim, err := parser.ParseClaim(credential, credentialType, schemaBytes)
+	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, schemaBytes)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -125,7 +125,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 		"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday")
 	require.NoError(t, err)
 
-	mk, err := MerklizeCredential(credential)
+	mk, err := credential.Merklize(context.Background())
 	require.NoError(t, err)
 
 	jsonP, v, err := mk.Proof(context.Background(), path)

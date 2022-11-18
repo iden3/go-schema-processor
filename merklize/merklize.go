@@ -22,6 +22,12 @@ import (
 
 var defaultHasher Hasher = PoseidonHasher{}
 
+// ErrorFieldIsEmpty is returned when field path to resolve is empty
+var ErrorFieldIsEmpty = errors.New("fieldPath is empty")
+
+// ErrorContextTypeIsEmpty is returned when context type tp resolve is empty
+var ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
+
 // SetHasher changes default hasher
 func SetHasher(h Hasher) {
 	if h == nil {
@@ -125,13 +131,14 @@ func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
 	return Path{parts: pathPartsI, hasher: defaultHasher}, nil
 }
 
+// NewFieldPathFromContext resolves field path without type path prefix
 func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, error) {
 
-	if len(ctxType) == 0 {
-		return Path{}, errors.New("ctxType is empty")
+	if ctxType == "" {
+		return Path{}, ErrorContextTypeIsEmpty
 	}
-	if len(fieldPath) == 0 {
-		return Path{}, errors.New("fieldPath is empty")
+	if fieldPath == "" {
+		return Path{}, ErrorFieldIsEmpty
 	}
 
 	fullPath, err := NewPathFromContext(ctxBytes, fmt.Sprintf("%s.%s", ctxType, fieldPath))
