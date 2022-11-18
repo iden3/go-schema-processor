@@ -78,19 +78,8 @@ type CredentialStatus struct {
 	StatusIssuer    *StatusIssuer        `json:"statusIssuer,omitempty"`
 }
 
-// SparseMerkleTreeProof is CredentialStatusType
-//
-//nolint:gosec //reason: no need for security
-const SparseMerkleTreeProof CredentialStatusType = "SparseMerkleTreeProof"
-
-// Iden3ReverseSparseMerkleTreeProof is CredentialStatusType
-const Iden3ReverseSparseMerkleTreeProof CredentialStatusType = "Iden3ReverseSparseMerkleTreeProof"
-
 // CredentialStatusType type for understanding revocation type
 type CredentialStatusType string
-
-// JSONSchemaValidator2018 JSON schema
-const JSONSchemaValidator2018 = "JsonSchemaValidator2018"
 
 // RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
 type RevocationStatus struct {
