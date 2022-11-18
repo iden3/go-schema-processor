@@ -21,11 +21,13 @@ type Iden3Credential struct {
 	SubjectPosition       string                 `json:"subjectPosition,omitempty"`
 	MerklizedRootPosition string                 `json:"merklizedRootPosition,omitempty"`
 	Issuer                string                 `json:"issuer"`
-	CredentialSchema      struct {
-		ID   string `json:"id"`
-		Type string `json:"type"`
-	} `json:"credentialSchema"`
-	Proof interface{} `json:"proof,omitempty"`
+	CredentialSchema      CredentialSchema       `json:"credentialSchema"`
+	Proof                 interface{}            `json:"proof,omitempty"`
+}
+
+type CredentialSchema struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
 }
 
 // StatusIssuer represents the URL to fetch claim revocation info directly from the issuer.
