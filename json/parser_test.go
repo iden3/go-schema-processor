@@ -6,7 +6,6 @@ import (
 
 	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/utils"
-
 	"github.com/stretchr/testify/require"
 )
 
