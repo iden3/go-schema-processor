@@ -408,7 +408,7 @@ func TestMerklizer_Proof(t *testing.T) {
 
 	mzRoot := mz.Root()
 	require.Equal(t,
-		"266c9b0bab35adcbb6431aac357c46e89648376da25e3c18ae861f9e50b46206",
+		"d001de1d1b74d3b24b394566511da50df18532264c473845ea51e915a588b02a",
 		mzRoot.Hex())
 }
 

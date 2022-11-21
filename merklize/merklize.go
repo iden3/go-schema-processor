@@ -17,7 +17,6 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
-	"github.com/iden3/go-schema-processor/utils"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -1158,7 +1157,7 @@ func mkValueBool(h Hasher, val bool) (*big.Int, error) {
 }
 
 func mkValueString(h Hasher, val string) (*big.Int, error) {
-	return h.HashBytes(utils.SwapEndianness([]byte(val)))
+	return h.HashBytes([]byte(val))
 }
 
 func mkValueTime(h Hasher, val time.Time) (*big.Int, error) {
