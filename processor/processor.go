@@ -33,9 +33,18 @@ type ParsedSlots struct {
 
 // Parser is an interface to parse claim slots
 type Parser interface {
-	ParseClaim(ctx context.Context, credential verifiable.Iden3Credential, credentialType string, jsonSchemaBytes []byte) (*core.Claim, error)
-	ParseSlots(credential verifiable.Iden3Credential, schemaBytes []byte) (ParsedSlots, error)
+	ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, jsonSchemaBytes []byte, options *CoreClaimOptions) (*core.Claim, error)
+	ParseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (ParsedSlots, error)
 	GetFieldSlotIndex(field string, schema []byte) (int, error)
+}
+
+// CoreClaimOptions is params for core claim parsing
+type CoreClaimOptions struct {
+	RevNonce              uint64 `json:"revNonce"`
+	Version               uint32 `json:"version"`
+	SubjectPosition       string `json:"subjectPosition"`
+	MerklizedRootPosition string `json:"merklizedRootPosition"`
+	Updatable             bool   `json:"updatable"`
 }
 
 var (
@@ -87,7 +96,7 @@ func (s *Processor) Load(ctx context.Context) (schema []byte, extension string, 
 }
 
 // ParseSlots will serialize input data to index and value fields.
-func (s *Processor) ParseSlots(credential verifiable.Iden3Credential, schema []byte) (ParsedSlots, error) {
+func (s *Processor) ParseSlots(credential verifiable.W3CCredential, schema []byte) (ParsedSlots, error) {
 	if s.Parser == nil {
 		return ParsedSlots{}, errParserNotDefined
 	}
@@ -95,11 +104,11 @@ func (s *Processor) ParseSlots(credential verifiable.Iden3Credential, schema []b
 }
 
 // ParseClaim will serialize input data to index and value fields.
-func (s *Processor) ParseClaim(ctx context.Context, credential verifiable.Iden3Credential, credentialType string, jsonSchemaBytes []byte) (*core.Claim, error) {
+func (s *Processor) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, jsonSchemaBytes []byte, opts *CoreClaimOptions) (*core.Claim, error) {
 	if s.Parser == nil {
 		return nil, errParserNotDefined
 	}
-	return s.Parser.ParseClaim(ctx, credential, credentialType, jsonSchemaBytes)
+	return s.Parser.ParseClaim(ctx, credential, credentialType, jsonSchemaBytes, opts)
 }
 
 // GetFieldSlotIndex returns index of slot for specified field according to schema

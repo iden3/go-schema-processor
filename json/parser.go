@@ -36,9 +36,19 @@ type Schema struct {
 type Parser struct {
 }
 
-// ParseClaim creates Claim object from Iden3Credential
-func (s Parser) ParseClaim(ctx context.Context, credential verifiable.Iden3Credential, credentialType string,
-	jsonSchemaBytes []byte) (*core.Claim, error) {
+// ParseClaim creates Claim object from W3CCredential
+func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string,
+	jsonSchemaBytes []byte, opts *processor.CoreClaimOptions) (*core.Claim, error) {
+
+	if opts == nil {
+		opts = &processor.CoreClaimOptions{
+			RevNonce:              0,
+			Version:               0,
+			SubjectPosition:       "index",
+			MerklizedRootPosition: "none",
+			Updatable:             false,
+		}
+	}
 
 	subjectID := credential.CredentialSubject["id"]
 
@@ -51,9 +61,12 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.Iden3Crede
 		utils.CreateSchemaHash([]byte(credentialType)),
 		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
-		core.WithRevocationNonce(credential.RevNonce),
-		core.WithVersion(credential.Version))
+		core.WithRevocationNonce(opts.RevNonce),
+		core.WithVersion(opts.Version))
 
+	if opts.Updatable {
+		claim.SetFlagUpdatable(opts.Updatable)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +80,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.Iden3Crede
 			return nil, err
 		}
 
-		switch credential.SubjectPosition {
+		switch opts.SubjectPosition {
 		case "", utils.SubjectPositionIndex:
 			claim.SetIndexID(did.ID)
 		case utils.SubjectPositionValue:
@@ -77,7 +90,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.Iden3Crede
 		}
 	}
 
-	switch credential.MerklizedRootPosition {
+	switch opts.MerklizedRootPosition {
 	case utils.MerklizedRootPositionIndex:
 		mkRoot, err := credential.Merklize(ctx)
 		if err != nil {
@@ -106,7 +119,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.Iden3Crede
 }
 
 // ParseSlots converts payload to claim slots using provided schema
-func (s Parser) ParseSlots(credential verifiable.Iden3Credential, schemaBytes []byte) (processor.ParsedSlots, error) {
+func (s Parser) ParseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (processor.ParsedSlots, error) {
 
 	var schema Schema
 

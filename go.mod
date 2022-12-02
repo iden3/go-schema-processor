@@ -3,7 +3,7 @@ module github.com/iden3/go-schema-processor
 go 1.18
 
 require (
-	github.com/iden3/go-iden3-core v0.1.1-0.20221110160238-4f9f3a6658f0
+	github.com/iden3/go-iden3-core v0.1.1-0.20221202150047-1dcbfdda8b90
 	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/iden3/go-merkletree-sql/v2 v2.0.0
 	github.com/ipfs/go-ipfs-api v0.3.0

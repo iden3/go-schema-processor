@@ -8,6 +8,7 @@ import (
 
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-schema-processor/merklize"
+	"github.com/iden3/go-schema-processor/processor"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ func TestParser_ParseSlots(t *testing.T) {
 	credentialBytes, err := os.ReadFile("testdata/credential.json")
 	require.NoError(t, err)
 
-	var credential verifiable.Iden3Credential
+	var credential verifiable.W3CCredential
 
 	err = json.Unmarshal(credentialBytes, &credential)
 	require.NoError(t, err)
@@ -40,7 +41,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 	credentialBytes, err := os.ReadFile("testdata/credential.json")
 	require.NoError(t, err)
 
-	var credential verifiable.Iden3Credential
+	var credential verifiable.W3CCredential
 
 	err = json.Unmarshal(credentialBytes, &credential)
 	require.NoError(t, err)
@@ -52,7 +53,15 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 
 	credentialType := "Test"
 
-	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, schemaBytes)
+	opts := processor.CoreClaimOptions{
+		RevNonce:              127366661,
+		Version:               0,
+		SubjectPosition:       "index",
+		MerklizedRootPosition: "",
+		Updatable:             true,
+	}
+
+	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, schemaBytes, &opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -70,7 +79,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 	require.NoError(t, err)
 	core.ParseDIDFromID(idFromClaim)
 	require.Equal(t, did, didFromClaim.String())
-	require.Equal(t, credential.Updatable, claim.GetFlagUpdatable())
+	require.Equal(t, opts.Updatable, claim.GetFlagUpdatable())
 	exp, _ := claim.GetExpirationDate()
 	require.Equal(t, credential.Expiration.Unix(), exp.Unix())
 
@@ -80,7 +89,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 	credentialBytes, err := os.ReadFile("testdata/credential.json")
 	require.NoError(t, err)
 
-	var credential verifiable.Iden3Credential
+	var credential verifiable.W3CCredential
 
 	err = json.Unmarshal(credentialBytes, &credential)
 	require.NoError(t, err)
@@ -92,7 +101,14 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 
 	credentialType := "Test"
 
-	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, schemaBytes)
+	opts := processor.CoreClaimOptions{
+		RevNonce:              127366661,
+		Version:               0,
+		SubjectPosition:       "index",
+		MerklizedRootPosition: "index",
+		Updatable:             true,
+	}
+	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, schemaBytes, &opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -110,7 +126,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 	require.NoError(t, err)
 	core.ParseDIDFromID(idFromClaim)
 	require.Equal(t, did, didFromClaim.String())
-	require.Equal(t, credential.Updatable, claim.GetFlagUpdatable())
+	require.Equal(t, opts.Updatable, claim.GetFlagUpdatable())
 	exp, _ := claim.GetExpirationDate()
 	require.Equal(t, credential.Expiration.Unix(), exp.Unix())
 
