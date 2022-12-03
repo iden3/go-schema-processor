@@ -1,7 +1,6 @@
 package verifiable
 
 import (
-	core "github.com/iden3/go-iden3-core"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 )
 
@@ -10,11 +9,11 @@ type ProofType string
 
 // IssuerData is the data that is used to create a proof
 type IssuerData struct {
-	ID               string            `json:"id,omitempty"`
-	State            State             `json:"state,omitempty"`
-	AuthClaim        *core.Claim       `json:"authClaim,omitempty"`
-	MTP              *mt.Proof         `json:"mtp,omitempty"`
-	RevocationStatus *CredentialStatus `json:"revocationStatus,omitempty"`
+	ID               string      `json:"id,omitempty"`
+	State            State       `json:"state,omitempty"`
+	AuthCoreClaim    string      `json:"authCoreClaim,omitempty"`
+	MTP              *mt.Proof   `json:"mtp,omitempty"`
+	CredentialStatus interface{} `json:"credentialStatus,omitempty"`
 }
 
 // State represents the state of the issuer
@@ -33,14 +32,18 @@ type State struct {
 type BJJSignatureProof2021 struct {
 	Type       ProofType  `json:"type"`
 	IssuerData IssuerData `json:"issuerData"`
+	CoreClaim  string     `json:"coreClaim"`
 	Signature  string     `json:"signature"`
 }
 
 // Iden3SparseMerkleProof JSON-LD structure
 type Iden3SparseMerkleProof struct {
-	Type       ProofType  `json:"type"`
+	Type ProofType `json:"type"`
+
 	IssuerData IssuerData `json:"issuerData"`
-	MTP        *mt.Proof  `json:"mtp"`
+	CoreClaim  string     `json:"coreClaim"`
+
+	MTP *mt.Proof `json:"mtp"`
 }
 
 // ProofPurpose is alias for string, represents proof purpose

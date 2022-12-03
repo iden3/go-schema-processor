@@ -2,13 +2,11 @@ package verifiable
 
 //nolint:gosec //reason: no need for security
 const (
-	// TypeIden3Credential is extension of the w3c verifiable credential standard
-	TypeIden3Credential = "Iden3Credential"
 
 	// TypeW3CVerifiableCredential is of the w3c verifiable credential standard
 	TypeW3CVerifiableCredential = "VerifiableCredential"
 
-	// JSONLDSchemaIden3Credential is a schema for context with Iden3Credential type
+	// JSONLDSchemaIden3Credential is a schema for context with W3CCredential type
 	JSONLDSchemaIden3Credential = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld"
 
 	// JSONLDSchemaW3CCredential2018 is a schema for context with VerifiableCredential type
@@ -20,7 +18,7 @@ const (
 	// Iden3ReverseSparseMerkleTreeProof is CredentialStatusType  for reverse iden3 algorithm
 	Iden3ReverseSparseMerkleTreeProof CredentialStatusType = "Iden3ReverseSparseMerkleTreeProof"
 
-	// JSONSchemaValidator2018 JSON schema for verification of Iden3Credential
+	// JSONSchemaValidator2018 JSON schema for verification of W3CCredential
 	JSONSchemaValidator2018 = "JsonSchemaValidator2018"
 
 	// BJJSignatureProofType is a proof type for BJJ signature proofs
@@ -41,21 +39,21 @@ const (
 	// PushNotificationServiceType is service type for delivering push notifications to identity
 	PushNotificationServiceType = "push-notification"
 
-	// CredentialMerklizedRootPositionIndex is merklized root position of Iden3Credential in the IndexDataSlotA (core claim)
+	// CredentialMerklizedRootPositionIndex is merklized root position of W3CCredential in the IndexDataSlotA (core claim)
 	CredentialMerklizedRootPositionIndex = "index"
 
-	// CredentialMerklizedRootPositionValue is merklized root position of Iden3Credential in the ValueDataSlotA (core claim)
+	// CredentialMerklizedRootPositionValue is merklized root position of W3CCredential in the ValueDataSlotA (core claim)
 	CredentialMerklizedRootPositionValue = "value"
 
-	// CredentialMerklizedRootPositionNone is for non-merklized Iden3Credential
+	// CredentialMerklizedRootPositionNone is for non-merklized W3CCredential
 	CredentialMerklizedRootPositionNone = "none"
 
-	// CredentialSubjectPositionIndex is subject position of Iden3Credential in index (core claim)
+	// CredentialSubjectPositionIndex is subject position of W3CCredential in index (core claim)
 	CredentialSubjectPositionIndex = "index"
 
-	// CredentialSubjectRootPositionValue is subject position of Iden3Credential in value (core claim)
+	// CredentialSubjectRootPositionValue is subject position of W3CCredential in value (core claim)
 	CredentialSubjectRootPositionValue = "value"
 
-	// CredentialSubjectPositionNone is for self issued Iden3Credential
+	// CredentialSubjectPositionNone is for self issued W3CCredential
 	CredentialSubjectPositionNone = "none"
 )
