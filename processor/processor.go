@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+
 	core "github.com/iden3/go-iden3-core"
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/pkg/errors"
@@ -32,9 +33,18 @@ type ParsedSlots struct {
 
 // Parser is an interface to parse claim slots
 type Parser interface {
-	ParseClaim(credentialBytes *verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error)
-	ParseSlots(data, schema []byte) (ParsedSlots, error)
+	ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, jsonSchemaBytes []byte, options *CoreClaimOptions) (*core.Claim, error)
+	ParseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (ParsedSlots, error)
 	GetFieldSlotIndex(field string, schema []byte) (int, error)
+}
+
+// CoreClaimOptions is params for core claim parsing
+type CoreClaimOptions struct {
+	RevNonce              uint64 `json:"revNonce"`
+	Version               uint32 `json:"version"`
+	SubjectPosition       string `json:"subjectPosition"`
+	MerklizedRootPosition string `json:"merklizedRootPosition"`
+	Updatable             bool   `json:"updatable"`
 }
 
 var (
@@ -86,11 +96,19 @@ func (s *Processor) Load(ctx context.Context) (schema []byte, extension string, 
 }
 
 // ParseSlots will serialize input data to index and value fields.
-func (s *Processor) ParseSlots(data, schema []byte) (ParsedSlots, error) {
+func (s *Processor) ParseSlots(credential verifiable.W3CCredential, schema []byte) (ParsedSlots, error) {
 	if s.Parser == nil {
 		return ParsedSlots{}, errParserNotDefined
 	}
-	return s.Parser.ParseSlots(data, schema)
+	return s.Parser.ParseSlots(credential, schema)
+}
+
+// ParseClaim will serialize input data to index and value fields.
+func (s *Processor) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, jsonSchemaBytes []byte, opts *CoreClaimOptions) (*core.Claim, error) {
+	if s.Parser == nil {
+		return nil, errParserNotDefined
+	}
+	return s.Parser.ParseClaim(ctx, credential, credentialType, jsonSchemaBytes, opts)
 }
 
 // GetFieldSlotIndex returns index of slot for specified field according to schema

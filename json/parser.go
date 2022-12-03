@@ -1,6 +1,7 @@
 package json
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -11,50 +12,61 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CommonJSONSerializationSchema Common JSON
-type CommonJSONSerializationSchema struct {
-	Index struct {
-		Type    string   `json:"type"`
-		Default []string `json:"default"`
-	} `json:"index"`
-	Value struct {
-		Type    string   `json:"type"`
-		Default []string `json:"default"`
-	} `json:"value"`
+// SerializationSchema Common JSON
+type SerializationSchema struct {
+	IndexDataSlotA string `json:"indexDataSlotA"`
+	IndexDataSlotB string `json:"indexDataSlotB"`
+	ValueDataSlotA string `json:"valueDataSlotA"`
+	ValueDataSlotB string `json:"valueDataSlotB"`
+}
+
+// SchemaMetadata is metadata of json schema
+type SchemaMetadata struct {
+	Uris          map[string]interface{} `json:"uris"`
+	Serialization *SerializationSchema   `json:"serialization"`
+}
+
+type Schema struct {
+	Metadata *SchemaMetadata `json:"$metadata"`
+	Schema   string          `json:"$schema"`
+	Type     string          `json:"type"`
 }
 
 // Parser can parse claim data according to specification
 type Parser struct {
-	ParsingStrategy processor.ParsingStrategy
 }
 
-// ParseClaim creates Claim object from Iden3Credential
-func (s Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes []byte) (*core.Claim, error) {
+// ParseClaim creates Claim object from W3CCredential
+func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string,
+	jsonSchemaBytes []byte, opts *processor.CoreClaimOptions) (*core.Claim, error) {
 
-	credentialSubject := credential.CredentialSubject
-
-	credentialType := fmt.Sprintf("%v", credential.CredentialSubject["type"])
-	subjectID := credential.CredentialSubject["id"]
-
-	delete(credentialSubject, "id")
-	delete(credentialSubject, "type")
-
-	credentialSubjectBytes, err := json.Marshal(credentialSubject)
-	if err != nil {
-		return nil, err
+	if opts == nil {
+		opts = &processor.CoreClaimOptions{
+			RevNonce:              0,
+			Version:               0,
+			SubjectPosition:       "index",
+			MerklizedRootPosition: "none",
+			Updatable:             false,
+		}
 	}
 
-	slots, err := s.ParseSlots(credentialSubjectBytes, schemaBytes)
+	subjectID := credential.CredentialSubject["id"]
+
+	slots, err := s.ParseSlots(credential, jsonSchemaBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	claim, err := core.NewClaim(
-		utils.CreateSchemaHash(schemaBytes, credentialType),
+		utils.CreateSchemaHash([]byte(credentialType)),
 		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
-		core.WithRevocationNonce(credential.RevNonce),
-		core.WithVersion(credential.Version))
+		core.WithRevocationNonce(opts.RevNonce),
+		core.WithVersion(opts.Version))
+
+	if opts.Updatable {
+		claim.SetFlagUpdatable(opts.Updatable)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -62,53 +74,105 @@ func (s Parser) ParseClaim(credential *verifiable.Iden3Credential, schemaBytes [
 		claim.SetExpirationDate(*credential.Expiration)
 	}
 	if subjectID != nil {
-		var id core.ID
-		id, err = core.IDFromString(fmt.Sprintf("%v", subjectID))
+		var did *core.DID
+		did, err = core.ParseDID(fmt.Sprintf("%v", subjectID))
 		if err != nil {
 			return nil, err
 		}
 
-		switch credential.SubjectPosition {
+		switch opts.SubjectPosition {
 		case "", utils.SubjectPositionIndex:
-			claim.SetIndexID(id)
+			claim.SetIndexID(did.ID)
 		case utils.SubjectPositionValue:
-			claim.SetValueID(id)
+			claim.SetValueID(did.ID)
 		default:
 			return nil, errors.New("unknown subject position")
 		}
+	}
+
+	switch opts.MerklizedRootPosition {
+	case utils.MerklizedRootPositionIndex:
+		mkRoot, err := credential.Merklize(ctx)
+		if err != nil {
+			return nil, err
+		}
+		err = claim.SetIndexMerklizedRoot(mkRoot.Root().BigInt())
+		if err != nil {
+			return nil, err
+		}
+	case utils.MerklizedRootPositionValue:
+		mkRoot, err := credential.Merklize(ctx)
+		if err != nil {
+			return nil, err
+		}
+		err = claim.SetValueMerklizedRoot(mkRoot.Root().BigInt())
+		if err != nil {
+			return nil, err
+		}
+	case utils.MerklizedRootPositionNone:
+		break
+	default:
+		return nil, errors.New("unknown merklized root position")
 	}
 
 	return claim, nil
 }
 
 // ParseSlots converts payload to claim slots using provided schema
-func (s Parser) ParseSlots(data, schema []byte) (processor.ParsedSlots, error) {
+func (s Parser) ParseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (processor.ParsedSlots, error) {
 
-	serializationSchema, err := s.getJSONSerializationInfo(schema)
+	var schema Schema
+
+	err := json.Unmarshal(schemaBytes, &schema)
 	if err != nil {
 		return processor.ParsedSlots{}, err
 	}
 
-	switch s.ParsingStrategy {
-	case processor.SlotFullfilmentStrategy:
-		return utils.FillClaimSlots(data, serializationSchema.Index.Default, serializationSchema.Value.Default)
-	case processor.OneFieldPerSlotStrategy:
-		return s.AssignSlots(data, serializationSchema.Index.Default, serializationSchema.Value.Default)
-	default:
-		return processor.ParsedSlots{}, errors.New("Claim parsing strategy is not specified")
+	if schema.Metadata != nil && schema.Metadata.Serialization != nil {
+		return s.assignSlots(credential.CredentialSubject, *schema.Metadata.Serialization)
 	}
+
+	return processor.ParsedSlots{
+		IndexA: make([]byte, 0, 32),
+		IndexB: make([]byte, 0, 32),
+		ValueA: make([]byte, 0, 32),
+		ValueB: make([]byte, 0, 32),
+	}, nil
 
 }
 
-// AssignSlots assigns index and value fields to specific slot according array order
-func (s Parser) AssignSlots(content []byte, indexFields, valueFields []string) (processor.ParsedSlots, error) {
-	var data map[string]interface{}
+// GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)
+func (s Parser) GetFieldSlotIndex(field string, schemaBytes []byte) (int, error) {
 
-	err := json.Unmarshal(content, &data)
+	var schema Schema
+
+	err := json.Unmarshal(schemaBytes, &schema)
 	if err != nil {
-		return processor.ParsedSlots{}, err
+		return 0, err
 	}
 
+	if schema.Metadata == nil || schema.Metadata.Serialization == nil {
+		return -1, errors.New("serialization info is not set")
+	}
+
+	switch field {
+	case schema.Metadata.Serialization.IndexDataSlotA:
+		return 2, nil
+	case schema.Metadata.Serialization.IndexDataSlotB:
+		return 3, nil
+	case schema.Metadata.Serialization.ValueDataSlotA:
+		return 6, nil
+	case schema.Metadata.Serialization.ValueDataSlotB:
+		return 7, nil
+	default:
+		return -1, errors.Errorf("field `%s` not specified in serialization info", field)
+	}
+}
+
+// assignSlots assigns index and value fields to specific slot according array order
+func (s Parser) assignSlots(data map[string]interface{}, schema SerializationSchema) (processor.ParsedSlots, error) {
+
+	var err error
 	result := processor.ParsedSlots{
 		IndexA: make([]byte, 0, 32),
 		IndexB: make([]byte, 0, 32),
@@ -116,102 +180,44 @@ func (s Parser) AssignSlots(content []byte, indexFields, valueFields []string) (
 		ValueB: make([]byte, 0, 32),
 	}
 
-	for i, key := range indexFields {
-		// key is a property of data map to process
-		byteValue, err := utils.FieldToByteArray(data[key])
-		if err != nil {
-			return processor.ParsedSlots{}, err
-		}
-		if utils.CheckDataInField(byteValue) {
-			switch i {
-			case 0:
-				result.IndexA = append(result.IndexA, byteValue...)
-			case 1:
-				result.IndexB = append(result.IndexB, byteValue...)
-			default:
-				return processor.ParsedSlots{}, errors.New("only two keys in for index data slots are supported")
-			}
-
-		} else {
-			return processor.ParsedSlots{}, processor.ErrSlotsOverflow
-		}
+	result.IndexA, err = fillSlot(data, schema.IndexDataSlotA)
+	if err != nil {
+		return result, err
 	}
-
-	for i, key := range valueFields {
-		// key is a property of data map to process
-		byteValue, err := utils.FieldToByteArray(data[key])
-		if err != nil {
-			return processor.ParsedSlots{}, err
-		}
-		if utils.CheckDataInField(byteValue) {
-			switch i {
-			case 0:
-				result.ValueA = append(result.ValueA, byteValue...)
-			case 1:
-				result.ValueB = append(result.ValueB, byteValue...)
-			default:
-				return processor.ParsedSlots{}, errors.New("only two keys in for index data slots are supported")
-			}
-
-		} else {
-			return processor.ParsedSlots{}, processor.ErrSlotsOverflow
-		}
+	result.IndexB, err = fillSlot(data, schema.IndexDataSlotB)
+	if err != nil {
+		return result, err
+	}
+	result.ValueA, err = fillSlot(data, schema.ValueDataSlotB)
+	if err != nil {
+		return result, err
+	}
+	result.ValueB, err = fillSlot(data, schema.ValueDataSlotB)
+	if err != nil {
+		return result, err
 	}
 
 	return result, nil
 }
 
-// GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)
-func (s Parser) GetFieldSlotIndex(field string, schema []byte) (int, error) {
+func fillSlot(data map[string]interface{}, fieldName string) ([]byte, error) {
+	slot := make([]byte, 0, 32)
 
-	if s.ParsingStrategy != processor.OneFieldPerSlotStrategy {
-		return 0, errors.Errorf("it's not possible to retrieve field slot strategy other than OneFieldPerSlotStrategy")
+	if fieldName == "" {
+		return slot, nil
 	}
-	serializationSchema, err := s.getJSONSerializationInfo(schema)
-	if err != nil {
-		return 0, err
+	field, ok := data[fieldName]
+	if !ok {
+		return slot, errors.Errorf("%s field is not in data", fieldName)
 	}
-
-	if len(serializationSchema.Index.Default) > 2 {
-		return 0, errors.Errorf("invalid number of fields for index data slots. Specification supports 2, given %v", len(serializationSchema.Index.Default))
-	}
-	if len(serializationSchema.Value.Default) > 2 {
-		return 0, errors.Errorf("invalid number of fields for value data slots. Specification supports 2, given %v", len(serializationSchema.Value.Default))
-	}
-	index := utils.IndexOf(field, serializationSchema.Index.Default)
-	if index == -1 {
-		// try to find key in value
-		index = utils.IndexOf(field, serializationSchema.Value.Default)
-		if index != -1 {
-			return index + 6, nil // because for value data  we support only 6th an 7nth slots
-		}
-		return index, nil
-	}
-	return index + 2, nil // because we support only 2nd and 3rd slots for index data
-
-}
-
-func (s Parser) getJSONSerializationInfo(jsonSchema []byte) (serialization *CommonJSONSerializationSchema, err error) {
-	var schemaFields map[string]interface{}
-	err = json.Unmarshal(jsonSchema, &schemaFields)
-	if err != nil {
-		return nil, errors.Wrap(err, "schema marshaling error")
-	}
-
-	schemaProps := schemaFields["properties"]
-	propBytes, err := json.Marshal(schemaProps)
-	if err != nil {
-		return nil, errors.Wrap(err, "schema doesn't contain properties field")
-	}
-
-	err = json.Unmarshal(propBytes, &serialization)
+	byteValue, err := utils.FieldToByteArray(field)
 	if err != nil {
 		return nil, err
 	}
-
-	if serialization.Index.Default == nil || serialization.Value.Default == nil {
-		return nil, errors.New("schema doesn't contain index or valued default annotation")
+	if utils.DataFillsSlot(slot, byteValue) {
+		slot = append(slot, byteValue...)
+	} else {
+		return nil, processor.ErrSlotsOverflow
 	}
-
-	return serialization, nil
+	return slot, nil
 }

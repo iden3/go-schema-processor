@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -22,6 +21,12 @@ import (
 )
 
 var defaultHasher Hasher = PoseidonHasher{}
+
+// ErrorFieldIsEmpty is returned when field path to resolve is empty
+var ErrorFieldIsEmpty = errors.New("fieldPath is empty")
+
+// ErrorContextTypeIsEmpty is returned when context type tp resolve is empty
+var ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
 
 // SetHasher changes default hasher
 func SetHasher(h Hasher) {
@@ -88,8 +93,12 @@ func (p *Path) reverse() {
 	}
 }
 
+func (p *Path) Parts() []interface{} {
+	return p.parts
+}
+
 func NewPath(parts ...interface{}) (Path, error) {
-	p := Path{}
+	p := Path{hasher: defaultHasher}
 	err := p.Append(parts...)
 	return p, err
 }
@@ -97,7 +106,7 @@ func NewPath(parts ...interface{}) (Path, error) {
 // NewPathFromContext parses context and do its best to generate full Path
 // from shortcut line field1.field2.field3...
 func NewPathFromContext(ctxBytes []byte, path string) (Path, error) {
-	var out Path
+	var out = Path{hasher: defaultHasher}
 	err := out.pathFromContext(ctxBytes, path)
 	return out, err
 }
@@ -119,7 +128,32 @@ func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
 		return Path{}, err
 	}
 
-	return Path{parts: pathPartsI}, nil
+	return Path{parts: pathPartsI, hasher: defaultHasher}, nil
+}
+
+// NewFieldPathFromContext resolves field path without type path prefix
+func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, error) {
+
+	if ctxType == "" {
+		return Path{}, ErrorContextTypeIsEmpty
+	}
+	if fieldPath == "" {
+		return Path{}, ErrorFieldIsEmpty
+	}
+
+	fullPath, err := NewPathFromContext(ctxBytes, fmt.Sprintf("%s.%s", ctxType, fieldPath))
+	if err != nil {
+		return Path{}, err
+	}
+
+	typePath, err := NewPathFromContext(ctxBytes, ctxType)
+	if err != nil {
+		return Path{}, err
+	}
+
+	resPath := Path{parts: fullPath.parts[len(typePath.parts):], hasher: defaultHasher}
+
+	return resPath, nil
 }
 
 func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
@@ -522,7 +556,7 @@ func newNodeID(n ld.Node) (nodeID, error) {
 		return id, errors.New("ld.Node is nil")
 	}
 
-	id.tp = reflect.TypeOf(n).Name()
+	id.tp = fmt.Sprintf("%T", n)
 
 	switch val := n.(type) {
 	case *ld.IRI:
@@ -550,14 +584,20 @@ type quadKey struct {
 type relationship struct {
 	// mapping from child Subject to its parent
 	parents map[nodeID]quadKey
-	// mapping from parent to array of children
-	children map[nodeID][]nodeID
+	// mapping from parent to mapping from field predicate to
+	// children under this perdicate
+	children map[nodeID]map[ld.IRI][]nodeID
+	hasher   Hasher
 }
 
-func newRelationship(quads []*ld.Quad) (*relationship, error) {
+func newRelationship(quads []*ld.Quad, hasher Hasher) (*relationship, error) {
 	r := relationship{
 		parents:  make(map[nodeID]quadKey),
-		children: make(map[nodeID][]nodeID),
+		children: make(map[nodeID]map[ld.IRI][]nodeID),
+		hasher:   hasher,
+	}
+	if r.hasher == nil {
+		r.hasher = defaultHasher
 	}
 
 	subjectSet := make(map[nodeID]struct{})
@@ -587,14 +627,20 @@ func newRelationship(quads []*ld.Quad) (*relationship, error) {
 
 		r.parents[objID] = qk
 
-		r.children[qk.subjectID] = append(r.children[qk.subjectID], objID)
+		termChildren := r.children[qk.subjectID]
+		if termChildren == nil {
+			termChildren = make(map[ld.IRI][]nodeID)
+		}
+		termChildren[qk.predicate] = append(
+			termChildren[qk.predicate], objID)
+		r.children[qk.subjectID] = termChildren
 	}
 
 	return &r, nil
 }
 
 func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
-	var k Path
+	var k = Path{hasher: r.hasher}
 
 	if n == nil {
 		return k, errors.New("quad is nil")
@@ -635,9 +681,13 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 			break
 		}
 
-		children, ok := r.children[parent.subjectID]
+		termChildren, ok := r.children[parent.subjectID]
 		if !ok {
 			return k, errors.New("[assertion] parent not found in children")
+		}
+		children, ok := termChildren[parent.predicate]
+		if !ok {
+			return k, errors.New("[assertion] predicate not found in children")
 		}
 
 		if len(children) == 1 {
@@ -675,6 +725,14 @@ var dateRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 // EntriesFromRDF creates entries from RDF dataset suitable to add to
 // merkle tree
 func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
+	return EntriesFromRDFWithHasher(ds, defaultHasher)
+}
+
+// EntriesFromRDFWithHasher creates entries from RDF dataset suitable to add to with a provided Hasher
+// merkle tree
+func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
+	hasher Hasher) ([]RDFEntry, error) {
+
 	if len(ds.Graphs) != 1 {
 		return nil, errors.New("support only dataset with one @default graph")
 	}
@@ -691,7 +749,7 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 
 	seenCount := make(map[quadKey]int)
 
-	rs, err := newRelationship(quads)
+	rs, err := newRelationship(quads, hasher)
 	if err != nil {
 		return nil, err
 	}
@@ -851,26 +909,32 @@ func (e RDFEntry) getHasher() Hasher {
 	return h
 }
 
+// Hasher is an interface to hash data
 type Hasher interface {
 	Hash(inpBI []*big.Int) (*big.Int, error)
 	HashBytes(msg []byte) (*big.Int, error)
 	Prime() *big.Int
 }
 
+// PoseidonHasher is an applier of poseidon hash algorithm
 type PoseidonHasher struct{}
 
+// Hash returns poseidon hash on big int params
 func (p PoseidonHasher) Hash(inpBI []*big.Int) (*big.Int, error) {
 	return poseidon.Hash(inpBI)
 }
 
+// HashBytes returns poseidon hash on bytes
 func (p PoseidonHasher) HashBytes(msg []byte) (*big.Int, error) {
 	return poseidon.HashBytes(msg)
 }
 
+// Prime returns Q constant
 func (p PoseidonHasher) Prime() *big.Int {
 	return new(big.Int).Set(constants.Q)
 }
 
+// MerkleTree is merkle tree structure
 type MerkleTree interface {
 	Add(context.Context, *big.Int, *big.Int) error
 	GenerateProof(context.Context, *big.Int) (*merkletree.Proof, error)
@@ -879,24 +943,29 @@ type MerkleTree interface {
 
 type mtSQLAdapter merkletree.MerkleTree
 
+// Add adds entry to tree
 func (a *mtSQLAdapter) Add(ctx context.Context, key, value *big.Int) error {
 	return (*merkletree.MerkleTree)(a).Add(ctx, key, value)
 }
 
+// GenerateProof generates proof
 func (a *mtSQLAdapter) GenerateProof(ctx context.Context,
 	key *big.Int) (*merkletree.Proof, error) {
 	p, _, err := (*merkletree.MerkleTree)(a).GenerateProof(ctx, key, nil)
 	return p, err
 }
 
+// Root return merkle tree root
 func (a *mtSQLAdapter) Root() *merkletree.Hash {
 	return (*merkletree.MerkleTree)(a).Root()
 }
 
+// MerkleTreeSQLAdapter is merkle tree sql adapter
 func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 	return (*mtSQLAdapter)(mt)
 }
 
+// Merklizer is a struct to work with json-ld doc merklization
 type Merklizer struct {
 	srcDoc  []byte
 	mt      MerkleTree
@@ -904,14 +973,17 @@ type Merklizer struct {
 	hasher  Hasher
 }
 
+// MerklizeOption is options for merklizer
 type MerklizeOption func(m *Merklizer)
 
+// WithHasher sets Hasher option
 func WithHasher(h Hasher) MerklizeOption {
 	return func(m *Merklizer) {
 		m.hasher = h
 	}
 }
 
+// WithMerkleTree sets MerkleTree option
 func WithMerkleTree(mt MerkleTree) MerklizeOption {
 	return func(m *Merklizer) {
 		m.mt = mt
