@@ -169,7 +169,7 @@ type ZKProof struct {
 type CommonProof jsonObj
 
 func (p *CommonProof) ProofType() ProofType {
-	ptStr, err := jsonObjGetString(jsonObj(*p), "type")
+	ptStr, err := jsonObjGetString(*p, "type")
 	if err != nil {
 		return ""
 	}
@@ -177,7 +177,7 @@ func (p *CommonProof) ProofType() ProofType {
 }
 
 func (p *CommonProof) GetCoreClaim() (*core.Claim, error) {
-	claimHex, err := jsonObjGetString(jsonObj(*p), "coreClaim")
+	claimHex, err := jsonObjGetString(*p, "coreClaim")
 	if err != nil {
 		return nil, err
 	}
@@ -196,10 +196,6 @@ func (p *CommonProof) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	// Not sure if a coreClaim is a required field
-	// if _, ok := obj["coreClaim"]; !ok {
-	// 	return errors.New("no coreClaim")
-	// }
 	*p = obj
 	return nil
 }
