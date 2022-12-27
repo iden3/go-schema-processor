@@ -61,11 +61,11 @@ func (p *BJJSignatureProof2021) UnmarshalJSON(in []byte) error {
 	if err != nil {
 		return err
 	}
-	if err = validateHexCoreClaim(obj.CoreClaim); err != nil {
+	if err := validateHexCoreClaim(obj.CoreClaim); err != nil {
 		return err
 	}
 	p.CoreClaim = obj.CoreClaim
-	if err = validateCompSignature(obj.Signature); err != nil {
+	if err := validateCompSignature(obj.Signature); err != nil {
 		return err
 	}
 	p.Signature = obj.Signature
@@ -131,7 +131,7 @@ func (p *Iden3SparseMerkleProof) UnmarshalJSON(in []byte) error {
 	if err != nil {
 		return err
 	}
-	if err = validateHexCoreClaim(obj.CoreClaim); err != nil {
+	if err := validateHexCoreClaim(obj.CoreClaim); err != nil {
 		return err
 	}
 	p.CoreClaim = obj.CoreClaim
@@ -139,13 +139,13 @@ func (p *Iden3SparseMerkleProof) UnmarshalJSON(in []byte) error {
 	return nil
 }
 
-func (i *Iden3SparseMerkleProof) ProofType() ProofType {
-	return i.Type
+func (p *Iden3SparseMerkleProof) ProofType() ProofType {
+	return p.Type
 }
 
-func (i *Iden3SparseMerkleProof) GetCoreClaim() (*core.Claim, error) {
+func (p *Iden3SparseMerkleProof) GetCoreClaim() (*core.Claim, error) {
 	var coreClaim core.Claim
-	err := coreClaim.FromHex(i.CoreClaim)
+	err := coreClaim.FromHex(p.CoreClaim)
 	return &coreClaim, err
 }
 
@@ -197,9 +197,9 @@ func (p *CommonProof) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	// Not sure if a coreClaim is a required field
-	//if _, ok := obj["coreClaim"]; !ok {
-	//	return errors.New("no coreClaim")
-	//}
+	// if _, ok := obj["coreClaim"]; !ok {
+	// 	return errors.New("no coreClaim")
+	// }
 	*p = obj
 	return nil
 }
