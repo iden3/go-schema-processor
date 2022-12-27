@@ -736,7 +736,6 @@ var doc1 = `
     ],
     "@type": [
         "VerifiableCredential",
-        "Iden3Credential",
         "KYCAgeCredential"
     ],
     "version": 0,
