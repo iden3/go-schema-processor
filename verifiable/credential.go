@@ -23,7 +23,7 @@ type W3CCredential struct {
 	CredentialStatus  interface{}            `json:"credentialStatus,omitempty"`
 	Issuer            string                 `json:"issuer"`
 	CredentialSchema  CredentialSchema       `json:"credentialSchema"`
-	Proof             interface{}            `json:"proof,omitempty"`
+	Proof             CredentialProofs       `json:"proof,omitempty"`
 }
 
 // Merklize merklizes verifiable credential
@@ -59,70 +59,12 @@ var ErrProofNotFound = errors.New("proof not found")
 
 // GetCoreClaimFromProof returns  core claim from given proof
 func (vc *W3CCredential) GetCoreClaimFromProof(proofType ProofType) (*core.Claim, error) {
-	var coreClaim *core.Claim
-	switch p := vc.Proof.(type) {
-	case []interface{}:
-		for _, proof := range p {
-			c, extractedProofType, err := extractProof(proof)
-			if err != nil {
-				return nil, err
-			}
-			if extractedProofType == proofType {
-				coreClaim = c
-				break
-			}
-		}
-	case interface{}:
-		c, extractedProofType, err := extractProof(p)
-		if err != nil {
-			return nil, err
-		}
-		if extractedProofType == proofType {
-			coreClaim = c
+	for _, p := range vc.Proof {
+		if p.ProofType() == proofType {
+			return p.GetCoreClaim()
 		}
 	}
-	if coreClaim == nil {
-		return nil, ErrProofNotFound
-	}
-	return coreClaim, nil
-}
-
-func extractProof(proof interface{}) (*core.Claim, ProofType, error) {
-
-	var coreClaim core.Claim
-	var proofType ProofType
-
-	switch p := proof.(type) {
-	case Iden3SparseMerkleProof:
-		proofType = p.Type
-		err := coreClaim.FromHex(p.CoreClaim)
-		if err != nil {
-			return nil, "", err
-		}
-	case BJJSignatureProof2021:
-		proofType = p.Type
-		err := coreClaim.FromHex(p.CoreClaim)
-		if err != nil {
-			return nil, "", err
-		}
-	case map[string]interface{}:
-		defaultProofType, ok := p["type"].(string)
-		if !ok {
-			return nil, "", errors.New("proof type is not specified")
-		}
-		coreClaimHex, ok := p["coreClaim"].(string)
-		if !ok {
-			return nil, "", errors.Errorf("coreClaim field is not defined in proof type %s", defaultProofType)
-		}
-		proofType = ProofType(defaultProofType)
-		err := coreClaim.FromHex(coreClaimHex)
-		if err != nil {
-			return nil, "", err
-		}
-	default:
-		return nil, "", errors.New("proof format is not supported")
-	}
-	return &coreClaim, proofType, nil
+	return nil, ErrProofNotFound
 }
 
 // CredentialSchema represent the information about credential schema

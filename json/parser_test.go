@@ -15,7 +15,7 @@ import (
 
 func TestParser_ParseSlots(t *testing.T) {
 
-	credentialBytes, err := os.ReadFile("testdata/credential.json")
+	credentialBytes, err := os.ReadFile("testdata/credential-non-merklized.json")
 	require.NoError(t, err)
 
 	var credential verifiable.W3CCredential
@@ -38,7 +38,7 @@ func TestParser_ParseSlots(t *testing.T) {
 }
 func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 
-	credentialBytes, err := os.ReadFile("testdata/credential.json")
+	credentialBytes, err := os.ReadFile("testdata/credential-non-merklized.json")
 	require.NoError(t, err)
 
 	var credential verifiable.W3CCredential
@@ -86,7 +86,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 }
 func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 
-	credentialBytes, err := os.ReadFile("testdata/credential.json")
+	credentialBytes, err := os.ReadFile("testdata/credential-merklized.json")
 	require.NoError(t, err)
 
 	var credential verifiable.W3CCredential
@@ -124,7 +124,8 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 	require.NoError(t, err)
 	didFromClaim, err := core.ParseDIDFromID(idFromClaim)
 	require.NoError(t, err)
-	core.ParseDIDFromID(idFromClaim)
+	_, err = core.ParseDIDFromID(idFromClaim)
+	require.NoError(t, err)
 	require.Equal(t, did, didFromClaim.String())
 	require.Equal(t, opts.Updatable, claim.GetFlagUpdatable())
 	exp, _ := claim.GetExpirationDate()
