@@ -967,10 +967,11 @@ func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 
 // Merklizer is a struct to work with json-ld doc merklization
 type Merklizer struct {
-	srcDoc  []byte
-	mt      MerkleTree
-	entries map[string]RDFEntry
-	hasher  Hasher
+	srcDoc    []byte
+	compacted map[string]interface{}
+	mt        MerkleTree
+	entries   map[string]RDFEntry
+	hasher    Hasher
 }
 
 // MerklizeOption is options for merklizer
@@ -1060,7 +1061,65 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 		return nil, err
 	}
 
-	return mz, nil
+	mz.compacted, err = proc.Compact(obj, nil, options)
+	return mz, err
+}
+
+func rvExtractObjField(obj any, field string) (any, error) {
+	jsObj, isJsonObj := obj.(map[string]any)
+	if !isJsonObj {
+		return nil, errors.New("expected object")
+	}
+	var fieldExists bool
+	obj, fieldExists = jsObj[field]
+	if !fieldExists {
+		return nil, errors.New("value not found")
+	}
+	return obj, nil
+}
+
+func rvExtractArrayIdx(obj any, idx int) (any, error) {
+	objArr, isArray := obj.([]any)
+	if !isArray {
+		return nil, errors.New("expected array")
+	}
+	if idx < 0 || idx >= len(objArr) {
+		return nil, errors.New("index is out of range")
+	}
+	return objArr[idx], nil
+}
+
+func (m *Merklizer) RawValue(path Path) (any, error) {
+	parts := path.Parts()
+	var obj any = m.compacted
+	var err error
+	var traversedParts []string
+	currentPath := func() string { return strings.Join(traversedParts, " / ") }
+
+	for len(parts) > 0 {
+		switch field := parts[0].(type) {
+		case string:
+			traversedParts = append(traversedParts, field)
+			obj, err = rvExtractObjField(obj, field)
+		case int:
+			traversedParts = append(traversedParts, fmt.Sprintf("[%v]", field))
+			obj, err = rvExtractArrayIdx(obj, field)
+		default:
+			err = errors.New("unexpected type of path")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%v at '%v'", err, currentPath())
+		}
+		parts = parts[1:]
+	}
+
+	if jsObj, isJsonObj := obj.(map[string]any); isJsonObj {
+		if val, hasValue := jsObj["@value"]; hasValue {
+			return val, nil
+		}
+	}
+
+	return obj, nil
 }
 
 func (m *Merklizer) ResolveDocPath(path string) (Path, error) {

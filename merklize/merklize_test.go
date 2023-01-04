@@ -406,6 +406,53 @@ func TestMerklizer_Proof(t *testing.T) {
 		require.True(t, ok)
 	})
 
+	t.Run("test RawValue", func(t *testing.T) {
+		// [https://www.w3.org/2018/credentials#credentialSubject 1 http://schema.org/birthDate] => 1958-07-18
+		path, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", 1,
+			"http://schema.org/birthDate")
+		require.NoError(t, err)
+
+		// Check RawValue with index in path
+		rv, err := mz.RawValue(path)
+		require.NoError(t, err)
+		require.Equal(t, "1958-07-18", rv)
+
+		// Check RawValue as a number in json
+		identifierPath, err := NewPath("http://schema.org/identifier")
+		require.NoError(t, err)
+		rv, err = mz.RawValue(identifierPath)
+		require.NoError(t, err)
+		require.Equal(t, float64(83627465), rv)
+
+		// Check RawValue with wrong path (expected array, but got object)
+		wrongPath, err := NewPath("http://schema.org/identifier", 1)
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err,
+			"expected array at 'http://schema.org/identifier / [1]'")
+
+		wrongPath, err = NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", 5,
+			"http://schema.org/birthDate")
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err,
+			"index is out of range at 'https://www.w3.org/2018/credentials#credentialSubject / [5]'")
+
+		wrongPath, err = NewPath("bla-bla", 5)
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err, "value not found at 'bla-bla'")
+
+		wrongPath, err = NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", "bla-bla")
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err,
+			"expected object at 'https://www.w3.org/2018/credentials#credentialSubject / bla-bla'")
+	})
+
 	mzRoot := mz.Root()
 	require.Equal(t,
 		"d001de1d1b74d3b24b394566511da50df18532264c473845ea51e915a588b02a",
