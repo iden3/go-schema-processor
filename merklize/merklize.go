@@ -1066,8 +1066,8 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 }
 
 func rvExtractObjField(obj any, field string) (any, error) {
-	jsObj, isJsonObj := obj.(map[string]any)
-	if !isJsonObj {
+	jsObj, isJSONObj := obj.(map[string]any)
+	if !isJSONObj {
 		return nil, errors.New("expected object")
 	}
 	var fieldExists bool
@@ -1113,7 +1113,7 @@ func (m *Merklizer) RawValue(path Path) (any, error) {
 		parts = parts[1:]
 	}
 
-	if jsObj, isJsonObj := obj.(map[string]any); isJsonObj {
+	if jsObj, isJSONObj := obj.(map[string]any); isJSONObj {
 		if val, hasValue := jsObj["@value"]; hasValue {
 			return val, nil
 		}
