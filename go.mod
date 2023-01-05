@@ -7,10 +7,10 @@ require (
 	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/iden3/go-merkletree-sql/v2 v2.0.0
 	github.com/ipfs/go-ipfs-api v0.3.0
-	github.com/piprate/json-gold v0.4.1
+	github.com/piprate/json-gold v0.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/qri-io/jsonschema v0.2.1
-	github.com/stretchr/testify v1.7.4
+	github.com/stretchr/testify v1.8.1
 	golang.org/x/crypto v0.0.0-20220126234351-aa10faf2a1f8
 )
 
