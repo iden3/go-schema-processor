@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
 	"github.com/piprate/json-gold/ld"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,9 +66,9 @@ const testDocument = `{
   ]
 }`
 
-func getDataset(t testing.TB) *ld.RDFDataset {
+func getDataset(t testing.TB, document string) *ld.RDFDataset {
 	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(testDocument), &obj)
+	err := json.Unmarshal([]byte(document), &obj)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +87,7 @@ func getDataset(t testing.TB) *ld.RDFDataset {
 }
 
 func TestEntriesFromRDF(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -290,7 +292,7 @@ func TestEntriesFromRDF(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -324,7 +326,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestProofInteger(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -457,49 +459,6 @@ func TestMerklizer_Proof(t *testing.T) {
 	require.Equal(t,
 		"d001de1d1b74d3b24b394566511da50df18532264c473845ea51e915a588b02a",
 		mzRoot.Hex())
-}
-
-func TestNewRelationship(t *testing.T) {
-	iri := func(in string) ld.IRI {
-		i := ld.NewIRI(in)
-		return *i
-	}
-	nID := func(iri ld.IRI) nodeID {
-		id, err := newNodeID(&iri)
-		if err != nil {
-			panic(err)
-		}
-		return id
-	}
-	dataset := getDataset(t)
-	if false {
-		logDataset(dataset)
-	}
-
-	rs, err := newRelationship(dataset.Graphs["@default"], PoseidonHasher{})
-	require.NoError(t, err)
-	wantRS := &relationship{
-		parents: map[nodeID]quadKey{
-			nID(iri("did:example:b34ca6cd37bbf23")): {
-				subjectID: nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")),
-				predicate: iri("https://www.w3.org/2018/credentials#credentialSubject"),
-			},
-			nID(iri("did:example:b34ca6cd37bbf24")): {
-				subjectID: nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")),
-				predicate: iri("https://www.w3.org/2018/credentials#credentialSubject"),
-			},
-		},
-		children: map[nodeID]map[ld.IRI][]nodeID{
-			nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")): {
-				iri("https://www.w3.org/2018/credentials#credentialSubject"): {
-					nID(iri("did:example:b34ca6cd37bbf23")),
-					nID(iri("did:example:b34ca6cd37bbf24")),
-				},
-			},
-		},
-		hasher: PoseidonHasher{},
-	}
-	require.Equal(t, wantRS, rs)
 }
 
 func logDataset(in *ld.RDFDataset) {
@@ -650,74 +609,6 @@ func TestMkValueInt(t *testing.T) {
 	})
 }
 
-func TestXX1(t *testing.T) {
-	t.Skip("not ready")
-	in := `{
-    "@context": "https://schema.org",
-    "@type": "Person",
-    "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Colorado Springs",
-        "addressRegion": "CO",
-        "postalCode": "80840",
-        "streetAddress": "100 Main Street"
-    },
-    "colleague": [
-        "http://www.example.com/JohnColleague.html",
-        "http://www.example.com/JameColleague.html"
-    ],
-    "email": "info@example.com",
-    "name": "Jane Doe",
-    "alumniOf": "Dartmouth",
-    "birthDate": "1979-10-12"
-}`
-	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(in), &obj)
-	if err != nil {
-		panic(err)
-	}
-
-	proc := ld.NewJsonLdProcessor()
-	options := ld.NewJsonLdOptions("")
-	options.Algorithm = "URDNA2015"
-
-	out4, err := proc.Normalize(obj, options)
-	require.NoError(t, err)
-
-	out5, ok := out4.(*ld.RDFDataset)
-	require.True(t, ok, "%[1]T\n%[1]v", out4)
-
-	quads := out5.Graphs["@default"]
-	for i, q := range quads {
-		t.Logf(`#%[1]v
-Subject: %[2]T %[2]v
-Predicate: %[3]T %[3]v
-Object: %[4]T %[4]v
-Graph: %[5]T %[5]v`,
-			i, q.Subject, q.Predicate, q.Object, q.Graph)
-	}
-
-	entries, err := EntriesFromRDF(out5)
-	require.NoError(t, err)
-
-	for _, e := range entries {
-		t.Logf("%v => %v", e.key, e.value)
-	}
-}
-
-func TestXX2(t *testing.T) {
-	t.Skip("not ready")
-	var ctxObj map[string]interface{}
-	err := json.Unmarshal([]byte(testDocument), &ctxObj)
-	require.NoError(t, err)
-	t.Log(ctxObj["@context"])
-	activeCtx := ld.NewContext(nil, nil)
-	newCtx, err := activeCtx.Parse(ctxObj["@context"])
-	require.NoError(t, err)
-	td := newCtx.GetTermDefinition("type")
-	t.Log(td)
-}
-
 func TestValue(t *testing.T) {
 	// bool
 	v, err := newValue(defaultHasher, true)
@@ -828,4 +719,127 @@ func TestExistenceProof(t *testing.T) {
 	i, err := v.AsInt64()
 	require.NoError(t, err)
 	require.Equal(t, int64(19960424), i)
+}
+
+func findQuadByObject(t testing.TB, ds *ld.RDFDataset, value any) *ld.Quad {
+	for _, quads := range ds.Graphs {
+		for _, quad := range quads {
+			if reflect.DeepEqual(value, quad.Object) {
+				return quad
+			}
+		}
+	}
+
+	t.Fatal("quad not found")
+	return nil
+}
+
+func findQuadByIdx(t testing.TB, ds *ld.RDFDataset, idx datasetIdx) *ld.Quad {
+	quads, ok := ds.Graphs[idx.graph]
+	if !ok {
+		t.Fatal("graph not found")
+	}
+	if len(quads) < idx.idx+1 {
+		t.Fatal("quad not found")
+	}
+	return quads[idx.idx]
+}
+
+const multigraphDoc2 = `{
+  "@context":[
+    "https://www.w3.org/2018/credentials/v1",
+    "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld",
+    "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld"
+  ],
+  "@type":"VerifiablePresentation",
+  "holder": ["http://example.com/holder1", "http://example.com/holder2"],
+  "verifiableCredential":[
+    {
+      "@id": "http://example.com/vc1",
+      "@type":"KYCAgeCredential",
+      "birthday":19960424
+    },
+    {
+      "@id": "http://example.com/vc3",
+      "@type": "Iden3SparseMerkleTreeProof",
+      "issuerData": {
+        "state": {
+          "blockTimestamp": 123
+        }
+      }
+    }
+  ]
+}`
+
+func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
+	ds := getDataset(t, multigraphDoc2)
+	q := findQuadByObject(t, ds, &ld.Literal{
+		Value:    "123",
+		Datatype: ld.XSDInteger,
+		Language: "",
+	})
+	idx, err := findParentInsideGraph(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state"},
+		q.Predicate)
+
+	idx, err = findParentInsideGraph(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "http://example.com/vc3"},
+		q.Subject)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData"},
+		q.Predicate)
+
+	idx, err = findParentInsideGraph(ds, q)
+	require.ErrorIs(t, err, errParentNotFound)
+
+	idx, err = findGraphParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://www.w3.org/2018/credentials#verifiableCredential"},
+		q.Predicate)
+
+	idx, err = findParentInsideGraph(ds, q)
+	require.ErrorIs(t, err, errParentNotFound)
+}
+
+func Test_findParent(t *testing.T) {
+	ds := getDataset(t, multigraphDoc2)
+	q := findQuadByObject(t, ds, &ld.Literal{
+		Value:    "123",
+		Datatype: ld.XSDInteger,
+		Language: "",
+	})
+	idx, err := findParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state"},
+		q.Predicate)
+
+	idx, err = findParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "http://example.com/vc3"},
+		q.Subject)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData"},
+		q.Predicate)
+
+	idx, err = findParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://www.w3.org/2018/credentials#verifiableCredential"},
+		q.Predicate)
+
+	idx, err = findParent(ds, q)
+	require.ErrorIs(t, err, errParentNotFound)
 }
