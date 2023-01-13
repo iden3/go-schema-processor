@@ -968,7 +968,7 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 					return errors.New("object Literal is nil")
 				}
 				switch qo.Datatype {
-				case "http://www.w3.org/2001/XMLSchema#boolean":
+				case ld.XSDBoolean:
 					switch qo.Value {
 					case "false":
 						e.value = false
@@ -977,22 +977,21 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 					default:
 						return errors.New("incorrect boolean value")
 					}
-				case "http://www.w3.org/2001/XMLSchema#integer",
-					"http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
-					"http://www.w3.org/2001/XMLSchema#nonPositiveInteger",
-					"http://www.w3.org/2001/XMLSchema#negativeInteger",
-					"http://www.w3.org/2001/XMLSchema#positiveInteger":
+				case ld.XSDInteger,
+					ld.XSDNS + "nonNegativeInteger",
+					ld.XSDNS + "nonPositiveInteger",
+					ld.XSDNS + "negativeInteger",
+					ld.XSDNS + "positiveInteger":
 					e.value, err = strconv.ParseInt(qo.Value, 10, 64)
 					if err != nil {
 						return err
 					}
-				case "http://www.w3.org/2001/XMLSchema#dateTime":
+				case ld.XSDNS + "dateTime":
 					if dateRE.MatchString(qo.Value) {
 						e.value, err = time.ParseInLocation("2006-01-02",
 							qo.Value, time.UTC)
 					} else {
-						e.value, err = time.Parse(time.RFC3339Nano,
-							qo.Value)
+						e.value, err = time.Parse(time.RFC3339Nano, qo.Value)
 					}
 					if err != nil {
 						return err
