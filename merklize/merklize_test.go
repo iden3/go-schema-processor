@@ -86,17 +86,100 @@ func getDataset(t testing.TB, document string) *ld.RDFDataset {
 	return out5
 }
 
+func mkPath(parts ...interface{}) Path {
+	p, err := NewPath(parts...)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+//nolint:deadcode,unused // use for generation of wantEntries
+func printEntriesRepresentation(entries []RDFEntry) {
+	for _, e := range entries {
+		var pathParts []string
+		for _, p := range e.key.parts {
+			switch p2 := p.(type) {
+			case string:
+				pathParts = append(pathParts, `"`+p2+`"`)
+			case int:
+				pathParts = append(pathParts, strconv.Itoa(p2))
+			default:
+				panic(p)
+			}
+		}
+
+		var value string
+		switch v2 := e.value.(type) {
+		case string:
+			value = `"` + v2 + `"`
+		case int64:
+			value = `int64(` + strconv.FormatInt(v2, 10) + `)`
+		default:
+			panic(fmt.Sprintf("%[1]T -- %[1]v", e.value))
+		}
+		fmt.Println("{")
+		fmt.Printf("key: mkPath(%v),\n", strings.Join(pathParts, ","))
+		fmt.Printf("value: %v,\n", value)
+		fmt.Println("},")
+	}
+}
+
+func TestEntriesFromRDF_multigraph(t *testing.T) {
+	dataset := getDataset(t, multigraphDoc2)
+
+	entries, err := EntriesFromRDF(dataset)
+	require.NoError(t, err)
+	// To generate wantEntries, uncomment the following line
+	// printEntriesRepresentation(entries)
+
+	wantEntries := []RDFEntry{
+		{
+			key:   mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+			value: "https://www.w3.org/2018/credentials#VerifiablePresentation",
+		},
+		{
+			key:   mkPath("https://www.w3.org/2018/credentials#holder", 0),
+			value: "http://example.com/holder1",
+		},
+		{
+			key:   mkPath("https://www.w3.org/2018/credentials#holder", 1),
+			value: "http://example.com/holder2",
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				0, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+			value: "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld#Iden3SparseMerkleTreeProof",
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				0,
+				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData",
+				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state",
+				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#blockTimestamp"),
+			value: int64(123),
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				1, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+			value: "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld#KYCAgeCredential",
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				1,
+				"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday"),
+			value: int64(19960424),
+		},
+	}
+
+	require.Equal(t, wantEntries, entries)
+}
+
 func TestEntriesFromRDF(t *testing.T) {
 	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
-
-	mkPath := func(parts ...interface{}) Path {
-		p, err := NewPath(parts...)
-		require.NoError(t, err)
-		return p
-	}
 
 	wantEntries := []RDFEntry{
 		{

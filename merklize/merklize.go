@@ -728,6 +728,27 @@ func mkQArrKey(q *ld.Quad) (qArrKey, error) {
 	return key, nil
 }
 
+// iterate over graphs in consistent order
+func iterGraphsOrdered(ds *ld.RDFDataset,
+	fn func(graphName string, quads []*ld.Quad) error) error {
+
+	var graphNames = make([]string, 0, len(ds.Graphs))
+	for graphName := range ds.Graphs {
+		graphNames = append(graphNames, graphName)
+	}
+	sort.Strings(graphNames)
+
+	for _, graphName := range graphNames {
+		quads := ds.Graphs[graphName]
+
+		err := fn(graphName, quads)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func newRelationship(ds *ld.RDFDataset, hasher Hasher) (*relationship,
 	error) {
 	r := relationship{
@@ -739,46 +760,50 @@ func newRelationship(ds *ld.RDFDataset, hasher Hasher) (*relationship,
 		r.hasher = defaultHasher
 	}
 
-	for graphName, quads := range ds.Graphs {
-		for idx, q := range quads {
-			parentIdx, err := findParent(ds, q)
-			if errors.Is(err, errParentNotFound) {
-				continue
-			} else if err != nil {
-				return nil, err
-			}
-			qIdx := datasetIdx{graphName, idx}
-			r.parents[qIdx] = parentIdx
+	err := iterGraphsOrdered(ds,
+		func(graphName string, quads []*ld.Quad) error {
+			for idx, q := range quads {
+				parentIdx, err := findParent(ds, q)
+				if errors.Is(err, errParentNotFound) {
+					continue
+				} else if err != nil {
+					return err
+				}
+				qIdx := datasetIdx{graphName, idx}
+				r.parents[qIdx] = parentIdx
 
-			parentQuad, err := getQuad(ds, parentIdx)
-			if err != nil {
-				return nil, err
-			}
+				parentQuad, err := getQuad(ds, parentIdx)
+				if err != nil {
+					return err
+				}
 
-			qKey, err := mkQArrKey(parentQuad)
-			if err != nil {
-				return nil, err
-			}
+				qKey, err := mkQArrKey(parentQuad)
+				if err != nil {
+					return err
+				}
 
-			childrenM, parentExists := r.children[qKey]
-			if !parentExists {
-				childrenM = make(map[refTp]int)
-				r.children[qKey] = childrenM
-			}
+				childrenM, parentExists := r.children[qKey]
+				if !parentExists {
+					childrenM = make(map[refTp]int)
+					r.children[qKey] = childrenM
+				}
 
-			childRef, err := getRef(q.Subject)
-			if err != nil {
-				return nil, err
-			}
+				childRef, err := getRef(q.Subject)
+				if err != nil {
+					return err
+				}
 
-			_, childExists := childrenM[childRef]
-			if !childExists {
-				nextIdx := len(childrenM)
-				childrenM[childRef] = nextIdx
+				_, childExists := childrenM[childRef]
+				if !childExists {
+					nextIdx := len(childrenM)
+					childrenM[childRef] = nextIdx
+				}
 			}
-		}
+			return nil
+		})
+	if err != nil {
+		return nil, err
 	}
-
 	return &r, nil
 }
 
@@ -923,20 +948,24 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 	}
 
 	entries := make([]RDFEntry, 0, len(quads))
-	for graphName, quads := range ds.Graphs {
+	graphProcessor := func(graphName string, quads []*ld.Quad) error {
 		counts, err := countEntries(quads)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		seenCount := make(map[qArrKey]int)
 
 		for quadIdx, q := range quads {
 			quadGraphIdx := datasetIdx{graphName, quadIdx}
+			qKey, err := mkQArrKey(q)
+			if err != nil {
+				return err
+			}
 			var e RDFEntry
 			switch qo := q.Object.(type) {
 			case *ld.Literal:
 				if qo == nil {
-					return nil, errors.New("object Literal is nil")
+					return errors.New("object Literal is nil")
 				}
 				switch qo.Datatype {
 				case "http://www.w3.org/2001/XMLSchema#boolean":
@@ -946,7 +975,7 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 					case "true":
 						e.value = true
 					default:
-						return nil, errors.New("incorrect boolean value")
+						return errors.New("incorrect boolean value")
 					}
 				case "http://www.w3.org/2001/XMLSchema#integer",
 					"http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
@@ -955,50 +984,44 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 					"http://www.w3.org/2001/XMLSchema#positiveInteger":
 					e.value, err = strconv.ParseInt(qo.Value, 10, 64)
 					if err != nil {
-						return nil, err
+						return err
 					}
 				case "http://www.w3.org/2001/XMLSchema#dateTime":
 					if dateRE.MatchString(qo.Value) {
 						e.value, err = time.ParseInLocation("2006-01-02",
 							qo.Value, time.UTC)
 					} else {
-						e.value, err = time.Parse(time.RFC3339Nano, qo.Value)
+						e.value, err = time.Parse(time.RFC3339Nano,
+							qo.Value)
 					}
 					if err != nil {
-						return nil, err
+						return err
 					}
 				default:
 					e.value = qo.GetValue()
 				}
 			case *ld.IRI:
 				if qo == nil {
-					return nil, errors.New("object IRI is nil")
+					return errors.New("object IRI is nil")
 				}
 				e.value = qo.GetValue()
 			case *ld.BlankNode:
-				_, ok := rs.parents[quadGraphIdx]
-				if ok {
-					// this node is a reference to known children,
+				if _, ok := rs.children[qKey]; ok {
+					// this node is a reference to known parent,
 					// skip it and do not put it into merkle tree because it
-					// has no defined @id attribute
+					// will be used as parent for other nodes, but has
+					// no value to put itself.
 					continue
 				}
-				// TODO remove remove id from credentialSubject in
-				//      testDocument this place will fail
-				return nil, errors.New("BlankNode is not supported yet")
+				return errors.New("BlankNode is not supported yet")
 			default:
-				return nil, errors.New("unexpected Quad's Object type")
-			}
-
-			qKey, err := mkQArrKey(q)
-			if err != nil {
-				return nil, err
+				return errors.New("unexpected Quad's Object type")
 			}
 
 			var idx *int
 			switch counts[qKey] {
 			case 0:
-				return nil, errors.New("[assertion] key not found in counts")
+				return errors.New("[assertion] key not found in counts")
 			case 1:
 				// leave idx nil: only one element, do not consider it as an array
 			default:
@@ -1008,13 +1031,16 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 			}
 			e.key, err = rs.path(quadGraphIdx, ds, idx)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			entries = append(entries, e)
 		}
+		return nil
 	}
-
+	if err := iterGraphsOrdered(ds, graphProcessor); err != nil {
+		return nil, err
+	}
 	return entries, nil
 }
 
