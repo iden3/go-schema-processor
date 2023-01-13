@@ -927,3 +927,33 @@ func Test_findParent(t *testing.T) {
 	_, err = findParent(ds, q)
 	require.ErrorIs(t, err, errParentNotFound)
 }
+
+const multigraphDoc = `{
+  "@context":[
+    "https://www.w3.org/2018/credentials/v1",
+    "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld"
+  ],
+  "@type":"VerifiablePresentation",
+  "holder": ["http://example.com/holder1", "http://example.com/holder2"],
+  "verifiableCredential": {
+    "@id": "http://example.com/vc2",
+    "@type":"KYCAgeCredential",
+    "birthday":19960425
+  }
+}`
+
+func TestMerklizer_RawValue(t *testing.T) {
+	ctx := context.Background()
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(multigraphDoc))
+	require.NoError(t, err)
+
+	path, err := NewPathFromDocument([]byte(multigraphDoc),
+		"verifiableCredential.birthday")
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
+	val, err := mz.RawValue(path)
+	require.NoError(t, err)
+	require.Equal(t, float64(19960425), val)
+}

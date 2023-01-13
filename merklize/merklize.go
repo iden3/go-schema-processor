@@ -1263,6 +1263,16 @@ func rvExtractObjField(obj any, field string) (any, error) {
 	if !isJSONObj {
 		return nil, errors.New("expected object")
 	}
+
+	graphObj, embeddedGraphExists := jsObj["@graph"]
+	if len(jsObj) == 1 && embeddedGraphExists {
+		var isGraphObjValid bool
+		jsObj, isGraphObjValid = graphObj.(map[string]any)
+		if !isGraphObjValid {
+			return nil, errors.New("embedded graph of unexpected type")
+		}
+	}
+
 	var fieldExists bool
 	obj, fieldExists = jsObj[field]
 	if !fieldExists {
