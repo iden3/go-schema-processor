@@ -545,10 +545,10 @@ func (e RDFEntry) KeyValueMtEntries() (
 type nodeType uint8
 
 const (
-	nodeTypeUndefined nodeType = iota
-	nodeTypeBlank     nodeType = iota
+	nodeTypeUndefined nodeType = iota //nolint:deadcode,varcheck //for default value
+	nodeTypeBlank
 	nodeTypeIRI
-	nodeTypeLiteral
+	nodeTypeLiteral //nolint:deadcode,varcheck //may be used in future
 )
 
 // dataset index contains a name of the graph and quad index in quads array
@@ -756,6 +756,9 @@ func newRelationship(ds *ld.RDFDataset, hasher Hasher) (*relationship,
 			}
 
 			qKey, err := mkQArrKey(parentQuad)
+			if err != nil {
+				return nil, err
+			}
 
 			childrenM, parentExists := r.children[qKey]
 			if !parentExists {
@@ -982,7 +985,6 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 				}
 				// TODO remove remove id from credentialSubject in
 				//      testDocument this place will fail
-				//continue
 				return nil, errors.New("BlankNode is not supported yet")
 			default:
 				return nil, errors.New("unexpected Quad's Object type")

@@ -461,6 +461,7 @@ func TestMerklizer_Proof(t *testing.T) {
 		mzRoot.Hex())
 }
 
+//nolint:deadcode,unused // use for debugging
 func logDataset(in *ld.RDFDataset) {
 	fmt.Printf("Log dataset of %v keys\n", len(in.Graphs))
 	for s, gs := range in.Graphs {
@@ -795,7 +796,7 @@ func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
 		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData"},
 		q.Predicate)
 
-	idx, err = findParentInsideGraph(ds, q)
+	_, err = findParentInsideGraph(ds, q)
 	require.ErrorIs(t, err, errParentNotFound)
 
 	idx, err = findGraphParent(ds, q)
@@ -805,7 +806,7 @@ func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
 		&ld.IRI{Value: "https://www.w3.org/2018/credentials#verifiableCredential"},
 		q.Predicate)
 
-	idx, err = findParentInsideGraph(ds, q)
+	_, err = findParentInsideGraph(ds, q)
 	require.ErrorIs(t, err, errParentNotFound)
 }
 
@@ -840,6 +841,6 @@ func Test_findParent(t *testing.T) {
 		&ld.IRI{Value: "https://www.w3.org/2018/credentials#verifiableCredential"},
 		q.Predicate)
 
-	idx, err = findParent(ds, q)
+	_, err = findParent(ds, q)
 	require.ErrorIs(t, err, errParentNotFound)
 }
