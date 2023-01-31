@@ -695,7 +695,7 @@ func TestMkValueInt(t *testing.T) {
 
 func TestValue(t *testing.T) {
 	// bool
-	v, err := newValue(defaultHasher, true)
+	v, err := NewValue(defaultHasher, true)
 	require.NoError(t, err)
 	require.False(t, v.IsString())
 	require.True(t, v.IsBool())
@@ -708,7 +708,7 @@ func TestValue(t *testing.T) {
 	require.ErrorIs(t, err, ErrIncorrectType)
 
 	// string
-	s, err := newValue(defaultHasher, "str")
+	s, err := NewValue(defaultHasher, "str")
 	require.NoError(t, err)
 	require.True(t, s.IsString())
 	require.False(t, s.IsBool())
@@ -721,7 +721,7 @@ func TestValue(t *testing.T) {
 	require.ErrorIs(t, err, ErrIncorrectType)
 
 	// string
-	i, err := newValue(defaultHasher, int64(3))
+	i, err := NewValue(defaultHasher, int64(3))
 	require.NoError(t, err)
 	require.False(t, i.IsString())
 	require.False(t, i.IsBool())
@@ -735,7 +735,7 @@ func TestValue(t *testing.T) {
 
 	// time.Time
 	tm := time.Date(2022, 10, 20, 3, 4, 5, 6, time.UTC)
-	tm2, err := newValue(defaultHasher, tm)
+	tm2, err := NewValue(defaultHasher, tm)
 	require.NoError(t, err)
 	require.False(t, tm2.IsString())
 	require.False(t, tm2.IsBool())

@@ -426,7 +426,8 @@ type value struct {
 	hasher Hasher
 }
 
-func newValue(hasher Hasher, val any) (Value, error) {
+// NewValue creates new Value
+func NewValue(hasher Hasher, val any) (Value, error) {
 	switch val.(type) {
 	case int64, string, bool, time.Time:
 	default:
@@ -1356,7 +1357,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 			return nil, nil, errors.New(
 				"[assertion] no entry found while existence is true")
 		}
-		value, err = newValue(m.hasher, entry.value)
+		value, err = NewValue(m.hasher, entry.value)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1366,7 +1367,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 }
 
 func (m *Merklizer) MkValue(val any) (Value, error) {
-	return newValue(m.hasher, val)
+	return NewValue(m.hasher, val)
 }
 
 func (m *Merklizer) Root() *merkletree.Hash {
