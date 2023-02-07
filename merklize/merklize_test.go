@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
 	"github.com/piprate/json-gold/ld"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,9 +66,9 @@ const testDocument = `{
   ]
 }`
 
-func getDataset(t testing.TB) *ld.RDFDataset {
+func getDataset(t testing.TB, document string) *ld.RDFDataset {
 	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(testDocument), &obj)
+	err := json.Unmarshal([]byte(document), &obj)
 	if err != nil {
 		panic(err)
 	}
@@ -84,17 +86,100 @@ func getDataset(t testing.TB) *ld.RDFDataset {
 	return out5
 }
 
-func TestEntriesFromRDF(t *testing.T) {
-	dataset := getDataset(t)
+func mkPath(parts ...interface{}) Path {
+	p, err := NewPath(parts...)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+//nolint:deadcode,unused // use for generation of wantEntries
+func printEntriesRepresentation(entries []RDFEntry) {
+	for _, e := range entries {
+		var pathParts []string
+		for _, p := range e.key.parts {
+			switch p2 := p.(type) {
+			case string:
+				pathParts = append(pathParts, `"`+p2+`"`)
+			case int:
+				pathParts = append(pathParts, strconv.Itoa(p2))
+			default:
+				panic(p)
+			}
+		}
+
+		var value string
+		switch v2 := e.value.(type) {
+		case string:
+			value = `"` + v2 + `"`
+		case int64:
+			value = `int64(` + strconv.FormatInt(v2, 10) + `)`
+		default:
+			panic(fmt.Sprintf("%[1]T -- %[1]v", e.value))
+		}
+		fmt.Println("{")
+		fmt.Printf("key: mkPath(%v),\n", strings.Join(pathParts, ","))
+		fmt.Printf("value: %v,\n", value)
+		fmt.Println("},")
+	}
+}
+
+func TestEntriesFromRDF_multigraph(t *testing.T) {
+	dataset := getDataset(t, multigraphDoc2)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
+	// To generate wantEntries, uncomment the following line
+	// printEntriesRepresentation(entries)
 
-	mkPath := func(parts ...interface{}) Path {
-		p, err := NewPath(parts...)
-		require.NoError(t, err)
-		return p
+	wantEntries := []RDFEntry{
+		{
+			key:   mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+			value: "https://www.w3.org/2018/credentials#VerifiablePresentation",
+		},
+		{
+			key:   mkPath("https://www.w3.org/2018/credentials#holder", 0),
+			value: "http://example.com/holder1",
+		},
+		{
+			key:   mkPath("https://www.w3.org/2018/credentials#holder", 1),
+			value: "http://example.com/holder2",
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				0, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+			value: "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld#Iden3SparseMerkleTreeProof",
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				0,
+				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData",
+				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state",
+				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#blockTimestamp"),
+			value: int64(123),
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				1, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+			value: "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld#KYCAgeCredential",
+		},
+		{
+			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
+				1,
+				"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday"),
+			value: int64(19960424),
+		},
 	}
+
+	require.Equal(t, wantEntries, entries)
+}
+
+func TestEntriesFromRDF(t *testing.T) {
+	dataset := getDataset(t, testDocument)
+
+	entries, err := EntriesFromRDF(dataset)
+	require.NoError(t, err)
 
 	wantEntries := []RDFEntry{
 		{
@@ -290,7 +375,7 @@ func TestEntriesFromRDF(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -324,7 +409,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestProofInteger(t *testing.T) {
-	dataset := getDataset(t)
+	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
 	require.NoError(t, err)
@@ -406,55 +491,60 @@ func TestMerklizer_Proof(t *testing.T) {
 		require.True(t, ok)
 	})
 
+	t.Run("test RawValue", func(t *testing.T) {
+		// [https://www.w3.org/2018/credentials#credentialSubject 1 http://schema.org/birthDate] => 1958-07-18
+		path, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", 1,
+			"http://schema.org/birthDate")
+		require.NoError(t, err)
+
+		// Check RawValue with index in path
+		rv, err := mz.RawValue(path)
+		require.NoError(t, err)
+		require.Equal(t, "1958-07-18", rv)
+
+		// Check RawValue as a number in json
+		identifierPath, err := NewPath("http://schema.org/identifier")
+		require.NoError(t, err)
+		rv, err = mz.RawValue(identifierPath)
+		require.NoError(t, err)
+		require.Equal(t, float64(83627465), rv)
+
+		// Check RawValue with wrong path (expected array, but got object)
+		wrongPath, err := NewPath("http://schema.org/identifier", 1)
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err,
+			"expected array at 'http://schema.org/identifier / [1]'")
+
+		wrongPath, err = NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", 5,
+			"http://schema.org/birthDate")
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err,
+			"index is out of range at 'https://www.w3.org/2018/credentials#credentialSubject / [5]'")
+
+		wrongPath, err = NewPath("bla-bla", 5)
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err, "value not found at 'bla-bla'")
+
+		wrongPath, err = NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", "bla-bla")
+		require.NoError(t, err)
+		_, err = mz.RawValue(wrongPath)
+		require.EqualError(t, err,
+			"expected object at 'https://www.w3.org/2018/credentials#credentialSubject / bla-bla'")
+	})
+
 	mzRoot := mz.Root()
 	require.Equal(t,
 		"d001de1d1b74d3b24b394566511da50df18532264c473845ea51e915a588b02a",
 		mzRoot.Hex())
 }
 
-func TestNewRelationship(t *testing.T) {
-	iri := func(in string) ld.IRI {
-		i := ld.NewIRI(in)
-		return *i
-	}
-	nID := func(iri ld.IRI) nodeID {
-		id, err := newNodeID(&iri)
-		if err != nil {
-			panic(err)
-		}
-		return id
-	}
-	dataset := getDataset(t)
-	if false {
-		logDataset(dataset)
-	}
-
-	rs, err := newRelationship(dataset.Graphs["@default"], PoseidonHasher{})
-	require.NoError(t, err)
-	wantRS := &relationship{
-		parents: map[nodeID]quadKey{
-			nID(iri("did:example:b34ca6cd37bbf23")): {
-				subjectID: nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")),
-				predicate: iri("https://www.w3.org/2018/credentials#credentialSubject"),
-			},
-			nID(iri("did:example:b34ca6cd37bbf24")): {
-				subjectID: nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")),
-				predicate: iri("https://www.w3.org/2018/credentials#credentialSubject"),
-			},
-		},
-		children: map[nodeID]map[ld.IRI][]nodeID{
-			nID(iri("https://issuer.oidp.uscis.gov/credentials/83627465")): {
-				iri("https://www.w3.org/2018/credentials#credentialSubject"): {
-					nID(iri("did:example:b34ca6cd37bbf23")),
-					nID(iri("did:example:b34ca6cd37bbf24")),
-				},
-			},
-		},
-		hasher: PoseidonHasher{},
-	}
-	require.Equal(t, wantRS, rs)
-}
-
+//nolint:deadcode,unused // use for debugging
 func logDataset(in *ld.RDFDataset) {
 	fmt.Printf("Log dataset of %v keys\n", len(in.Graphs))
 	for s, gs := range in.Graphs {
@@ -603,77 +693,9 @@ func TestMkValueInt(t *testing.T) {
 	})
 }
 
-func TestXX1(t *testing.T) {
-	t.Skip("not ready")
-	in := `{
-    "@context": "https://schema.org",
-    "@type": "Person",
-    "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Colorado Springs",
-        "addressRegion": "CO",
-        "postalCode": "80840",
-        "streetAddress": "100 Main Street"
-    },
-    "colleague": [
-        "http://www.example.com/JohnColleague.html",
-        "http://www.example.com/JameColleague.html"
-    ],
-    "email": "info@example.com",
-    "name": "Jane Doe",
-    "alumniOf": "Dartmouth",
-    "birthDate": "1979-10-12"
-}`
-	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(in), &obj)
-	if err != nil {
-		panic(err)
-	}
-
-	proc := ld.NewJsonLdProcessor()
-	options := ld.NewJsonLdOptions("")
-	options.Algorithm = "URDNA2015"
-
-	out4, err := proc.Normalize(obj, options)
-	require.NoError(t, err)
-
-	out5, ok := out4.(*ld.RDFDataset)
-	require.True(t, ok, "%[1]T\n%[1]v", out4)
-
-	quads := out5.Graphs["@default"]
-	for i, q := range quads {
-		t.Logf(`#%[1]v
-Subject: %[2]T %[2]v
-Predicate: %[3]T %[3]v
-Object: %[4]T %[4]v
-Graph: %[5]T %[5]v`,
-			i, q.Subject, q.Predicate, q.Object, q.Graph)
-	}
-
-	entries, err := EntriesFromRDF(out5)
-	require.NoError(t, err)
-
-	for _, e := range entries {
-		t.Logf("%v => %v", e.key, e.value)
-	}
-}
-
-func TestXX2(t *testing.T) {
-	t.Skip("not ready")
-	var ctxObj map[string]interface{}
-	err := json.Unmarshal([]byte(testDocument), &ctxObj)
-	require.NoError(t, err)
-	t.Log(ctxObj["@context"])
-	activeCtx := ld.NewContext(nil, nil)
-	newCtx, err := activeCtx.Parse(ctxObj["@context"])
-	require.NoError(t, err)
-	td := newCtx.GetTermDefinition("type")
-	t.Log(td)
-}
-
 func TestValue(t *testing.T) {
 	// bool
-	v, err := newValue(defaultHasher, true)
+	v, err := NewValue(defaultHasher, true)
 	require.NoError(t, err)
 	require.False(t, v.IsString())
 	require.True(t, v.IsBool())
@@ -686,7 +708,7 @@ func TestValue(t *testing.T) {
 	require.ErrorIs(t, err, ErrIncorrectType)
 
 	// string
-	s, err := newValue(defaultHasher, "str")
+	s, err := NewValue(defaultHasher, "str")
 	require.NoError(t, err)
 	require.True(t, s.IsString())
 	require.False(t, s.IsBool())
@@ -699,7 +721,7 @@ func TestValue(t *testing.T) {
 	require.ErrorIs(t, err, ErrIncorrectType)
 
 	// string
-	i, err := newValue(defaultHasher, int64(3))
+	i, err := NewValue(defaultHasher, int64(3))
 	require.NoError(t, err)
 	require.False(t, i.IsString())
 	require.False(t, i.IsBool())
@@ -713,7 +735,7 @@ func TestValue(t *testing.T) {
 
 	// time.Time
 	tm := time.Date(2022, 10, 20, 3, 4, 5, 6, time.UTC)
-	tm2, err := newValue(defaultHasher, tm)
+	tm2, err := NewValue(defaultHasher, tm)
 	require.NoError(t, err)
 	require.False(t, tm2.IsString())
 	require.False(t, tm2.IsBool())
@@ -781,4 +803,157 @@ func TestExistenceProof(t *testing.T) {
 	i, err := v.AsInt64()
 	require.NoError(t, err)
 	require.Equal(t, int64(19960424), i)
+}
+
+func findQuadByObject(t testing.TB, ds *ld.RDFDataset, value any) *ld.Quad {
+	for _, quads := range ds.Graphs {
+		for _, quad := range quads {
+			if reflect.DeepEqual(value, quad.Object) {
+				return quad
+			}
+		}
+	}
+
+	t.Fatal("quad not found")
+	return nil
+}
+
+func findQuadByIdx(t testing.TB, ds *ld.RDFDataset, idx datasetIdx) *ld.Quad {
+	quads, ok := ds.Graphs[idx.graph]
+	if !ok {
+		t.Fatal("graph not found")
+	}
+	if len(quads) < idx.idx+1 {
+		t.Fatal("quad not found")
+	}
+	return quads[idx.idx]
+}
+
+const multigraphDoc2 = `{
+  "@context":[
+    "https://www.w3.org/2018/credentials/v1",
+    "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld",
+    "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld"
+  ],
+  "@type":"VerifiablePresentation",
+  "holder": ["http://example.com/holder1", "http://example.com/holder2"],
+  "verifiableCredential":[
+    {
+      "@id": "http://example.com/vc1",
+      "@type":"KYCAgeCredential",
+      "birthday":19960424
+    },
+    {
+      "@id": "http://example.com/vc3",
+      "@type": "Iden3SparseMerkleTreeProof",
+      "issuerData": {
+        "state": {
+          "blockTimestamp": 123
+        }
+      }
+    }
+  ]
+}`
+
+func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
+	ds := getDataset(t, multigraphDoc2)
+	q := findQuadByObject(t, ds, &ld.Literal{
+		Value:    "123",
+		Datatype: ld.XSDInteger,
+		Language: "",
+	})
+	idx, err := findParentInsideGraph(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state"},
+		q.Predicate)
+
+	idx, err = findParentInsideGraph(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "http://example.com/vc3"},
+		q.Subject)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData"},
+		q.Predicate)
+
+	_, err = findParentInsideGraph(ds, q)
+	require.ErrorIs(t, err, errParentNotFound)
+
+	idx, err = findGraphParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://www.w3.org/2018/credentials#verifiableCredential"},
+		q.Predicate)
+
+	_, err = findParentInsideGraph(ds, q)
+	require.ErrorIs(t, err, errParentNotFound)
+}
+
+func Test_findParent(t *testing.T) {
+	ds := getDataset(t, multigraphDoc2)
+	q := findQuadByObject(t, ds, &ld.Literal{
+		Value:    "123",
+		Datatype: ld.XSDInteger,
+		Language: "",
+	})
+	idx, err := findParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state"},
+		q.Predicate)
+
+	idx, err = findParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "http://example.com/vc3"},
+		q.Subject)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData"},
+		q.Predicate)
+
+	idx, err = findParent(ds, q)
+	require.NoError(t, err)
+	q = findQuadByIdx(t, ds, idx)
+	assert.Equal(t,
+		&ld.IRI{Value: "https://www.w3.org/2018/credentials#verifiableCredential"},
+		q.Predicate)
+
+	_, err = findParent(ds, q)
+	require.ErrorIs(t, err, errParentNotFound)
+}
+
+const multigraphDoc = `{
+  "@context":[
+    "https://www.w3.org/2018/credentials/v1",
+    "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld"
+  ],
+  "@type":"VerifiablePresentation",
+  "holder": ["http://example.com/holder1", "http://example.com/holder2"],
+  "verifiableCredential": {
+    "@id": "http://example.com/vc2",
+    "@type":"KYCAgeCredential",
+    "birthday":19960425
+  }
+}`
+
+func TestMerklizer_RawValue(t *testing.T) {
+	ctx := context.Background()
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(multigraphDoc))
+	require.NoError(t, err)
+
+	path, err := NewPathFromDocument([]byte(multigraphDoc),
+		"verifiableCredential.birthday")
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+
+	val, err := mz.RawValue(path)
+	require.NoError(t, err)
+	require.Equal(t, float64(19960425), val)
 }

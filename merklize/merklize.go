@@ -426,7 +426,8 @@ type value struct {
 	hasher Hasher
 }
 
-func newValue(hasher Hasher, val any) (Value, error) {
+// NewValue creates new Value
+func NewValue(hasher Hasher, val any) (Value, error) {
 	switch val.(type) {
 	case int64, string, bool, time.Time:
 	default:
@@ -542,131 +543,305 @@ func (e RDFEntry) KeyValueMtEntries() (
 	return keyMtEntry, valueMtEntry, nil
 }
 
-// Identifies ld.Node by string representation of Type and Value.
-// This type allows us to use ld.Node as keys in maps.
-type nodeID struct {
-	tp  string
-	val string
-}
+type nodeType uint8
 
-func newNodeID(n ld.Node) (nodeID, error) {
-	var id nodeID
+const (
+	nodeTypeUndefined nodeType = iota //nolint:deadcode,varcheck //for default value
+	nodeTypeBlank
+	nodeTypeIRI
+	nodeTypeLiteral //nolint:deadcode,varcheck //may be used in future
+)
 
-	if n == nil {
-		return id, errors.New("ld.Node is nil")
-	}
-
-	id.tp = fmt.Sprintf("%T", n)
-
-	switch val := n.(type) {
-	case *ld.IRI:
-		if val == nil {
-			return id, errors.New("ld.Node is nil")
-		}
-		id.val = val.Value
-	case *ld.BlankNode:
-		if val == nil {
-			return id, errors.New("ld.Node is nil")
-		}
-		id.val = val.Attribute
-	default:
-		return id, errors.New("ld.Node type is not *ld.IRI or *ld.BlankNode")
-	}
-
-	return id, nil
-}
-
-type quadKey struct {
-	subjectID nodeID
-	predicate ld.IRI
+// dataset index contains a name of the graph and quad index in quads array
+type datasetIdx struct {
+	graph string
+	idx   int
 }
 
 type relationship struct {
 	// mapping from child Subject to its parent
-	parents map[nodeID]quadKey
-	// mapping from parent to mapping from field predicate to
-	// children under this perdicate
-	children map[nodeID]map[ld.IRI][]nodeID
+	parents map[datasetIdx]datasetIdx
+	// mapping from subject for each child of parent node to this child's
+	// index. If number of entries in map[refTp]int is 1, then
+	// this parent node qArrKey has only one direct child, not array.
+	children map[qArrKey]map[refTp]int
 	hasher   Hasher
 }
 
-func newRelationship(quads []*ld.Quad, hasher Hasher) (*relationship, error) {
+var errParentNotFound = errors.New("parent not found")
+var errMultipleParentsFound = errors.New("multiple parents found")
+var errInvalidReferenceType = errors.New("invalid reference type")
+var errGraphNotFound = errors.New("graph not found")
+var errQuadNotFound = errors.New("quad not found")
+
+type refTp struct {
+	tp  nodeType
+	val string
+}
+
+func getRef(n ld.Node) (refTp, error) {
+	switch nt := n.(type) {
+	case *ld.IRI:
+		return refTp{tp: nodeTypeIRI, val: nt.Value}, nil
+	case *ld.BlankNode:
+		return refTp{tp: nodeTypeBlank, val: nt.Attribute}, nil
+	default:
+		return refTp{}, errInvalidReferenceType
+	}
+}
+
+func findParentInsideGraph(ds *ld.RDFDataset, q *ld.Quad) (datasetIdx, error) {
+	graphName, err := getGraphName(q)
+	if err != nil {
+		return datasetIdx{}, err
+	}
+
+	quads, graphExists := ds.Graphs[graphName]
+	if !graphExists {
+		return datasetIdx{}, errGraphNotFound
+	}
+
+	qKey, err := getRef(q.Subject)
+	if err != nil {
+		return datasetIdx{}, err
+	}
+	found := false
+	var result datasetIdx
+	for idx, quad := range quads {
+		if quad == q {
+			continue
+		}
+
+		objKey, err := getRef(quad.Object)
+		if err == errInvalidReferenceType {
+			continue
+		} else if err != nil {
+			return datasetIdx{}, err
+		}
+
+		if qKey == objKey {
+			if found {
+				return datasetIdx{}, errMultipleParentsFound
+			}
+			found = true
+			result = datasetIdx{graphName, idx}
+		}
+	}
+
+	if found {
+		return result, nil
+	} else {
+		return datasetIdx{}, errParentNotFound
+	}
+}
+
+func findGraphParent(ds *ld.RDFDataset, q *ld.Quad) (datasetIdx, error) {
+	if q.Graph == nil {
+		return datasetIdx{}, errParentNotFound
+	}
+
+	qKey, err := getRef(q.Graph)
+	if err != nil {
+		return datasetIdx{}, err
+	}
+	if qKey.tp != nodeTypeBlank {
+		return datasetIdx{}, errors.New("graph parent can only be a blank node")
+	}
+
+	found := false
+	var result datasetIdx
+
+	for graphName, quads := range ds.Graphs {
+		for idx, quad := range quads {
+			if quad == q {
+				continue
+			}
+
+			objKey, err := getRef(quad.Object)
+			if err == errInvalidReferenceType {
+				continue
+			} else if err != nil {
+				return datasetIdx{}, err
+			}
+
+			if qKey == objKey {
+				if found {
+					return datasetIdx{}, errMultipleParentsFound
+				}
+				found = true
+				result = datasetIdx{graphName, idx}
+			}
+		}
+	}
+
+	if found {
+		return result, nil
+	} else {
+		return datasetIdx{}, errParentNotFound
+	}
+}
+
+func findParent(ds *ld.RDFDataset, q *ld.Quad) (datasetIdx, error) {
+	parent, err := findParentInsideGraph(ds, q)
+	if err == nil {
+		return parent, nil
+	}
+
+	if err != errParentNotFound {
+		return datasetIdx{}, err
+	}
+
+	return findGraphParent(ds, q)
+}
+
+type qArrKey struct {
+	subject   refTp
+	predicate ld.IRI
+	graph     string
+}
+
+func mkQArrKey(q *ld.Quad) (qArrKey, error) {
+	var key qArrKey
+	var err error
+	key.graph, err = getGraphName(q)
+	if err != nil {
+		return key, err
+	}
+
+	switch s := q.Subject.(type) {
+	case *ld.IRI:
+		key.subject.tp = nodeTypeIRI
+		key.subject.val = s.Value
+	case *ld.BlankNode:
+		key.subject.tp = nodeTypeBlank
+		key.subject.val = s.Attribute
+	default:
+		return key, errors.New("invalid subject type")
+	}
+
+	switch p := q.Predicate.(type) {
+	case *ld.IRI:
+		key.predicate = *p
+	default:
+		return key, errors.New("invalid predicate type")
+	}
+
+	return key, nil
+}
+
+// iterate over graphs in consistent order
+func iterGraphsOrdered(ds *ld.RDFDataset,
+	fn func(graphName string, quads []*ld.Quad) error) error {
+
+	var graphNames = make([]string, 0, len(ds.Graphs))
+	for graphName := range ds.Graphs {
+		graphNames = append(graphNames, graphName)
+	}
+	sort.Strings(graphNames)
+
+	for _, graphName := range graphNames {
+		quads := ds.Graphs[graphName]
+
+		err := fn(graphName, quads)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func newRelationship(ds *ld.RDFDataset, hasher Hasher) (*relationship,
+	error) {
 	r := relationship{
-		parents:  make(map[nodeID]quadKey),
-		children: make(map[nodeID]map[ld.IRI][]nodeID),
+		parents:  make(map[datasetIdx]datasetIdx),
+		children: make(map[qArrKey]map[refTp]int),
 		hasher:   hasher,
 	}
 	if r.hasher == nil {
 		r.hasher = defaultHasher
 	}
 
-	subjectSet := make(map[nodeID]struct{})
-	for _, q := range quads {
-		subjID, err := newNodeID(q.Subject)
-		if err != nil {
-			return nil, err
-		}
-		subjectSet[subjID] = struct{}{}
+	err := iterGraphsOrdered(ds,
+		func(graphName string, quads []*ld.Quad) error {
+			for idx, q := range quads {
+				parentIdx, err := findParent(ds, q)
+				if errors.Is(err, errParentNotFound) {
+					continue
+				} else if err != nil {
+					return err
+				}
+				qIdx := datasetIdx{graphName, idx}
+				r.parents[qIdx] = parentIdx
+
+				parentQuad, err := getQuad(ds, parentIdx)
+				if err != nil {
+					return err
+				}
+
+				qKey, err := mkQArrKey(parentQuad)
+				if err != nil {
+					return err
+				}
+
+				childrenM, parentExists := r.children[qKey]
+				if !parentExists {
+					childrenM = make(map[refTp]int)
+					r.children[qKey] = childrenM
+				}
+
+				childRef, err := getRef(q.Subject)
+				if err != nil {
+					return err
+				}
+
+				_, childExists := childrenM[childRef]
+				if !childExists {
+					nextIdx := len(childrenM)
+					childrenM[childRef] = nextIdx
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
 	}
-
-	for _, q := range quads {
-		objID, err := newNodeID(q.Object)
-		if err != nil {
-			continue
-		}
-
-		_, ok := subjectSet[objID]
-		if !ok {
-			continue
-		}
-
-		qk, err := getQuadKey(q)
-		if err != nil {
-			return nil, err
-		}
-
-		r.parents[objID] = qk
-
-		termChildren := r.children[qk.subjectID]
-		if termChildren == nil {
-			termChildren = make(map[ld.IRI][]nodeID)
-		}
-		termChildren[qk.predicate] = append(
-			termChildren[qk.predicate], objID)
-		r.children[qk.subjectID] = termChildren
-	}
-
 	return &r, nil
 }
 
-func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
-	var k = Path{hasher: r.hasher}
-
-	if n == nil {
-		return k, errors.New("quad is nil")
+func getQuad(ds *ld.RDFDataset, idx datasetIdx) (*ld.Quad, error) {
+	quads, graphExists := ds.Graphs[idx.graph]
+	if !graphExists {
+		return nil, errGraphNotFound
 	}
 
-	subjID, err := newNodeID(n.Subject)
+	if idx.idx >= len(quads) {
+		return nil, errQuadNotFound
+	}
+
+	return quads[idx.idx], nil
+}
+
+func (r *relationship) path(dsIdx datasetIdx, ds *ld.RDFDataset,
+	idx *int) (Path, error) {
+
+	var k = Path{hasher: r.hasher}
+
+	if idx != nil {
+		err := k.Append(*idx)
+		if err != nil {
+			return k, err
+		}
+	}
+
+	n, err := getQuad(ds, dsIdx)
 	if err != nil {
 		return k, err
 	}
 
-	var predicate ld.IRI
-	switch qp := n.Predicate.(type) {
-	case *ld.IRI:
-		if qp == nil {
-			return k, errors.New("predicate IRI is nil")
-		}
-		predicate = *qp
-	default:
-		return k, errors.New("unexpected Quad's Predicate type")
-	}
-
-	if idx != nil {
-		err = k.Append(*idx)
-		if err != nil {
-			return k, err
-		}
+	var predicate *ld.IRI
+	predicate, err = getIriValue(n.Predicate)
+	if err != nil {
+		return k, err
 	}
 
 	err = k.Append(predicate.Value)
@@ -674,50 +849,75 @@ func (r *relationship) path(n *ld.Quad, idx *int) (Path, error) {
 		return k, err
 	}
 
-	nextKey := subjID
+	nextKey := dsIdx
 	for {
-		parent, ok := r.parents[nextKey]
+		parentIdx, ok := r.parents[nextKey]
 		if !ok {
 			break
 		}
 
-		termChildren, ok := r.children[parent.subjectID]
-		if !ok {
-			return k, errors.New("[assertion] parent not found in children")
-		}
-		children, ok := termChildren[parent.predicate]
-		if !ok {
-			return k, errors.New("[assertion] predicate not found in children")
+		var parent *ld.Quad
+		parent, err = getQuad(ds, parentIdx)
+		if err != nil {
+			return k, err
 		}
 
-		if len(children) == 1 {
-			err = k.Append(parent.predicate.Value)
-			if err != nil {
-				return k, err
-			}
+		parentKey, err := mkQArrKey(parent)
+		if err != nil {
+			return k, err
+		}
+
+		childrenMap, parentMappingExists := r.children[parentKey]
+		if !parentMappingExists {
+			return k, errors.New("parent mapping not found")
+		}
+
+		childQuad, err := getQuad(ds, nextKey)
+		if err != nil {
+			return k, err
+		}
+		childRef, err := getRef(childQuad.Subject)
+		if err != nil {
+			return k, err
+		}
+		childIdx, childFound := childrenMap[childRef]
+		if !childFound {
+			return k, errors.New("child not found in parents mapping")
+		}
+
+		var parentPredicate *ld.IRI
+		parentPredicate, err = getIriValue(parent.Predicate)
+		if err != nil {
+			return k, err
+		}
+
+		if len(childrenMap) == 1 {
+			err = k.Append(parentPredicate.Value)
 		} else {
-			found := false
-			for i, child := range children {
-				if child == nextKey {
-					found = true
-					err = k.Append(i, parent.predicate.Value)
-					if err != nil {
-						return k, err
-					}
-					break
-				}
-			}
-			if !found {
-				return k, errors.New(
-					"[assertion] child not found in parent's relations")
-			}
+			err = k.Append(childIdx, parentPredicate.Value)
+		}
+		if err != nil {
+			return k, err
 		}
 
-		nextKey = parent.subjectID
+		nextKey = parentIdx
 	}
 
 	k.reverse()
 	return k, nil
+}
+
+func getIriValue(n ld.Node) (*ld.IRI, error) {
+	switch qp := n.(type) {
+	case *ld.IRI:
+		if qp == nil {
+			return nil, errors.New("IRI is nil")
+		}
+		return qp, nil
+	default:
+		return nil, errors.New("type is not *ld.IRI")
+	}
+
 }
 
 var dateRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
@@ -733,122 +933,123 @@ func EntriesFromRDF(ds *ld.RDFDataset) ([]RDFEntry, error) {
 func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 	hasher Hasher) ([]RDFEntry, error) {
 
-	if len(ds.Graphs) != 1 {
-		return nil, errors.New("support only dataset with one @default graph")
+	// check graph naming assertions for dataset
+	if err := assertDatasetConsistency(ds); err != nil {
+		return nil, err
 	}
 
-	quads, ok := ds.Graphs["@default"]
+	quads, ok := ds.Graphs[defaultGraphNodeName]
 	if !ok {
 		return nil, errors.New("@default graph not found in dataset")
 	}
 
-	counts, err := countEntries(quads)
-	if err != nil {
-		return nil, err
-	}
-
-	seenCount := make(map[quadKey]int)
-
-	rs, err := newRelationship(quads, hasher)
+	rs, err := newRelationship(ds, hasher)
 	if err != nil {
 		return nil, err
 	}
 
 	entries := make([]RDFEntry, 0, len(quads))
-	for _, q := range quads {
-		var e RDFEntry
-		switch qo := q.Object.(type) {
-		case *ld.Literal:
-			if qo == nil {
-				return nil, errors.New("object Literal is nil")
-			}
-			switch qo.Datatype {
-			case "http://www.w3.org/2001/XMLSchema#boolean":
-				switch qo.Value {
-				case "false":
-					e.value = false
-				case "true":
-					e.value = true
-				default:
-					return nil, errors.New("incorrect boolean value")
-				}
-			case "http://www.w3.org/2001/XMLSchema#integer",
-				"http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
-				"http://www.w3.org/2001/XMLSchema#nonPositiveInteger",
-				"http://www.w3.org/2001/XMLSchema#negativeInteger",
-				"http://www.w3.org/2001/XMLSchema#positiveInteger":
-				e.value, err = strconv.ParseInt(qo.Value, 10, 64)
-				if err != nil {
-					return nil, err
-				}
-			case "http://www.w3.org/2001/XMLSchema#dateTime":
-				if dateRE.MatchString(qo.Value) {
-					e.value, err = time.ParseInLocation("2006-01-02",
-						qo.Value, time.UTC)
-				} else {
-					e.value, err = time.Parse(time.RFC3339Nano, qo.Value)
-				}
-				if err != nil {
-					return nil, err
-				}
-			default:
-				e.value = qo.GetValue()
-			}
-		case *ld.IRI:
-			if qo == nil {
-				return nil, errors.New("object IRI is nil")
-			}
-			e.value = qo.GetValue()
-		case *ld.BlankNode:
-			nID, err := newNodeID(qo)
+	graphProcessor := func(graphName string, quads []*ld.Quad) error {
+		counts, err := countEntries(quads)
+		if err != nil {
+			return err
+		}
+		seenCount := make(map[qArrKey]int)
+
+		for quadIdx, q := range quads {
+			quadGraphIdx := datasetIdx{graphName, quadIdx}
+			qKey, err := mkQArrKey(q)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			_, ok := rs.parents[nID]
-			if ok {
-				// this node is a reference to known children,
-				// skip it and do not put it into merkle tree because it
-				// has no defined @id attribute
-				continue
+			var e RDFEntry
+			switch qo := q.Object.(type) {
+			case *ld.Literal:
+				if qo == nil {
+					return errors.New("object Literal is nil")
+				}
+				switch qo.Datatype {
+				case ld.XSDBoolean:
+					switch qo.Value {
+					case "false":
+						e.value = false
+					case "true":
+						e.value = true
+					default:
+						return errors.New("incorrect boolean value")
+					}
+				case ld.XSDInteger,
+					ld.XSDNS + "nonNegativeInteger",
+					ld.XSDNS + "nonPositiveInteger",
+					ld.XSDNS + "negativeInteger",
+					ld.XSDNS + "positiveInteger":
+					e.value, err = strconv.ParseInt(qo.Value, 10, 64)
+					if err != nil {
+						return err
+					}
+				case ld.XSDNS + "dateTime":
+					if dateRE.MatchString(qo.Value) {
+						e.value, err = time.ParseInLocation("2006-01-02",
+							qo.Value, time.UTC)
+					} else {
+						e.value, err = time.Parse(time.RFC3339Nano, qo.Value)
+					}
+					if err != nil {
+						return err
+					}
+				default:
+					e.value = qo.GetValue()
+				}
+			case *ld.IRI:
+				if qo == nil {
+					return errors.New("object IRI is nil")
+				}
+				e.value = qo.GetValue()
+			case *ld.BlankNode:
+				if _, ok := rs.children[qKey]; ok {
+					// this node is a reference to known parent,
+					// skip it and do not put it into merkle tree because it
+					// will be used as parent for other nodes, but has
+					// no value to put itself.
+					continue
+				}
+				return errors.New("BlankNode is not supported yet")
+			default:
+				return errors.New("unexpected Quad's Object type")
 			}
-			return nil, errors.New("[1] BlankNode is not supported yet")
-		default:
-			return nil, errors.New("unexpected Quad's Object type")
-		}
 
-		qKey, err := getQuadKey(q)
-		if err != nil {
-			return nil, err
-		}
+			var idx *int
+			switch counts[qKey] {
+			case 0:
+				return errors.New("[assertion] key not found in counts")
+			case 1:
+				// leave idx nil: only one element, do not consider it as an array
+			default:
+				idx = new(int)
+				*idx = seenCount[qKey]
+				seenCount[qKey]++
+			}
+			e.key, err = rs.path(quadGraphIdx, ds, idx)
+			if err != nil {
+				return err
+			}
 
-		var idx *int
-		switch counts[qKey] {
-		case 0:
-			return nil, errors.New("[assertion] key not found in counts")
-		case 1:
-			// leave idx nil: only one element, do not consider it as an array
-		default:
-			idx = new(int)
-			*idx = seenCount[qKey]
-			seenCount[qKey]++
+			entries = append(entries, e)
 		}
-		e.key, err = rs.path(q, idx)
-		if err != nil {
-			return nil, err
-		}
-
-		entries = append(entries, e)
+		return nil
 	}
-
+	if err := iterGraphsOrdered(ds, graphProcessor); err != nil {
+		return nil, err
+	}
 	return entries, nil
 }
 
 // count number of entries with same key to distinguish between plain values
 // and arrays (sets)
-func countEntries(nodes []*ld.Quad) (map[quadKey]int, error) {
-	res := make(map[quadKey]int, len(nodes))
+func countEntries(nodes []*ld.Quad) (map[qArrKey]int, error) {
+	res := make(map[qArrKey]int, len(nodes))
 	for _, q := range nodes {
-		key, err := getQuadKey(q)
+		key, err := mkQArrKey(q)
 		if err != nil {
 			return nil, err
 		}
@@ -857,26 +1058,19 @@ func countEntries(nodes []*ld.Quad) (map[quadKey]int, error) {
 	return res, nil
 }
 
-func getQuadKey(q *ld.Quad) (quadKey, error) {
-	var key quadKey
+const defaultGraphNodeName = "@default"
 
-	if q == nil {
-		return key, errors.New("quad is nil")
+func getGraphName(quad *ld.Quad) (string, error) {
+	if quad.Graph == nil {
+		return defaultGraphNodeName, nil
 	}
 
-	var err error
-	key.subjectID, err = newNodeID(q.Subject)
-	if err != nil {
-		return key, err
+	iri, ok := quad.Graph.(*ld.BlankNode)
+	if !ok {
+		return "", errors.New("graph node is not of *ld.BlankNode type")
 	}
 
-	predicate, ok := q.Predicate.(*ld.IRI)
-	if !ok || predicate == nil {
-		return key, errors.New("predicate is not of IRI type or nil")
-	}
-	key.predicate = *predicate
-
-	return key, nil
+	return iri.Attribute, nil
 }
 
 type mtAppender interface {
@@ -967,10 +1161,11 @@ func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 
 // Merklizer is a struct to work with json-ld doc merklization
 type Merklizer struct {
-	srcDoc  []byte
-	mt      MerkleTree
-	entries map[string]RDFEntry
-	hasher  Hasher
+	srcDoc    []byte
+	compacted map[string]interface{}
+	mt        MerkleTree
+	entries   map[string]RDFEntry
+	hasher    Hasher
 }
 
 // MerklizeOption is options for merklizer
@@ -1060,7 +1255,75 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 		return nil, err
 	}
 
-	return mz, nil
+	mz.compacted, err = proc.Compact(obj, nil, options)
+	return mz, err
+}
+
+func rvExtractObjField(obj any, field string) (any, error) {
+	jsObj, isJSONObj := obj.(map[string]any)
+	if !isJSONObj {
+		return nil, errors.New("expected object")
+	}
+
+	graphObj, embeddedGraphExists := jsObj["@graph"]
+	if len(jsObj) == 1 && embeddedGraphExists {
+		var isGraphObjValid bool
+		jsObj, isGraphObjValid = graphObj.(map[string]any)
+		if !isGraphObjValid {
+			return nil, errors.New("embedded graph of unexpected type")
+		}
+	}
+
+	var fieldExists bool
+	obj, fieldExists = jsObj[field]
+	if !fieldExists {
+		return nil, errors.New("value not found")
+	}
+	return obj, nil
+}
+
+func rvExtractArrayIdx(obj any, idx int) (any, error) {
+	objArr, isArray := obj.([]any)
+	if !isArray {
+		return nil, errors.New("expected array")
+	}
+	if idx < 0 || idx >= len(objArr) {
+		return nil, errors.New("index is out of range")
+	}
+	return objArr[idx], nil
+}
+
+func (m *Merklizer) RawValue(path Path) (any, error) {
+	parts := path.Parts()
+	var obj any = m.compacted
+	var err error
+	var traversedParts []string
+	currentPath := func() string { return strings.Join(traversedParts, " / ") }
+
+	for len(parts) > 0 {
+		switch field := parts[0].(type) {
+		case string:
+			traversedParts = append(traversedParts, field)
+			obj, err = rvExtractObjField(obj, field)
+		case int:
+			traversedParts = append(traversedParts, fmt.Sprintf("[%v]", field))
+			obj, err = rvExtractArrayIdx(obj, field)
+		default:
+			err = errors.New("unexpected type of path")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%v at '%v'", err, currentPath())
+		}
+		parts = parts[1:]
+	}
+
+	if jsObj, isJSONObj := obj.(map[string]any); isJSONObj {
+		if val, hasValue := jsObj["@value"]; hasValue {
+			return val, nil
+		}
+	}
+
+	return obj, nil
 }
 
 func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
@@ -1094,7 +1357,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 			return nil, nil, errors.New(
 				"[assertion] no entry found while existence is true")
 		}
-		value, err = newValue(m.hasher, entry.value)
+		value, err = NewValue(m.hasher, entry.value)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1104,7 +1367,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 }
 
 func (m *Merklizer) MkValue(val any) (Value, error) {
-	return newValue(m.hasher, val)
+	return NewValue(m.hasher, val)
 }
 
 func (m *Merklizer) Root() *merkletree.Hash {
@@ -1162,4 +1425,44 @@ func mkValueString(h Hasher, val string) (*big.Int, error) {
 
 func mkValueTime(h Hasher, val time.Time) (*big.Int, error) {
 	return mkValueInt(h, val.UnixNano())
+}
+
+// assert consistency of dataset and validate that only
+// quads we support contains in dataset.
+func assertDatasetConsistency(ds *ld.RDFDataset) error {
+	for graph, quads := range ds.Graphs {
+		for _, q := range quads {
+			if graph == "" {
+				return errors.New("empty graph name")
+			}
+
+			if graph == defaultGraphNodeName && q.Graph != nil {
+				return errors.New("graph should be nil for @default graph")
+			}
+
+			if q.Graph == nil && graph != defaultGraphNodeName {
+				return errors.New(
+					"graph should not be nil for non-@default graph")
+			}
+
+			if q.Graph != nil {
+				n, ok := q.Graph.(*ld.BlankNode)
+				if !ok {
+					return errors.New("graph should be of type *ld.BlankNode")
+				}
+
+				if n.Attribute != graph {
+					return errors.New(
+						"graph name should be equal to graph attribute")
+				}
+			}
+
+			// predicate should always be *ld.IRI
+			_, ok := q.Predicate.(*ld.IRI)
+			if !ok {
+				return errors.New("predicate should be of type *ld.IRI")
+			}
+		}
+	}
+	return nil
 }
