@@ -84,7 +84,7 @@ type CredentialStatus struct {
 type RHSCredentialStatus struct {
 	ID              string               `json:"id"`
 	Type            CredentialStatusType `json:"type"`
-	RevocationNonce uint64               `json:"revocationNonce,omitempty"`
+	RevocationNonce uint64               `json:"revocationNonce"`
 	StatusIssuer    *CredentialStatus    `json:"statusIssuer,omitempty"`
 }
 
