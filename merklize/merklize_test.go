@@ -461,7 +461,7 @@ func TestMerklizer_Proof(t *testing.T) {
 		require.NoError(t, err)
 
 		birthDate := time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC)
-		birthDate.Equal(valueDateType)
+		require.True(t, birthDate.Equal(valueDateType))
 
 		valueMtEntry, err := value.MtEntry()
 		require.NoError(t, err)
