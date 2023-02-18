@@ -1396,11 +1396,11 @@ func mkValueMtEntry(h Hasher, v interface{}) (*big.Int, error) {
 	case int:
 		return mkValueInt(h, et)
 	case uint64:
-		return mkValueUInt(h, et)
+		return mkValueUInt(et)
 	case uint32:
-		return mkValueUInt(h, et)
+		return mkValueUInt(et)
 	case uint:
-		return mkValueUInt(h, et)
+		return mkValueUInt(et)
 	case bool:
 		return mkValueBool(h, et)
 	case string:
@@ -1420,7 +1420,7 @@ func mkValueInt[I int64 | int32 | int](h Hasher, val I) (*big.Int, error) {
 	}
 }
 
-func mkValueUInt[I uint64 | uint32 | uint](h Hasher, val I) (*big.Int, error) {
+func mkValueUInt[I uint64 | uint32 | uint](val I) (*big.Int, error) {
 	return new(big.Int).SetUint64(uint64(val)), nil
 }
 
