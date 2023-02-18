@@ -760,11 +760,6 @@ var doc1 = `
         "VerifiableCredential",
         "KYCAgeCredential"
     ],
-    "version": 0,
-    "updatable": false,
-    "subjectPosition": "index",
-    "revNonce": 127366661,
-    "merklizedRootPosition": "index",
     "id": "http://myid.com",
     "expirationDate": "2361-03-21T21:14:48+02:00",
     "credentialSubject": {
