@@ -461,7 +461,7 @@ func TestMerklizer_Proof(t *testing.T) {
 		require.NoError(t, err)
 
 		birthDate := time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC)
-		birthDate.Equal(valueDateType)
+		require.True(t, birthDate.Equal(valueDateType))
 
 		valueMtEntry, err := value.MtEntry()
 		require.NoError(t, err)
@@ -760,11 +760,6 @@ var doc1 = `
         "VerifiableCredential",
         "KYCAgeCredential"
     ],
-    "version": 0,
-    "updatable": false,
-    "subjectPosition": "index",
-    "revNonce": 127366661,
-    "merklizedRootPosition": "index",
     "id": "http://myid.com",
     "expirationDate": "2361-03-21T21:14:48+02:00",
     "credentialSubject": {
@@ -956,4 +951,33 @@ func TestMerklizer_RawValue(t *testing.T) {
 	val, err := mz.RawValue(path)
 	require.NoError(t, err)
 	require.Equal(t, float64(19960425), val)
+}
+
+func TestIncorrectDocument_UnsafeMode(t *testing.T) {
+	const docUnknownFields = `{
+    "id": "http://127.0.0.1/id",
+    "expirationDate": "2030-01-01T00:00:00Z"
+}`
+
+	ctx := context.Background()
+
+	t.Run("default safe mode", func(t *testing.T) {
+		_, err := MerklizeJSONLD(ctx, strings.NewReader(docUnknownFields))
+		require.EqualError(t, err,
+			"invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
+
+	})
+
+	t.Run("explicitly set safe mode", func(t *testing.T) {
+		_, err := MerklizeJSONLD(ctx, strings.NewReader(docUnknownFields),
+			WithSafeMode(true))
+		require.EqualError(t, err,
+			"invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
+	})
+
+	t.Run("explicitly set unsafe mode", func(t *testing.T) {
+		_, err := MerklizeJSONLD(ctx, strings.NewReader(docUnknownFields),
+			WithSafeMode(false))
+		require.NoError(t, err)
+	})
 }

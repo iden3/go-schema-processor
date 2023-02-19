@@ -1166,6 +1166,7 @@ type Merklizer struct {
 	mt        MerkleTree
 	entries   map[string]RDFEntry
 	hasher    Hasher
+	safeMode  bool
 }
 
 // MerklizeOption is options for merklizer
@@ -1185,12 +1186,23 @@ func WithMerkleTree(mt MerkleTree) MerklizeOption {
 	}
 }
 
+// WithSafeMode enables the Safe mode when extending a JSON-LD document.
+// The default setting for this mode is "true". If the function encounters
+// an unknown field with an incorrect IRI predicate, it will return an error.
+// However, if the Safe mode is set to "false", the function will simply skip
+// the incorrect field and continue the merklization process without it.
+func WithSafeMode(safeMode bool) MerklizeOption {
+	return func(m *Merklizer) {
+		m.safeMode = safeMode
+	}
+}
+
 // MerklizeJSONLD takes a JSON-LD document, parses it and returns a
 // Merklizer
 func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	opts ...MerklizeOption) (*Merklizer, error) {
 
-	mz := &Merklizer{}
+	mz := &Merklizer{safeMode: true}
 	for _, o := range opts {
 		o(mz)
 	}
@@ -1223,7 +1235,8 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 
 	proc := ld.NewJsonLdProcessor()
 	options := ld.NewJsonLdOptions("")
-	options.Algorithm = "URDNA2015"
+	options.Algorithm = ld.AlgorithmURDNA2015
+	options.SafeMode = mz.safeMode
 
 	normDoc, err := proc.Normalize(obj, options)
 	if err != nil {
@@ -1383,11 +1396,11 @@ func mkValueMtEntry(h Hasher, v interface{}) (*big.Int, error) {
 	case int:
 		return mkValueInt(h, et)
 	case uint64:
-		return mkValueUInt(h, et)
+		return mkValueUInt(et)
 	case uint32:
-		return mkValueUInt(h, et)
+		return mkValueUInt(et)
 	case uint:
-		return mkValueUInt(h, et)
+		return mkValueUInt(et)
 	case bool:
 		return mkValueBool(h, et)
 	case string:
@@ -1407,7 +1420,7 @@ func mkValueInt[I int64 | int32 | int](h Hasher, val I) (*big.Int, error) {
 	}
 }
 
-func mkValueUInt[I uint64 | uint32 | uint](h Hasher, val I) (*big.Int, error) {
+func mkValueUInt[I uint64 | uint32 | uint](val I) (*big.Int, error) {
 	return new(big.Int).SetUint64(uint64(val)), nil
 }
 

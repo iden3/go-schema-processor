@@ -7,7 +7,11 @@ require (
 	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/iden3/go-merkletree-sql/v2 v2.0.0
 	github.com/ipfs/go-ipfs-api v0.3.0
-	github.com/piprate/json-gold v0.5.0
+	// We require the `json-gold` bugfix which has not yet been included in the
+	// stable version. After the release of version 0.5.1 or later, it will be
+	// necessary to update to the stable version.
+	// https://github.com/piprate/json-gold/commit/36fcca9d7e487684a764e552e7d837a14546a157
+	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/pkg/errors v0.9.1
 	github.com/qri-io/jsonschema v0.2.1
 	github.com/stretchr/testify v1.8.1
