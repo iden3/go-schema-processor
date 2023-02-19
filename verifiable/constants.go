@@ -7,7 +7,7 @@ const (
 	TypeW3CVerifiableCredential = "VerifiableCredential"
 
 	// JSONLDSchemaIden3Credential is a schema for context with W3CCredential type
-	JSONLDSchemaIden3Credential = "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld"
+	JSONLDSchemaIden3Credential = "https://schema.iden3.io/core/jsonld/iden3proofs.jsonld"
 
 	// JSONLDSchemaW3CCredential2018 is a schema for context with VerifiableCredential type
 	JSONLDSchemaW3CCredential2018 = "https://www.w3.org/2018/credentials/v1"
