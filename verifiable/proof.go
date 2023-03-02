@@ -103,6 +103,8 @@ func (p *BJJSignatureProof2021) GetCoreClaim() (*core.Claim, error) {
 }
 
 // Iden3SparseMerkleProof JSON-LD structure
+//
+// Deprecated: replaced with Iden3SparseMerkleTreeProof
 type Iden3SparseMerkleProof struct {
 	Type ProofType `json:"type"`
 
@@ -144,6 +146,53 @@ func (p *Iden3SparseMerkleProof) ProofType() ProofType {
 }
 
 func (p *Iden3SparseMerkleProof) GetCoreClaim() (*core.Claim, error) {
+	var coreClaim core.Claim
+	err := coreClaim.FromHex(p.CoreClaim)
+	return &coreClaim, err
+}
+
+// Iden3SparseMerkleTreeProof JSON-LD structure
+type Iden3SparseMerkleTreeProof struct {
+	Type ProofType `json:"type"`
+
+	IssuerData IssuerData `json:"issuerData"`
+	CoreClaim  string     `json:"coreClaim"`
+
+	MTP *mt.Proof `json:"mtp"`
+}
+
+func (p *Iden3SparseMerkleTreeProof) UnmarshalJSON(in []byte) error {
+	var obj struct {
+		Type       ProofType       `json:"type"`
+		IssuerData json.RawMessage `json:"issuerData"`
+		CoreClaim  string          `json:"coreClaim"`
+		MTP        *mt.Proof       `json:"mtp"`
+	}
+	err := json.Unmarshal(in, &obj)
+	if err != nil {
+		return err
+	}
+	if obj.Type != Iden3SparseMerkleTreeProofType {
+		return errors.New("invalid proof type")
+	}
+	p.Type = obj.Type
+	err = json.Unmarshal(obj.IssuerData, &p.IssuerData)
+	if err != nil {
+		return err
+	}
+	if err := validateHexCoreClaim(obj.CoreClaim); err != nil {
+		return err
+	}
+	p.CoreClaim = obj.CoreClaim
+	p.MTP = obj.MTP
+	return nil
+}
+
+func (p *Iden3SparseMerkleTreeProof) ProofType() ProofType {
+	return p.Type
+}
+
+func (p *Iden3SparseMerkleTreeProof) GetCoreClaim() (*core.Claim, error) {
 	var coreClaim core.Claim
 	err := coreClaim.FromHex(p.CoreClaim)
 	return &coreClaim, err
@@ -233,6 +282,10 @@ func extractProof(proof any) (CredentialProof, error) {
 		return &proof, err
 	case Iden3SparseMerkleProofType:
 		var proof Iden3SparseMerkleProof
+		err := reUnmarshalFromObj(proofJ, &proof)
+		return &proof, err
+	case Iden3SparseMerkleTreeProofType:
+		var proof Iden3SparseMerkleTreeProof
 		err := reUnmarshalFromObj(proofJ, &proof)
 		return &proof, err
 	default:

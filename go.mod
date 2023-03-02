@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/qri-io/jsonschema v0.2.1
 	github.com/stretchr/testify v1.8.1
-	golang.org/x/crypto v0.0.0-20220126234351-aa10faf2a1f8
+	golang.org/x/crypto v0.6.0
 )
 
 require (
@@ -47,6 +47,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	go.opencensus.io v0.22.4 // indirect
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
