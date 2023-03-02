@@ -333,7 +333,6 @@ func TestCredentialProofs_UnmarshalJSON(t *testing.T) {
 
 func TestIden3SparseMerkleTreeProofType_is_CredentialProof(t *testing.T) {
 	var p Iden3SparseMerkleTreeProof
-	var cp CredentialProof
-	cp = &p
+	var cp CredentialProof = &p
 	_ = cp
 }
