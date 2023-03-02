@@ -25,7 +25,12 @@ const (
 	BJJSignatureProofType ProofType = "BJJSignature2021"
 
 	// Iden3SparseMerkleProofType is a proof type for MTP proofs with iden3 metadata
+	//
+	// Deprecated: Iden3SparseMerkleProofType is not correct semantically and replaced by Iden3SparseMerkleTreeProofType
 	Iden3SparseMerkleProofType ProofType = "Iden3SparseMerkleProof"
+
+	// Iden3SparseMerkleTreeProofType is a proof type for MTP proofs with iden3 metadata. Context is defined here: https://schema.iden3.io/core/jsonld/iden3proofs.jsonld
+	Iden3SparseMerkleTreeProofType ProofType = "Iden3SparseMerkleTreeProof"
 
 	// SparseMerkleTreeProofType ia a standard SMT proof type
 	SparseMerkleTreeProofType ProofType = "SparseMerkleTreeProof"
