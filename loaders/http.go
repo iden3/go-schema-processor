@@ -2,13 +2,14 @@ package loaders
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // ErrorURLEmpty is empty url error
@@ -48,9 +49,12 @@ func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err er
 		return nil, "", errors.WithMessage(err, "http request failed")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", errors.Errorf("request failed with status code %v", resp.StatusCode)
+		return nil, "", errors.Errorf("request failed with status code %v",
+			resp.StatusCode)
 	}
 
+	//nolint:gosec //reason: remove it after fix for 49366 and uncomment
+	//                       following code
 	defer resp.Body.Close()
 
 	// TODO: https://github.com/golang/go/issues/49366 wait for fix

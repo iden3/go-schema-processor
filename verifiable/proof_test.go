@@ -129,6 +129,69 @@ func TestIden3SparseMerkleProof_UnmarshalJSON(t *testing.T) {
 	require.Equal(t, wantProof, proof)
 }
 
+func TestIden3SparseMerkleTreeProof_UnmarshalJSON(t *testing.T) {
+	in := `{
+  "type": "Iden3SparseMerkleTreeProof",
+  "issuerData": {
+    "id": "did:iden3:polygon:mumbai:wvEkzpApgwGHrSTxEFG6V6HrTCa5R2rwQ3XWAkrnG",
+    "state": {
+      "txId": "0x705881f799496f399321f7b3b0f9aab80e358e5fdacb877ef18f10afc8be156e",
+      "blockTimestamp": 1671180108,
+      "blockNumber": 29756768,
+      "rootOfRoots": "db07217f60526821e8c079802ebfbfb9cd07e42d4220ff72f264d9bddbe87d2f",
+      "claimsTreeRoot": "447b1dfd065752d099c4c8eeb181dfe1363c64491eb413f01d6e60daf6bc792e",
+      "revocationTreeRoot": "0000000000000000000000000000000000000000000000000000000000000000",
+      "value": "0bc71a0bdbf1a3e8513069b170c6b62601288fcf231f874b52e4e546dddcbb2d"
+    }
+  },
+  "coreClaim": "c9b2370371b7fa8b3dab2a5ba81b68382a0000000000000000000000000000000112b4f1183b6a0708a8addd31c093004ac2e40ab1b291ad6d208244032b0c006947c37450a6a4c50a586e8a253dc8385d8d1ee77b37f464fe5052dc2f0dd8020000000000000000000000000000000000000000000000000000000000000000e29d235b00000000281cdcdf0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "mtp": {
+    "existence": true,
+    "siblings": [
+      "0",
+      "13291429422163653257975736723599735973011351095941906941706092370486076739639",
+      "13426716414767621234869633661856285788095461522423569801792562280466318278688"
+    ]
+  }
+}`
+	wantProof := Iden3SparseMerkleTreeProof{
+		Type: Iden3SparseMerkleTreeProofType,
+		IssuerData: IssuerData{
+			ID: "did:iden3:polygon:mumbai:wvEkzpApgwGHrSTxEFG6V6HrTCa5R2rwQ3XWAkrnG",
+			State: State{
+				TxID:               &[]string{"0x705881f799496f399321f7b3b0f9aab80e358e5fdacb877ef18f10afc8be156e"}[0],
+				BlockTimestamp:     &[]int{1671180108}[0],
+				BlockNumber:        &[]int{29756768}[0],
+				RootOfRoots:        &[]string{"db07217f60526821e8c079802ebfbfb9cd07e42d4220ff72f264d9bddbe87d2f"}[0],
+				ClaimsTreeRoot:     &[]string{"447b1dfd065752d099c4c8eeb181dfe1363c64491eb413f01d6e60daf6bc792e"}[0],
+				RevocationTreeRoot: &[]string{"0000000000000000000000000000000000000000000000000000000000000000"}[0],
+				Value:              &[]string{"0bc71a0bdbf1a3e8513069b170c6b62601288fcf231f874b52e4e546dddcbb2d"}[0],
+				Status:             "",
+			},
+			AuthCoreClaim:    "",
+			MTP:              nil,
+			CredentialStatus: nil,
+		},
+		CoreClaim: "c9b2370371b7fa8b3dab2a5ba81b68382a0000000000000000000000000000000112b4f1183b6a0708a8addd31c093004ac2e40ab1b291ad6d208244032b0c006947c37450a6a4c50a586e8a253dc8385d8d1ee77b37f464fe5052dc2f0dd8020000000000000000000000000000000000000000000000000000000000000000e29d235b00000000281cdcdf0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		MTP: mustProof(t, true, []*mt.Hash{
+			mustHash(t, "0"),
+			mustHash(t,
+				"13291429422163653257975736723599735973011351095941906941706092370486076739639"),
+			mustHash(t,
+				"13426716414767621234869633661856285788095461522423569801792562280466318278688"),
+		}),
+	}
+	var proof Iden3SparseMerkleTreeProof
+	err := json.Unmarshal([]byte(in), &proof)
+	require.NoError(t, err)
+	require.Equal(t, wantProof, proof)
+
+	var proof2 Iden3SparseMerkleTreeProof
+	err = proof2.UnmarshalJSON([]byte(in))
+	require.NoError(t, err)
+	require.Equal(t, wantProof, proof2)
+}
+
 func TestCommonProof_UnmarshalJSON(t *testing.T) {
 	in := `{
   "type": "Ed25519Signature2020",
@@ -266,4 +329,10 @@ func TestCredentialProofs_UnmarshalJSON(t *testing.T) {
 		},
 	}
 	require.Equal(t, want, p)
+}
+
+func TestIden3SparseMerkleTreeProofType_is_CredentialProof(t *testing.T) {
+	var p Iden3SparseMerkleTreeProof
+	var cp CredentialProof = &p
+	_ = cp
 }
