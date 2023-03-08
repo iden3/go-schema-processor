@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/iden3/go-iden3-core v1.0.0
-	github.com/iden3/go-iden3-crypto v0.0.13
+	github.com/iden3/go-iden3-crypto v0.0.14
 	github.com/iden3/go-merkletree-sql/v2 v2.0.0
 	github.com/ipfs/go-ipfs-api v0.3.0
 	// We require the `json-gold` bugfix which has not yet been included in the
@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/qri-io/jsonschema v0.2.1
 	github.com/stretchr/testify v1.8.2
-	golang.org/x/crypto v0.6.0
+	golang.org/x/crypto v0.7.0
 )
 
 require (
@@ -47,6 +47,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b // indirect
 	go.opencensus.io v0.22.4 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
