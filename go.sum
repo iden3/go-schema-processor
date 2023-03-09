@@ -17,8 +17,8 @@ github.com/iden3/go-iden3-core v1.0.0 h1:GNwuYOHZD7hiWjmW+wv26RW9f/JwF4lRQu7/55f
 github.com/iden3/go-iden3-core v1.0.0/go.mod h1:wJtcMK/bSazyW/JrQaRrbpUMgSMg79Pke3xgtfPxDnQ=
 github.com/iden3/go-iden3-crypto v0.0.14 h1:HQnFchY735JRNQxof6n/Vbyon4owj4+Ku+LNAamWV6c=
 github.com/iden3/go-iden3-crypto v0.0.14/go.mod h1:dLpM4vEPJ3nDHzhWFXDjzkn1qHoBeOT/3UEhXsEsP3E=
-github.com/iden3/go-merkletree-sql/v2 v2.0.0 h1:7tMgHCUJCo0jxyM15fjCc7G9Dy0x2rmX+lwa8tqEfho=
-github.com/iden3/go-merkletree-sql/v2 v2.0.0/go.mod h1:hQbfImlyOJiI+c8FFuFiEMrjpZN0PylRb0aT8uAa+Sg=
+github.com/iden3/go-merkletree-sql/v2 v2.0.2 h1:OylwdQlR0rCxGdUfE3R6HLH6IjlTs13IVB2Fi9Z02Rk=
+github.com/iden3/go-merkletree-sql/v2 v2.0.2/go.mod h1:68u+rKk9RU/h4KUm1hnUS9tT3ZfeSAyyrSiWmzZH5gI=
 github.com/ipfs/go-cid v0.3.2 h1:OGgOd+JCFM+y1DjWPmVH+2/4POtpDzwcr7VgnB7mZXc=
 github.com/ipfs/go-cid v0.3.2/go.mod h1:gQ8pKqT/sUxGY+tIwy1RPpAojYu7jAyCp5Tz1svoupw=
 github.com/ipfs/go-ipfs-api v0.4.0 h1:mmH1uSUJLWI4x5hKT4U4p/JwzS6HieFdpBVAM9CPQnI=
