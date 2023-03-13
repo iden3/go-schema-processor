@@ -611,7 +611,7 @@ func fmtPath(p Path) string {
 
 func TestPathFromContext(t *testing.T) {
 	// this file downloaded from here: https://www.w3.org/2018/credentials/v1
-	ctxBytes, err := os.ReadFile("testdata/credentials_v1.json")
+	ctxBytes, err := os.ReadFile("testdata/custom_schema.json")
 	require.NoError(t, err)
 
 	in := "VerifiableCredential.credentialSchema.JsonSchemaValidator2018"
@@ -628,7 +628,7 @@ func TestPathFromContext(t *testing.T) {
 }
 
 func TestFieldPathFromContext(t *testing.T) {
-	ctxBytes, err := os.ReadFile("testdata/credential_2.json-ld")
+	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
 
 	typ := "KYCAgeCredential"
@@ -983,7 +983,7 @@ func TestIncorrectDocument_UnsafeMode(t *testing.T) {
 }
 
 func TestTypeFromContext(t *testing.T) {
-	ctxBytes, err := os.ReadFile("testdata/credential_2.json-ld")
+	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
 
 	pathToField := "KYCAgeCredential.birthday"
