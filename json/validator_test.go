@@ -1,9 +1,10 @@
 package json
 
 import (
+	"testing"
+
 	"github.com/iden3/go-schema-processor/verifiable"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestValidator_ValidateData(t *testing.T) {

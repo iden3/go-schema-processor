@@ -55,7 +55,11 @@ func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err er
 
 	//nolint:gosec //reason: remove it after fix for 49366 and uncomment
 	//                       following code
-	defer resp.Body.Close()
+	defer func() {
+		if err = resp.Body.Close(); err != nil {
+			log.Println("failed close body response:", err.Error())
+		}
+	}()
 
 	// TODO: https://github.com/golang/go/issues/49366 wait for fix
 	//nolint //reason: needed in future

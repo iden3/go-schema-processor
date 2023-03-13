@@ -160,6 +160,7 @@ func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, 
 	return resPath, nil
 }
 
+// TypeFromContext returns type of field from context by path.
 func TypeFromContext(ctxBytes []byte, path string) (string, error) {
 	var ctxObj map[string]interface{}
 	err := json.Unmarshal(ctxBytes, &ctxObj)

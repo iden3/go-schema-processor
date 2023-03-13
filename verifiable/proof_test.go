@@ -63,7 +63,7 @@ func mustHash(t *testing.T, intStr string) *mt.Hash {
 	return h
 }
 
-//nolint:unparam // reason: existence is always true for now.
+// nolint:unparam // reason: existence is always true for now.
 // If someday we will pass false here, nolint commend may be deleted.
 func mustProof(t *testing.T, existence bool, siblings []*mt.Hash) *mt.Proof {
 	p, err := mt.NewProofFromData(existence, siblings, nil)
