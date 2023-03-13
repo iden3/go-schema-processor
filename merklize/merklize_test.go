@@ -981,3 +981,13 @@ func TestIncorrectDocument_UnsafeMode(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestTypeFromContext(t *testing.T) {
+	ctxBytes, err := os.ReadFile("testdata/credential_2.json-ld")
+	require.NoError(t, err)
+
+	pathToField := "KYCAgeCredential.birthday"
+	typ, err := TypeFromContext(ctxBytes, pathToField)
+	require.NoError(t, err)
+	require.Equal(t, "http://www.w3.org/2001/XMLSchema#integer", typ)
+}
