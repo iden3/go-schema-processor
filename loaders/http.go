@@ -53,13 +53,9 @@ func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err er
 			resp.StatusCode)
 	}
 
-	//nolint:gosec //reason: remove it after fix for 49366 and uncomment
+	//nolint:gosec,errcheck //reason: remove it after fix for 49366 and uncomment
 	//                       following code
-	defer func() {
-		if err = resp.Body.Close(); err != nil {
-			log.Println("failed close body response:", err.Error())
-		}
-	}()
+	defer resp.Body.Close()
 
 	// TODO: https://github.com/golang/go/issues/49366 wait for fix
 	//nolint //reason: needed in future
