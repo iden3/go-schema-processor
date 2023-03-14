@@ -30,8 +30,8 @@ var (
 	ErrorFieldIsEmpty = errors.New("fieldPath is empty")
 	// ErrorContextTypeIsEmpty is returned when context type tp resolve is empty
 	ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
-	// ErrorUnsupportedXSDType is returned when xsd type is not supported
-	ErrorUnsupportedXSDType = errors.New("unsupported xsd type")
+	// ErrorUnsupportedType is returned when type is not supported
+	ErrorUnsupportedType = errors.New("unsupported type")
 )
 
 // SetHasher changes default hasher
@@ -1096,7 +1096,7 @@ func convertAnyToString(value any) (str string, err error) {
 	case bool:
 		str = fmt.Sprintf("%v", v)
 	default:
-		return str, ErrorUnsupportedXSDType
+		return str, ErrorUnsupportedType
 	}
 	return str, nil
 }

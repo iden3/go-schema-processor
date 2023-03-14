@@ -1132,7 +1132,7 @@ func TestHashValue_Errors(t *testing.T) {
 			pathToField: "KYCEmployee.documentType",
 			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
 			value:       []byte{1},
-			wantErr:     ErrorUnsupportedXSDType.Error(),
+			wantErr:     ErrorUnsupportedType.Error(),
 		},
 	}
 
