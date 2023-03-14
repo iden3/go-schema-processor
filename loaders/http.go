@@ -48,24 +48,19 @@ func (l HTTP) Load(ctx context.Context) (schema []byte, extension string, err er
 	if err != nil {
 		return nil, "", errors.WithMessage(err, "http request failed")
 	}
+
+	defer func() {
+		if err2 := resp.Body.Close(); err2 != nil {
+			if err == nil {
+				err = err2
+			}
+		}
+	}()
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", errors.Errorf("request failed with status code %v",
 			resp.StatusCode)
 	}
-
-	//nolint:gosec //reason: remove it after fix for 49366 and uncomment
-	//                       following code
-	defer resp.Body.Close()
-
-	// TODO: https://github.com/golang/go/issues/49366 wait for fix
-	//nolint //reason: needed in future
-	/*
-		defer func() {
-			if tempErr := resp.Body.Close(); tempErr != nil {
-			err = tempErr
-			}
-		}()
-	*/
 
 	// We Read the response body on the line below.
 	schema, err = io.ReadAll(resp.Body)

@@ -3,6 +3,7 @@ package loaders
 import (
 	"bytes"
 	"context"
+
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/pkg/errors"
 )

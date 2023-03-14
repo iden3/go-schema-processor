@@ -20,13 +20,17 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
-var defaultHasher Hasher = PoseidonHasher{}
+var (
+	defaultHasher Hasher = PoseidonHasher{}
+	numRE                = regexp.MustCompile(`^\d+$`)
+)
 
-// ErrorFieldIsEmpty is returned when field path to resolve is empty
-var ErrorFieldIsEmpty = errors.New("fieldPath is empty")
-
-// ErrorContextTypeIsEmpty is returned when context type tp resolve is empty
-var ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
+var (
+	// ErrorFieldIsEmpty is returned when field path to resolve is empty
+	ErrorFieldIsEmpty = errors.New("fieldPath is empty")
+	// ErrorContextTypeIsEmpty is returned when context type tp resolve is empty
+	ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
+)
 
 // SetHasher changes default hasher
 func SetHasher(h Hasher) {
@@ -156,6 +160,44 @@ func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, 
 	return resPath, nil
 }
 
+// TypeFromContext returns type of field from context by path.
+func TypeFromContext(ctxBytes []byte, path string) (string, error) {
+	var ctxObj map[string]interface{}
+	err := json.Unmarshal(ctxBytes, &ctxObj)
+	if err != nil {
+		return "", err
+	}
+
+	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxObj["@context"])
+	if err != nil {
+		return "", err
+	}
+
+	parts := strings.Split(path, ".")
+
+	for _, term := range parts {
+		if ldCtx == nil {
+			return "", errors.New("context is nil")
+		}
+
+		m := ldCtx.GetTermDefinition(term)
+		_, ok := m["@id"]
+		if !ok {
+			return "", fmt.Errorf("no @id attribute for term: %v", term)
+		}
+
+		nextCtx, ok := m["@context"]
+		if ok {
+			var err error
+			ldCtx, err = ldCtx.Parse(nextCtx)
+			if err != nil {
+				return "", nil
+			}
+		}
+	}
+	return ldCtx.GetTypeMapping(parts[len(parts)-1]), nil
+}
+
 func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 
 	var ctxObj map[string]interface{}
@@ -205,8 +247,6 @@ func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 
 	return nil
 }
-
-var numRE = regexp.MustCompile(`^\d+$`)
 
 // Create path JSON-LD document.
 // If acceptArray is true, the previous element was index, and we accept an
