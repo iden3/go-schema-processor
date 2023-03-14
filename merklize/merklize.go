@@ -30,6 +30,8 @@ var (
 	ErrorFieldIsEmpty = errors.New("fieldPath is empty")
 	// ErrorContextTypeIsEmpty is returned when context type tp resolve is empty
 	ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
+	// ErrorUnsupportedXSDType is returned when xsd type is not supported
+	ErrorUnsupportedXSDType = errors.New("unsupported xsd type")
 )
 
 // SetHasher changes default hasher
@@ -1057,17 +1059,20 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 }
 
 // HashValue hashes value according to datatype.
-func HashValue(datatype string, value interface{}) (*big.Int, error) {
+func HashValue(datatype string, value any) (*big.Int, error) {
 	return valueToHash(defaultHasher, datatype, value)
 }
 
 // HashValueWithHasher hashes value according to datatype with a provided Hasher.
-func HashValueWithHasher(h Hasher, datatype string, value interface{}) (*big.Int, error) {
+func HashValueWithHasher(h Hasher, datatype string, value any) (*big.Int, error) {
 	return valueToHash(h, datatype, value)
 }
 
-func valueToHash(h Hasher, datatype string, value interface{}) (*big.Int, error) {
-	v := fmt.Sprintf("%v", value)
+func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
+	v, err := convertAnyToString(value)
+	if err != nil {
+		return nil, err
+	}
 	xsdValue, err := convertStringToXSDValue(datatype, v)
 	if err != nil {
 		return nil, err
@@ -1075,13 +1080,34 @@ func valueToHash(h Hasher, datatype string, value interface{}) (*big.Int, error)
 	return mkValueMtEntry(h, xsdValue)
 }
 
+// only supported xsd types.
+func convertAnyToString(value any) (str string, err error) {
+	switch v := value.(type) {
+	case string:
+		str = v
+	case float64:
+		intVal := int64(v)
+		if float64(intVal) != v {
+			return str, errors.New("invalid int value")
+		}
+		str = strconv.FormatInt(intVal, 10)
+	case int64, int32, int16, int8, int:
+		str = fmt.Sprintf("%d", v)
+	case bool:
+		str = fmt.Sprintf("%v", v)
+	default:
+		return str, ErrorUnsupportedXSDType
+	}
+	return str, nil
+}
+
 func convertStringToXSDValue(datatype string, value string) (resultValue interface{}, err error) {
 	switch datatype {
 	case ld.XSDBoolean:
 		switch value {
-		case "false":
+		case "false", "0":
 			resultValue = false
-		case "true":
+		case "true", "1":
 			resultValue = true
 		default:
 			err = errors.New("incorrect boolean value")

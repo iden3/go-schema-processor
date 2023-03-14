@@ -1025,6 +1025,20 @@ func TestHashValue(t *testing.T) {
 			wantHash:    "19014214495641488759237505126948346942972912379615652741039992445865937985820",
 		},
 		{
+			name:        "xsd:boolean 1",
+			pathToField: "KYCEmployee.ZKPexperiance",
+			datatype:    "http://www.w3.org/2001/XMLSchema#boolean",
+			value:       "1",
+			wantHash:    "18586133768512220936620570745912940619677854269274689475585506675881198879027",
+		},
+		{
+			name:        "xsd:boolean 0",
+			pathToField: "KYCEmployee.ZKPexperiance",
+			datatype:    "http://www.w3.org/2001/XMLSchema#boolean",
+			value:       "0",
+			wantHash:    "19014214495641488759237505126948346942972912379615652741039992445865937985820",
+		},
+		{
 			name:        "xsd:dateTime > January 1st, 1970 RFC3339Nano",
 			pathToField: "KYCEmployee.hireDate",
 			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
@@ -1112,6 +1126,13 @@ func TestHashValue_Errors(t *testing.T) {
 			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
 			value:       "01-01-2019",
 			wantErr:     "parsing time \"01-01-2019\"",
+		},
+		{
+			name:        "unknown datatype",
+			pathToField: "KYCEmployee.documentType",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       []byte{1},
+			wantErr:     ErrorUnsupportedXSDType.Error(),
 		},
 	}
 
