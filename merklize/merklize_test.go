@@ -991,3 +991,139 @@ func TestTypeFromContext(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "http://www.w3.org/2001/XMLSchema#integer", typ)
 }
+
+func TestHashValue(t *testing.T) {
+	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		pathToField string
+		datatype    string
+		value       interface{}
+		wantHash    string
+	}{
+		{
+			name:        "xsd:integer",
+			pathToField: "KYCEmployee.documentType",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       1,
+			wantHash:    "1",
+		},
+		{
+			name:        "xsd:boolean true",
+			pathToField: "KYCEmployee.ZKPexperiance",
+			datatype:    "http://www.w3.org/2001/XMLSchema#boolean",
+			value:       true,
+			wantHash:    "18586133768512220936620570745912940619677854269274689475585506675881198879027",
+		},
+		{
+			name:        "xsd:boolean false",
+			pathToField: "KYCEmployee.ZKPexperiance",
+			datatype:    "http://www.w3.org/2001/XMLSchema#boolean",
+			value:       false,
+			wantHash:    "19014214495641488759237505126948346942972912379615652741039992445865937985820",
+		},
+		{
+			name:        "xsd:dateTime > January 1st, 1970 RFC3339Nano",
+			pathToField: "KYCEmployee.hireDate",
+			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:       "2019-01-01T00:00:00Z",
+			wantHash:    "1546300800000000000",
+		},
+		{
+			name:        "xsd:dateTime < January 1st, 1970 RFC3339Nano",
+			pathToField: "KYCEmployee.hireDate",
+			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:       "1960-02-20T11:20:33Z",
+			wantHash:    "21888242871839275222246405745257275088548364400416034343697892928208808495617",
+		},
+		{
+			name:        "xsd:dateTime YYYY-MM-DD go format (2006-01-02)",
+			pathToField: "KYCEmployee.hireDate",
+			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:       "1997-04-16",
+			wantHash:    "861148800000000000",
+		},
+		{
+			name:        "xsd:string",
+			pathToField: "KYCEmployee.position",
+			datatype:    "http://www.w3.org/2001/XMLSchema#string",
+			value:       "SSI Consultant",
+			wantHash:    "957410455271905675920624030785024750144198809104092676617070098470852489834",
+		},
+		{
+			name:        "xsd:double should be processed as string",
+			pathToField: "KYCEmployee.salary",
+			datatype:    "http://www.w3.org/2001/XMLSchema#double",
+			value:       100000.00,
+			wantHash:    "14360697627294072992594641904719546563858955170910705823483738327086679949304",
+		},
+		{
+			name:        "xsd:double in our case will be processed as string, since rules are not defined",
+			pathToField: "KYCEmployee.salary",
+			datatype:    "http://www.w3.org/2001/XMLSchema#double",
+			value:       "working for food",
+			wantHash:    "12066683947011087645236798023846272337296643028614317900799991214428610755276",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualType, err := TypeFromContext(ctxBytes, tt.pathToField)
+			require.NoError(t, err)
+			require.Equal(t, tt.datatype, actualType)
+
+			actualHash, err := HashValue(tt.datatype, tt.value)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantHash, actualHash.String())
+		})
+	}
+}
+
+func TestHashValue_Errors(t *testing.T) {
+	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		pathToField string
+		datatype    string
+		value       interface{}
+		wantErr     string
+	}{
+		{
+			name:        "xsd:boolean invalid value",
+			pathToField: "KYCEmployee.ZKPexperiance",
+			datatype:    "http://www.w3.org/2001/XMLSchema#boolean",
+			value:       "True",
+			wantErr:     "incorrect boolean value",
+		},
+		{
+			name:        "xsd:integer invalid value",
+			pathToField: "KYCEmployee.documentType",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "one",
+			wantErr:     "strconv.ParseInt: parsing \"one\": invalid syntax",
+		},
+		{
+			name:        "xsd:dateTime invalid format MM-DD-YYYY go format (01-02-2006)",
+			pathToField: "KYCEmployee.hireDate",
+			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:       "01-01-2019",
+			wantErr:     "parsing time \"01-01-2019\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualType, err := TypeFromContext(ctxBytes, tt.pathToField)
+			require.NoError(t, err)
+			require.Equal(t, tt.datatype, actualType)
+
+			_, actualErr := HashValue(tt.datatype, tt.value)
+			require.Error(t, actualErr)
+			require.Contains(t, actualErr.Error(), tt.wantErr)
+		})
+	}
+}
