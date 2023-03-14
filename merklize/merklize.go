@@ -30,6 +30,8 @@ var (
 	ErrorFieldIsEmpty = errors.New("fieldPath is empty")
 	// ErrorContextTypeIsEmpty is returned when context type tp resolve is empty
 	ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
+	// ErrorUnsupportedType is returned when type is not supported
+	ErrorUnsupportedType = errors.New("unsupported type")
 )
 
 // SetHasher changes default hasher
@@ -1008,37 +1010,9 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 				if qo == nil {
 					return errors.New("object Literal is nil")
 				}
-				switch qo.Datatype {
-				case ld.XSDBoolean:
-					switch qo.Value {
-					case "false":
-						e.value = false
-					case "true":
-						e.value = true
-					default:
-						return errors.New("incorrect boolean value")
-					}
-				case ld.XSDInteger,
-					ld.XSDNS + "nonNegativeInteger",
-					ld.XSDNS + "nonPositiveInteger",
-					ld.XSDNS + "negativeInteger",
-					ld.XSDNS + "positiveInteger":
-					e.value, err = strconv.ParseInt(qo.Value, 10, 64)
-					if err != nil {
-						return err
-					}
-				case ld.XSDNS + "dateTime":
-					if dateRE.MatchString(qo.Value) {
-						e.value, err = time.ParseInLocation("2006-01-02",
-							qo.Value, time.UTC)
-					} else {
-						e.value, err = time.Parse(time.RFC3339Nano, qo.Value)
-					}
-					if err != nil {
-						return err
-					}
-				default:
-					e.value = qo.GetValue()
+				e.value, err = convertStringToXSDValue(qo.Datatype, qo.Value)
+				if err != nil {
+					return err
 				}
 			case *ld.IRI:
 				if qo == nil {
@@ -1082,6 +1056,79 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 		return nil, err
 	}
 	return entries, nil
+}
+
+// HashValue hashes value according to datatype.
+func HashValue(datatype string, value any) (*big.Int, error) {
+	return valueToHash(defaultHasher, datatype, value)
+}
+
+// HashValueWithHasher hashes value according to datatype with a provided Hasher.
+func HashValueWithHasher(h Hasher, datatype string, value any) (*big.Int, error) {
+	return valueToHash(h, datatype, value)
+}
+
+func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
+	v, err := convertAnyToString(value)
+	if err != nil {
+		return nil, err
+	}
+	xsdValue, err := convertStringToXSDValue(datatype, v)
+	if err != nil {
+		return nil, err
+	}
+	return mkValueMtEntry(h, xsdValue)
+}
+
+// only supported xsd types.
+func convertAnyToString(value any) (str string, err error) {
+	switch v := value.(type) {
+	case string:
+		str = v
+	case float64:
+		intVal := int64(v)
+		if float64(intVal) != v {
+			return str, errors.New("invalid int value")
+		}
+		str = strconv.FormatInt(intVal, 10)
+	case int64, int32, int16, int8, int:
+		str = fmt.Sprintf("%d", v)
+	case bool:
+		str = fmt.Sprintf("%v", v)
+	default:
+		return str, ErrorUnsupportedType
+	}
+	return str, nil
+}
+
+func convertStringToXSDValue(datatype string, value string) (resultValue interface{}, err error) {
+	switch datatype {
+	case ld.XSDBoolean:
+		switch value {
+		case "false", "0":
+			resultValue = false
+		case "true", "1":
+			resultValue = true
+		default:
+			err = errors.New("incorrect boolean value")
+		}
+	case ld.XSDInteger,
+		ld.XSDNS + "nonNegativeInteger",
+		ld.XSDNS + "nonPositiveInteger",
+		ld.XSDNS + "negativeInteger",
+		ld.XSDNS + "positiveInteger":
+		resultValue, err = strconv.ParseInt(value, 10, 64)
+	case ld.XSDNS + "dateTime":
+		if dateRE.MatchString(value) {
+			resultValue, err = time.ParseInLocation("2006-01-02",
+				value, time.UTC)
+		} else {
+			resultValue, err = time.Parse(time.RFC3339Nano, value)
+		}
+	default:
+		resultValue = value
+	}
+	return resultValue, err
 }
 
 // count number of entries with same key to distinguish between plain values
