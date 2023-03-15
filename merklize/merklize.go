@@ -1083,17 +1083,7 @@ func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
 // only supported xsd types.
 func convertAnyToString(value any) (str string, err error) {
 	switch v := value.(type) {
-	case string:
-		str = v
-	case float64:
-		intVal := int64(v)
-		if float64(intVal) != v {
-			return str, errors.New("invalid int value")
-		}
-		str = strconv.FormatInt(intVal, 10)
-	case int64, int32, int16, int8, int:
-		str = fmt.Sprintf("%d", v)
-	case bool:
+	case string, float64, int64, int32, int16, int8, int, bool:
 		str = fmt.Sprintf("%v", v)
 	default:
 		return str, ErrorUnsupportedType
