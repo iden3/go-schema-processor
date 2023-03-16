@@ -1077,7 +1077,7 @@ func TestHashValue(t *testing.T) {
 			name:        "xsd:double in our case will be processed as string, since rules are not defined",
 			pathToField: "KYCEmployee.salary",
 			datatype:    "http://www.w3.org/2001/XMLSchema#double",
-			value:       10000.23,
+			value:       "10000.23",
 			wantHash:    "18986759707721150886890278671059124993800562746739616134406594056081467050416",
 		},
 	}
