@@ -1070,15 +1070,15 @@ func TestHashValue(t *testing.T) {
 			name:        "xsd:double should be processed as string",
 			pathToField: "KYCEmployee.salary",
 			datatype:    "http://www.w3.org/2001/XMLSchema#double",
-			value:       100000.00,
-			wantHash:    "14360697627294072992594641904719546563858955170910705823483738327086679949304",
+			value:       100000.01,
+			wantHash:    "15818843047081382538159097715644330692873067854222195813394816036608348381949",
 		},
 		{
 			name:        "xsd:double in our case will be processed as string, since rules are not defined",
 			pathToField: "KYCEmployee.salary",
 			datatype:    "http://www.w3.org/2001/XMLSchema#double",
-			value:       "working for food",
-			wantHash:    "12066683947011087645236798023846272337296643028614317900799991214428610755276",
+			value:       "100000.01",
+			wantHash:    "15818843047081382538159097715644330692873067854222195813394816036608348381949",
 		},
 	}
 
