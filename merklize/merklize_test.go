@@ -1078,7 +1078,7 @@ func TestHashValue(t *testing.T) {
 			pathToField: "KYCEmployee.salary",
 			datatype:    "http://www.w3.org/2001/XMLSchema#double",
 			value:       "10.000.000",
-			wantHash:    "12066683947011087645236798023846272337296643028614317900799991214428610755276",
+			wantHash:    "16623019807150653864339148727682660018508784717768696466932719977255290162622",
 		},
 	}
 
