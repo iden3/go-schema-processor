@@ -1325,7 +1325,7 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 		return nil, errors.New("[assertion] expected *ld.RDFDataset type")
 	}
 
-	entries, err := EntriesFromRDF(dataset)
+	entries, err := EntriesFromRDFWithHasher(dataset, mz.hasher)
 	if err != nil {
 		return nil, err
 	}
