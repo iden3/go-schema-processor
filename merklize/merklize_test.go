@@ -160,7 +160,8 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData",
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state",
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#blockTimestamp"),
-			value: int64(123),
+			value:    int64(123),
+			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 		{
 			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
@@ -171,7 +172,8 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
 				1,
 				"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday"),
-			value: int64(19960424),
+			value:    int64(19960424),
+			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 	}
 
@@ -189,189 +191,225 @@ func TestEntriesFromRDF(t *testing.T) {
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://schema.org/birthDate"),
-			value: time.Date(1958, 7, 17, 0, 0, 0, 0, time.UTC),
+			value:    time.Date(1958, 7, 17, 0, 0, 0, 0, time.UTC),
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://schema.org/familyName"),
-			value: "SMITH",
+			value:    "SMITH",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://schema.org/gender"),
-			value: "Male",
+			value:    "Male",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://schema.org/givenName"),
-			value: "JOHN",
+			value:    "JOHN",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://schema.org/image"),
-			value: "data:image/png;base64,iVBORw0KGgokJggg==",
+			value:    "data:image/png;base64,iVBORw0KGgokJggg==",
+			datatype: "",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0),
-			value: "http://schema.org/Person",
+			value:    "http://schema.org/Person",
+			datatype: "",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1),
-			value: "https://w3id.org/citizenship#PermanentResident",
+			value:    "https://w3id.org/citizenship#PermanentResident",
+			datatype: "",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"https://w3id.org/citizenship#birthCountry"),
-			value: "Bahamas",
+			value:    "Bahamas",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"https://w3id.org/citizenship#commuterClassification"),
-			value: "C1",
+			value:    "C1",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"https://w3id.org/citizenship#lprCategory"),
-			value: "C09",
+			value:    "C09",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"https://w3id.org/citizenship#lprNumber"),
-			value: "999-999-999",
+			value:    "999-999-999",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 0,
 				"https://w3id.org/citizenship#residentSince"),
-			value: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC),
+			value:    time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC),
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://schema.org/birthDate"),
-			value: time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC),
+			value:    time.Date(1958, 7, 18, 0, 0, 0, 0, time.UTC),
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://schema.org/familyName"),
-			value: "SMITH",
+			value:    "SMITH",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://schema.org/gender"),
-			value: "Male",
+			value:    "Male",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://schema.org/givenName"),
-			value: "JOHN",
+			value:    "JOHN",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://schema.org/image"),
-			value: "data:image/png;base64,iVBORw0KGgokJggg==",
+			value:    "data:image/png;base64,iVBORw0KGgokJggg==",
+			datatype: "",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0),
-			value: "http://schema.org/Person",
+			value:    "http://schema.org/Person",
+			datatype: "",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1),
-			value: "https://w3id.org/citizenship#PermanentResident",
+			value:    "https://w3id.org/citizenship#PermanentResident",
+			datatype: "",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"https://w3id.org/citizenship#birthCountry"),
-			value: "Bahamas",
+			value:    "Bahamas",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"https://w3id.org/citizenship#commuterClassification"),
-			value: "C1",
+			value:    "C1",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"https://w3id.org/citizenship#lprCategory"),
-			value: "C09",
+			value:    "C09",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"https://w3id.org/citizenship#lprNumber"),
-			value: "999-999-999",
+			value:    "999-999-999",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
 			key: mkPath(
 				"https://www.w3.org/2018/credentials#credentialSubject", 1,
 				"https://w3id.org/citizenship#residentSince"),
-			value: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC),
+			value:    time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC),
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 		},
 		{
-			key:   mkPath("http://schema.org/description"),
-			value: "Government of Example Permanent Resident Card.",
+			key:      mkPath("http://schema.org/description"),
+			value:    "Government of Example Permanent Resident Card.",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
-			key:   mkPath("http://schema.org/identifier"),
-			value: int64(83627465),
+			key:      mkPath("http://schema.org/identifier"),
+			value:    int64(83627465),
+			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 		{
-			key:   mkPath("http://schema.org/name"),
-			value: "Permanent Resident Card",
+			key:      mkPath("http://schema.org/name"),
+			value:    "Permanent Resident Card",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
-			key:   mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0),
-			value: "https://w3id.org/citizenship#PermanentResidentCard",
+			key: mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+				0),
+			value:    "https://w3id.org/citizenship#PermanentResidentCard",
+			datatype: "",
 		},
 		{
-			key:   mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 1),
-			value: "https://www.w3.org/2018/credentials#VerifiableCredential",
+			key: mkPath("http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+				1),
+			value:    "https://www.w3.org/2018/credentials#VerifiableCredential",
+			datatype: "",
 		},
 		{
 			key: mkPath("https://www.w3.org/2018/credentials#credentialSubject",
 				0),
-			value: "did:example:b34ca6cd37bbf23",
+			value:    "did:example:b34ca6cd37bbf23",
+			datatype: "",
 		},
 		{
 			key: mkPath("https://www.w3.org/2018/credentials#credentialSubject",
 				1),
-			value: "did:example:b34ca6cd37bbf24",
+			value:    "did:example:b34ca6cd37bbf24",
+			datatype: "",
 		},
 		{
 			key: mkPath("https://www.w3.org/2018/credentials#expirationDate"),
 			//value: "2029-12-03T12:19:52Z",
-			value: time.Date(2029, 12, 3, 12, 19, 52, 0, time.UTC),
+			value:    time.Date(2029, 12, 3, 12, 19, 52, 0, time.UTC),
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 		},
 		{
 			key: mkPath("https://www.w3.org/2018/credentials#issuanceDate"),
 			//value: "2019-12-03T12:19:52Z",
-			value: time.Date(2019, 12, 3, 12, 19, 52, 0, time.UTC),
+			value:    time.Date(2019, 12, 3, 12, 19, 52, 0, time.UTC),
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 		},
 		{
-			key:   mkPath("https://www.w3.org/2018/credentials#issuer"),
-			value: "did:example:489398593",
+			key:      mkPath("https://www.w3.org/2018/credentials#issuer"),
+			value:    "did:example:489398593",
+			datatype: "",
 		},
 	}
 	require.Equal(t, wantEntries, entries)
@@ -1128,7 +1166,7 @@ func TestHashValue_Errors(t *testing.T) {
 			pathToField: "KYCEmployee.documentType",
 			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
 			value:       "one",
-			wantErr:     "strconv.ParseInt: parsing \"one\": invalid syntax",
+			wantErr:     "can't parse number: one",
 		},
 		{
 			name:        "xsd:dateTime invalid format MM-DD-YYYY go format (01-02-2006)",
