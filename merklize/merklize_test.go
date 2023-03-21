@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/big"
 	"os"
 	"reflect"
 	"strconv"
@@ -13,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/iden3/go-iden3-crypto/constants"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
 	"github.com/piprate/json-gold/ld"
@@ -1154,6 +1157,60 @@ func TestHashValue_Errors(t *testing.T) {
 			require.Contains(t, actualErr.Error(), tt.wantErr)
 		})
 	}
+}
+
+type testHasher struct{}
+
+func (h testHasher) Hash(inpBI []*big.Int) (*big.Int, error) {
+	return poseidon.Hash(inpBI)
+}
+
+func (h testHasher) HashBytes(msg []byte) (*big.Int, error) {
+	return poseidon.HashBytesX(msg, 6)
+}
+
+func (h testHasher) Prime() *big.Int {
+	return new(big.Int).Set(constants.Q)
+}
+
+// Test consistency of WithHasher usage. Proof should be generated with path
+// created with ResolveDocPath method of Merklizer.
+func TestWithHasherWorkflow(t *testing.T) {
+	const testPresentationDoc = `
+{
+  "id": "uuid:presentation:12312",
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://raw.githubusercontent.com/demonsh/schema/main/jsonld/presentation.json-ld#Presentation"
+  ],
+  "type": [
+    "VerifiableCredential"
+  ],
+  "expirationDate": "2024-03-08T22:02:16Z",
+  "issuanceDate": "2023-03-08T22:02:16Z",
+  "issuer": "did:pkh:eip155:1:0x1e903ddDFf29f13fC62F3c78c5b5622a3b14752c",
+  "credentialSubject": {
+    "id": "did:pkh:eip155:1:0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "score": 64,
+    "type": "Presentation"
+  }
+}`
+
+	mz, _ := MerklizeJSONLD(context.Background(),
+		strings.NewReader(testPresentationDoc),
+		WithHasher(testHasher{}))
+
+	p, err := mz.ResolveDocPath("credentialSubject")
+	require.NoError(t, err)
+
+	fieldProof, fieldValue, err := mz.Proof(context.Background(), p)
+	require.NoError(t, err)
+
+	require.True(t, fieldProof.Existence)
+
+	value1, err := fieldValue.MtEntry()
+	require.NoError(t, err)
+	require.NotNil(t, value1)
 }
 
 func TestMerklizer_JSONLDType(t *testing.T) {
