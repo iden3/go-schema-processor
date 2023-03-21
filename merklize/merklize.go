@@ -1456,9 +1456,9 @@ func (m *Merklizer) RawValue(path Path) (any, error) {
 	return obj, nil
 }
 
-// JsonLDType returns the JSON-LD type of the given path. If there is no literal
+// JSONLDType returns the JSON-LD type of the given path. If there is no literal
 // by this path, it returns an error.
-func (m *Merklizer) JsonLDType(path Path) (string, error) {
+func (m *Merklizer) JSONLDType(path Path) (string, error) {
 	entry, err := m.entry(path)
 	if err != nil {
 		return "", err

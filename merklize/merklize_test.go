@@ -1155,3 +1155,31 @@ func TestHashValue_Errors(t *testing.T) {
 		})
 	}
 }
+
+func TestMerklizer_JSONLDType(t *testing.T) {
+	ctx := context.Background()
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
+	require.NoError(t, err)
+
+	t.Run("xsd:dateTime", func(t *testing.T) {
+		path, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", 1,
+			"http://schema.org/birthDate")
+		require.NoError(t, err)
+
+		datatype, err := mz.JSONLDType(path)
+		require.NoError(t, err)
+		require.Equal(t, "http://www.w3.org/2001/XMLSchema#dateTime", datatype)
+	})
+
+	t.Run("empty datatype", func(t *testing.T) {
+		path, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject", 0,
+			"http://www.w3.org/1999/02/22-rdf-syntax-ns#type", 0)
+		require.NoError(t, err)
+
+		datatype, err := mz.JSONLDType(path)
+		require.NoError(t, err)
+		require.Equal(t, "", datatype)
+	})
+}
