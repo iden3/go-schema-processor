@@ -1080,6 +1080,13 @@ func TestHashValue(t *testing.T) {
 			value:       "100000.01",
 			wantHash:    "15818843047081382538159097715644330692873067854222195813394816036608348381949",
 		},
+		{
+			name:        "big float64 should be correctly parsed as integer",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       float64(19960424),
+			wantHash:    "19960424",
+		},
 	}
 
 	for _, tt := range tests {
