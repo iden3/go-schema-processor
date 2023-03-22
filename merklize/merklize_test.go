@@ -987,11 +987,59 @@ func TestMerklizer_RawValue(t *testing.T) {
 		"verifiableCredential.birthday")
 	require.NoError(t, err)
 
-	require.NoError(t, err)
-
 	val, err := mz.RawValue(path)
 	require.NoError(t, err)
 	require.Equal(t, float64(19960425), val)
+}
+
+var vc = `
+{
+  "verifiableCredential": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v101.json-ld"
+    ],
+    "@type": [
+      "VerifiableCredential",
+      "KYCEmployee"
+    ],
+    "credentialSubject": {
+      "@type": "KYCEmployee",
+      "salary": 170000
+    }
+  },
+  "@type": "VerifiablePresentation",
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1"
+  ]
+}`
+
+func TestFloatNormalization(t *testing.T) {
+	ctx := context.Background()
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(vc))
+	require.NoError(t, err)
+
+	path, err := mz.ResolveDocPath("verifiableCredential.credentialSubject.salary")
+	require.NoError(t, err)
+
+	_, v, err := mz.Proof(context.Background(), path)
+	require.NoError(t, err)
+
+	i, err := v.MtEntry()
+	t.Log(i.String())
+
+	// Test that float falue is normalized to 1.7E5
+	i2, err := poseidon.HashBytes([]byte("1.7E5"))
+	require.NoError(t, err)
+	require.Equal(t, i.String(), i2.String())
+
+	datatype, err := mz.JSONLDType(path)
+	require.NoError(t, err)
+	require.Equal(t, "http://www.w3.org/2001/XMLSchema#double", datatype)
+	// Test we generated correct hash for float64(170000) converted it to 1.7E5
+	i3, err := HashValue(datatype, float64(170000))
+	require.NoError(t, err)
+	require.Equal(t, i.String(), i3.String())
 }
 
 func TestIncorrectDocument_UnsafeMode(t *testing.T) {
