@@ -440,8 +440,9 @@ func (p *Path) Prepend(parts ...interface{}) error {
 type RDFEntry struct {
 	key Path
 	// valid types are: int64, string, bool, time.Time
-	value  any
-	hasher Hasher
+	value    any
+	datatype string
+	hasher   Hasher
 }
 
 type Value interface {
@@ -1014,6 +1015,7 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 				if err != nil {
 					return err
 				}
+				e.datatype = qo.Datatype
 			case *ld.IRI:
 				if qo == nil {
 					return errors.New("object IRI is nil")
@@ -1091,7 +1093,9 @@ func convertAnyToString(value any) (str string, err error) {
 	return str, nil
 }
 
-func convertStringToXSDValue(datatype string, value string) (resultValue interface{}, err error) {
+func convertStringToXSDValue(datatype string,
+	value string) (resultValue interface{}, err error) {
+
 	switch datatype {
 	case ld.XSDBoolean:
 		switch value {
@@ -1102,22 +1106,45 @@ func convertStringToXSDValue(datatype string, value string) (resultValue interfa
 		default:
 			err = errors.New("incorrect boolean value")
 		}
+
 	case ld.XSDInteger,
 		ld.XSDNS + "nonNegativeInteger",
 		ld.XSDNS + "nonPositiveInteger",
 		ld.XSDNS + "negativeInteger",
 		ld.XSDNS + "positiveInteger":
-		resultValue, err = strconv.ParseInt(value, 10, 64)
+
+		var r = new(big.Rat)
+		_, ok := r.SetString(value)
+		if !ok {
+			err = fmt.Errorf("can't parse number: %v", value)
+			break
+		}
+
+		if !r.IsInt() {
+			err = fmt.Errorf("integer has fractional part: %v", value)
+			break
+		}
+
+		i := r.Num()
+		if !i.IsInt64() {
+			err = fmt.Errorf("integer is too big for int64: %v", i.String())
+			break
+		}
+
+		resultValue = i.Int64()
+
 	case ld.XSDNS + "dateTime":
 		if dateRE.MatchString(value) {
-			resultValue, err = time.ParseInLocation("2006-01-02",
-				value, time.UTC)
+			resultValue, err = time.ParseInLocation("2006-01-02", value,
+				time.UTC)
 		} else {
 			resultValue, err = time.Parse(time.RFC3339Nano, value)
 		}
+
 	default:
 		resultValue = value
 	}
+
 	return resultValue, err
 }
 
@@ -1349,6 +1376,19 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	return mz, err
 }
 
+func (m *Merklizer) entry(path Path) (RDFEntry, error) {
+	key, err := path.MtEntry()
+	if err != nil {
+		return RDFEntry{}, err
+	}
+	e, ok := m.entries[key.String()]
+	if !ok {
+		return RDFEntry{}, errors.New("entry not found")
+	}
+
+	return e, nil
+}
+
 func rvExtractObjField(obj any, field string) (any, error) {
 	jsObj, isJSONObj := obj.(map[string]any)
 	if !isJSONObj {
@@ -1416,6 +1456,16 @@ func (m *Merklizer) RawValue(path Path) (any, error) {
 	return obj, nil
 }
 
+// JSONLDType returns the JSON-LD type of the given path. If there is no literal
+// by this path, it returns an error.
+func (m *Merklizer) JSONLDType(path Path) (string, error) {
+	entry, err := m.entry(path)
+	if err != nil {
+		return "", err
+	}
+	return entry.datatype, nil
+}
+
 func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
 	realPath, err := NewPathFromDocument(m.srcDoc, path)
 	if err != nil {
@@ -1462,6 +1512,10 @@ func (m *Merklizer) MkValue(val any) (Value, error) {
 
 func (m *Merklizer) Root() *merkletree.Hash {
 	return m.mt.Root()
+}
+
+func (m *Merklizer) Hasher() Hasher {
+	return m.hasher
 }
 
 func mkValueMtEntry(h Hasher, v interface{}) (*big.Int, error) {
