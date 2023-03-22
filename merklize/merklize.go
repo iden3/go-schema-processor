@@ -1157,6 +1157,15 @@ func convertStringToXSDValue(datatype string,
 			resultValue, err = time.Parse(time.RFC3339Nano, value)
 		}
 
+	// this is for v2, it would break current MT root
+	//nolint: gocritic // reson: for future use
+	//case ld.XSDDouble:
+	//	f, err := strconv.ParseFloat(value, 64)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	resultValue = ld.GetCanonicalDouble(f)
+
 	default:
 		resultValue = value
 	}
