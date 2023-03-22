@@ -1028,7 +1028,7 @@ func TestFloatNormalization(t *testing.T) {
 	i, err := v.MtEntry()
 	t.Log(i.String())
 
-	// Test that float falue is normalized to 1.7E5
+	// Test that float value is normalized to 1.7E5
 	i2, err := poseidon.HashBytes([]byte("1.7E5"))
 	require.NoError(t, err)
 	require.Equal(t, i.String(), i2.String())
@@ -1160,14 +1160,14 @@ func TestHashValue(t *testing.T) {
 			pathToField: "KYCEmployee.salary",
 			datatype:    "http://www.w3.org/2001/XMLSchema#double",
 			value:       100000.01,
-			wantHash:    "15818843047081382538159097715644330692873067854222195813394816036608348381949",
+			wantHash:    "7858939477831965477428998013961435925262790627337131132863073454519451718017",
 		},
 		{
 			name:        "xsd:double in our case will be processed as string, since rules are not defined",
 			pathToField: "KYCEmployee.salary",
 			datatype:    "http://www.w3.org/2001/XMLSchema#double",
 			value:       "100000.01",
-			wantHash:    "15818843047081382538159097715644330692873067854222195813394816036608348381949",
+			wantHash:    "7858939477831965477428998013961435925262790627337131132863073454519451718017",
 		},
 		{
 			name:        "big float64 should be correctly parsed as integer",

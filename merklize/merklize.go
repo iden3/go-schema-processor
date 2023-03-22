@@ -1071,7 +1071,7 @@ func HashValueWithHasher(h Hasher, datatype string, value any) (*big.Int, error)
 }
 
 func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
-	v, err := convertAnyToString(value)
+	v, err := convertAnyToString(value, datatype)
 	if err != nil {
 		return nil, err
 	}
@@ -1083,14 +1083,25 @@ func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
 }
 
 // only supported xsd types.
-func convertAnyToString(value any) (str string, err error) {
+func convertAnyToString(value any, datatype string) (str string, err error) {
+
 	switch v := value.(type) {
 	case float64:
 		// https://www.w3.org/TR/2014/REC-json-ld-api-20140116/#data-round-tripping
 		str = ld.GetCanonicalDouble(v)
 	case float32:
 		str = ld.GetCanonicalDouble(float64(v))
-	case string, int64, int32, int16, int8, int, bool:
+	case string:
+		if datatype == ld.XSDDouble {
+			f, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return "", err
+			}
+			str = ld.GetCanonicalDouble(f)
+		} else {
+			str = fmt.Sprintf("%v", v)
+		}
+	case int64, int32, int16, int8, int, bool:
 		str = fmt.Sprintf("%v", v)
 	default:
 		return str, ErrorUnsupportedType
