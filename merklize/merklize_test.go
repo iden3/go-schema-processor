@@ -1026,7 +1026,7 @@ func TestFloatNormalization(t *testing.T) {
 	require.NoError(t, err)
 
 	i, err := v.MtEntry()
-	t.Log(i.String())
+	require.NoError(t, err)
 
 	// Test that float value is normalized to 1.7E5
 	i2, err := poseidon.HashBytes([]byte("1.7E5"))
