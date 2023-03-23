@@ -1081,7 +1081,7 @@ func TestTypeFromContext(t *testing.T) {
 	require.Equal(t, "http://www.w3.org/2001/XMLSchema#integer", typ)
 }
 
-func TestHashValue(t *testing.T) {
+func TestHashValues_FromDocument(t *testing.T) {
 	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
 
@@ -1191,7 +1191,7 @@ func TestHashValue(t *testing.T) {
 	}
 }
 
-func TestHashValue2(t *testing.T) {
+func TestHashValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		datatype string
