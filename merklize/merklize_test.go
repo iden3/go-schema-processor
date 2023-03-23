@@ -1466,3 +1466,58 @@ func TestMerklizer_JSONLDType(t *testing.T) {
 		require.Equal(t, "", datatype)
 	})
 }
+
+var docWithFloat = `{
+  "http://example.com/field1": {
+    "@type": "http://www.w3.org/2001/XMLSchema#double",
+    "@value": 123
+  },
+  "http://example.com/field2": {
+    "@type": "http://www.w3.org/2001/XMLSchema#double",
+    "@value": "123"
+  }
+}`
+
+func TestRoots(t *testing.T) {
+	testcases := []struct {
+		name     string
+		doc      string
+		wantRoot string
+	}{
+		{
+			name:     "testDocument",
+			doc:      testDocument,
+			wantRoot: "19309047812100087948241250053335720576191969395309912987389452441269932261840",
+		},
+		{
+			name:     "doc1",
+			doc:      doc1,
+			wantRoot: "10272719837413875229881209264203748224508385138831284537815130356356451726720",
+		},
+		{
+			name:     "multigraphDoc2",
+			doc:      multigraphDoc2,
+			wantRoot: "11252837464697009054213269776498742372491493851016505396927630745348533726396",
+		},
+		{
+			name:     "vc",
+			doc:      vc,
+			wantRoot: "438107724194342316220762948074408676879297288866380839121721382436955105096",
+		},
+		{
+			name:     "docWithFloat",
+			doc:      docWithFloat,
+			wantRoot: "21537869856020100030973709089104354702264298701645723027366622468003633791751",
+		},
+	}
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			mz, err := MerklizeJSONLD(context.Background(),
+				strings.NewReader(tt.doc))
+			require.NoError(t, err)
+
+			root := mz.Root()
+			require.Equal(t, tt.wantRoot, root.BigInt().String())
+		})
+	}
+}
