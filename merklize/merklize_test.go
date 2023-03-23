@@ -994,6 +994,28 @@ func TestMerklizer_RawValue(t *testing.T) {
 	require.Equal(t, float64(19960425), val)
 }
 
+var vc = `
+{
+  "verifiableCredential": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v101.json-ld"
+    ],
+    "@type": [
+      "VerifiableCredential",
+      "KYCEmployee"
+    ],
+    "credentialSubject": {
+      "@type": "KYCEmployee",
+      "salary": 170000
+    }
+  },
+  "@type": "VerifiablePresentation",
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1"
+  ]
+}`
+
 func TestIncorrectDocument_UnsafeMode(t *testing.T) {
 	const docUnknownFields = `{
     "id": "http://127.0.0.1/id",
