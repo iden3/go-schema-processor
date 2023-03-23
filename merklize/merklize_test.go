@@ -1191,6 +1191,174 @@ func TestHashValue(t *testing.T) {
 	}
 }
 
+func TestHashValue2(t *testing.T) {
+	tests := []struct {
+		name     string
+		datatype string
+		value    interface{}
+		wantHash string
+		wantErr  string
+	}{
+		{
+			name:     "xsd:integer",
+			datatype: "http://www.w3.org/2001/XMLSchema#integer",
+			value:    1,
+			wantHash: "1",
+		},
+		{
+			name:     "xsd:boolean true",
+			datatype: "http://www.w3.org/2001/XMLSchema#boolean",
+			value:    true,
+			wantHash: "18586133768512220936620570745912940619677854269274689475585506675881198879027",
+		},
+		{
+			name:     "xsd:boolean false",
+			datatype: "http://www.w3.org/2001/XMLSchema#boolean",
+			value:    false,
+			wantHash: "19014214495641488759237505126948346942972912379615652741039992445865937985820",
+		},
+		{
+			name:     "xsd:boolean 1",
+			datatype: "http://www.w3.org/2001/XMLSchema#boolean",
+			value:    "1",
+			wantHash: "18586133768512220936620570745912940619677854269274689475585506675881198879027",
+		},
+		{
+			name:     "xsd:boolean 0",
+			datatype: "http://www.w3.org/2001/XMLSchema#boolean",
+			value:    "0",
+			wantHash: "19014214495641488759237505126948346942972912379615652741039992445865937985820",
+		},
+		{
+			name:     "xsd:dateTime > January 1st, 1970 RFC3339Nano",
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:    "2019-01-01T00:00:00Z",
+			wantHash: "1546300800000000000",
+		},
+		{
+			name:     "xsd:dateTime < January 1st, 1970 RFC3339Nano",
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:    "1960-02-20T11:20:33Z",
+			wantHash: "21888242871839275222246405745257275088548364400416034343697892928208808495617",
+		},
+		{
+			name:     "xsd:dateTime YYYY-MM-DD go format (2006-01-02)",
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:    "1997-04-16",
+			wantHash: "861148800000000000",
+		},
+		{
+			name:     "xsd:string",
+			datatype: "http://www.w3.org/2001/XMLSchema#string",
+			value:    "SSI Consultant",
+			wantHash: "957410455271905675920624030785024750144198809104092676617070098470852489834",
+		},
+		{
+			name:     "xsd:double should be processed as string",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    100000.01,
+			wantHash: "7858939477831965477428998013961435925262790627337131132863073454519451718017",
+		},
+		{
+			name:     "xsd:double in our case will be processed as string, since rules are not defined",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    "100000.01",
+			wantHash: "7858939477831965477428998013961435925262790627337131132863073454519451718017",
+		},
+		{
+			name:     "big float64 should be correctly parsed as integer",
+			datatype: "http://www.w3.org/2001/XMLSchema#integer",
+			value:    float64(19960424),
+			wantHash: "19960424",
+		},
+		{
+			name:     "int32 with double xsd type should be correctly parsed as string",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    int32(19960424),
+			// hash of "1.9960424E7"
+			wantHash: "14659279547748882579324236944917252187779632081828519649786308744097131655268",
+		},
+		{
+			name:     "uint32 with double xsd type should be correctly parsed as string",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    uint32(19960424),
+			wantHash: strHash("1.9960424E7"),
+		},
+		{
+			name:     "uint64 is too big for float64",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    uint64(math.MaxUint64) - 1,
+			wantErr:  "value is too big to be converted to float64",
+		},
+		{
+			name:     "uint64 is too big for float64 (special case with max uint64)",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    uint64(math.MaxUint64),
+			wantErr:  "value is too big to be converted to float64",
+		},
+		{
+			name:     "int64 is too big for float64",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    int64(math.MaxInt64),
+			wantErr:  "value is too big to be converted to float64",
+		},
+		{
+			name:     "near to max int64 that may be hashed",
+			datatype: "http://www.w3.org/2001/XMLSchema#double",
+			value:    int64(1234567890123456),
+			wantHash: strHash("1.234567890123456E15"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualHash, err := HashValue(tt.datatype, tt.value)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.wantHash, actualHash.String())
+			}
+		})
+	}
+}
+
+func strHash(str string) string {
+	i, err := poseidon.HashBytes([]byte(str))
+	if err != nil {
+		panic(err)
+	}
+	return i.String()
+}
+
+func TestName(t *testing.T) {
+	t.Log(ld.GetCanonicalDouble(float64(18446744073709551614)))
+	t.Log(ld.GetCanonicalDouble(float64(18446744073709551615)))
+
+	u64 := uint64(math.MaxUint64)
+	fcStr64 := ld.GetCanonicalDouble(float64(u64))
+	r, ok := new(big.Rat).SetString(fcStr64)
+	t.Log(ok)
+	t.Log(r.FloatString(10))
+
+	t.Log(u64)
+	f64 := float64(u64)
+	t.Log(f64)
+	t.Log(uint64(f64) == u64)
+	t.Log(uint64(f64))
+
+	s := "18446744073709551614"
+	f2, err := strconv.ParseFloat(s, 64)
+	require.NoError(t, err)
+	t.Log(f2)
+	f2--
+	t.Log(uint64(f2))
+	//x := "1.9960424E7"
+	//i, err := poseidon.HashBytes([]byte(x))
+	//require.NoError(t, err)
+	//t.Log(i.String())
+}
+
 func TestHashValue_Errors(t *testing.T) {
 	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
