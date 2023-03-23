@@ -1132,9 +1132,13 @@ func convertAnyToString(value any, datatype string) (str string, err error) {
 	return str, nil
 }
 
-type allInts interface{ ~int | ~int8 | ~int16 | ~int32 | ~int64 }
+type allInts interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
 
-type allUInts interface{ ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 }
+type allUInts interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}
 
 // We can't just compare uint64(float64(v)) == uint64(v) because
 // 1) maxUint64 = 18446744073709551615
@@ -1148,7 +1152,8 @@ type allUInts interface{ ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 }
 func intToXSDDoubleStr[T allInts](v T) (string, error) {
 	out := ld.GetCanonicalDouble(float64(v))
 
-	r, ok := new(big.Rat).SetString(out)
+	r := new(big.Rat)
+	_, ok := r.SetString(out)
 	if !ok {
 		return "", errors.New(
 			"[assertion] failed to parse canonical double as rational")
@@ -1170,7 +1175,8 @@ func intToXSDDoubleStr[T allInts](v T) (string, error) {
 func uintToXSDDoubleStr[T allUInts](v T) (string, error) {
 	out := ld.GetCanonicalDouble(float64(v))
 
-	r, ok := new(big.Rat).SetString(out)
+	r := new(big.Rat)
+	_, ok := r.SetString(out)
 	if !ok {
 		return "", errors.New(
 			"[assertion] failed to parse canonical double as rational")

@@ -1331,34 +1331,6 @@ func strHash(str string) string {
 	return i.String()
 }
 
-func TestName(t *testing.T) {
-	t.Log(ld.GetCanonicalDouble(float64(18446744073709551614)))
-	t.Log(ld.GetCanonicalDouble(float64(18446744073709551615)))
-
-	u64 := uint64(math.MaxUint64)
-	fcStr64 := ld.GetCanonicalDouble(float64(u64))
-	r, ok := new(big.Rat).SetString(fcStr64)
-	t.Log(ok)
-	t.Log(r.FloatString(10))
-
-	t.Log(u64)
-	f64 := float64(u64)
-	t.Log(f64)
-	t.Log(uint64(f64) == u64)
-	t.Log(uint64(f64))
-
-	s := "18446744073709551614"
-	f2, err := strconv.ParseFloat(s, 64)
-	require.NoError(t, err)
-	t.Log(f2)
-	f2--
-	t.Log(uint64(f2))
-	//x := "1.9960424E7"
-	//i, err := poseidon.HashBytes([]byte(x))
-	//require.NoError(t, err)
-	//t.Log(i.String())
-}
-
 func TestHashValue_Errors(t *testing.T) {
 	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
