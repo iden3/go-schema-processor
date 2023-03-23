@@ -1071,7 +1071,7 @@ func HashValueWithHasher(h Hasher, datatype string, value any) (*big.Int, error)
 }
 
 func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
-	v, err := convertAnyToString(value)
+	v, err := convertAnyToString(value, datatype)
 	if err != nil {
 		return nil, err
 	}
@@ -1083,14 +1083,114 @@ func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
 }
 
 // only supported xsd types.
-func convertAnyToString(value any) (str string, err error) {
+func convertAnyToString(value any, datatype string) (str string, err error) {
+
+	if datatype == ld.XSDDouble {
+		switch v := value.(type) {
+		case string:
+			f, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return "", err
+			}
+			return ld.GetCanonicalDouble(f), nil
+		case int:
+			return intToXSDDoubleStr(v)
+		case int8:
+			return intToXSDDoubleStr(v)
+		case int16:
+			return intToXSDDoubleStr(v)
+		case int32:
+			return intToXSDDoubleStr(v)
+		case int64:
+			return intToXSDDoubleStr(v)
+		case uint:
+			return uintToXSDDoubleStr(v)
+		case uint8:
+			return uintToXSDDoubleStr(v)
+		case uint16:
+			return uintToXSDDoubleStr(v)
+		case uint32:
+			return uintToXSDDoubleStr(v)
+		case uint64:
+			return uintToXSDDoubleStr(v)
+		}
+	}
+
 	switch v := value.(type) {
-	case string, float64, float32, int64, int32, int16, int8, int, bool:
+	case float64:
+		// https://www.w3.org/TR/2014/REC-json-ld-api-20140116/#data-round-tripping
+		str = ld.GetCanonicalDouble(v)
+	case float32:
+		str = ld.GetCanonicalDouble(float64(v))
+	case string:
+		str = fmt.Sprintf("%v", v)
+	case int64, int32, int16, int8, int, bool:
 		str = fmt.Sprintf("%v", v)
 	default:
 		return str, ErrorUnsupportedType
 	}
 	return str, nil
+}
+
+type allInts interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+type allUInts interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}
+
+// We can't just compare uint64(float64(v)) == uint64(v) because
+// 1) maxUint64 = 18446744073709551615
+// 2) float64(maxUint64) == 1.8446744073709552e+19
+// 3) uint64(float64(maxUint64)) == 18446744073709551615
+// 4) 1.8446744073709552 * 10**19 == 18446744073709552000
+// 5) 18446744073709551615 != 18446744073709552000
+// So hashes for 18446744073709551615 and 18446744073709551614 would be
+// the same, which is not correct. That is why we use big.Rat here to check
+// that float can represent integer value without loss of precision.
+func intToXSDDoubleStr[T allInts](v T) (string, error) {
+	out := ld.GetCanonicalDouble(float64(v))
+
+	r := new(big.Rat)
+	_, ok := r.SetString(out)
+	if !ok {
+		return "", errors.New(
+			"[assertion] failed to parse canonical double as rational")
+	}
+
+	if r.Denom().Cmp(big.NewInt(1)) != 0 {
+		return "", errors.New("value is too big to be converted to float64")
+	}
+
+	if r.Num().Cmp(big.NewInt(int64(v))) != 0 {
+		return "", errors.New("value is too big to be converted to float64")
+	}
+
+	return out, nil
+}
+
+// see comment for intToXSDDoubleStr for explanations why this function
+// uses big.Rat
+func uintToXSDDoubleStr[T allUInts](v T) (string, error) {
+	out := ld.GetCanonicalDouble(float64(v))
+
+	r := new(big.Rat)
+	_, ok := r.SetString(out)
+	if !ok {
+		return "", errors.New(
+			"[assertion] failed to parse canonical double as rational")
+	}
+
+	if r.Denom().Cmp(big.NewInt(1)) != 0 {
+		return "", errors.New("value is too big to be converted to float64")
+	}
+
+	if r.Num().Cmp(new(big.Int).SetUint64(uint64(v))) != 0 {
+		return "", errors.New("value is too big to be converted to float64")
+	}
+
+	return out, nil
 }
 
 func convertStringToXSDValue(datatype string,
@@ -1140,6 +1240,15 @@ func convertStringToXSDValue(datatype string,
 		} else {
 			resultValue, err = time.Parse(time.RFC3339Nano, value)
 		}
+
+	// this is for v2, it would break current MT root
+	//nolint: gocritic // reson: for future use
+	//case ld.XSDDouble:
+	//	f, err := strconv.ParseFloat(value, 64)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	resultValue = ld.GetCanonicalDouble(f)
 
 	default:
 		resultValue = value
