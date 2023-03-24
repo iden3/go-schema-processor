@@ -1675,7 +1675,12 @@ func mkValueString(h Hasher, val string) (*big.Int, error) {
 }
 
 func mkValueTime(h Hasher, val time.Time) (*big.Int, error) {
-	return mkValueInt(h, val.UnixNano())
+	var x = new(big.Int).Mul(
+		big.NewInt(val.Unix()),
+		big.NewInt(1_000_000_000))
+	x.Add(x, big.NewInt(int64(val.Nanosecond())))
+	x.Mod(x, h.Prime())
+	return x, nil
 }
 
 // assert consistency of dataset and validate that only

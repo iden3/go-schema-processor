@@ -1236,6 +1236,12 @@ func TestHashValue(t *testing.T) {
 			wantHash: "1546300800000000000",
 		},
 		{
+			name:     "xsd:dateTime in the distant future",
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:    "4000-01-01T00:00:00Z",
+			wantHash: "64060588800000000000",
+		},
+		{
 			name:     "xsd:dateTime < January 1st, 1970 RFC3339Nano",
 			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 			value:    "1960-02-20T11:20:33Z",
