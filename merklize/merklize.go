@@ -1084,7 +1084,6 @@ func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
 
 // only supported xsd types.
 func convertAnyToString(value any, datatype string) (str string, err error) {
-
 	if datatype == ld.XSDDouble {
 		switch v := value.(type) {
 		case string:
@@ -1241,14 +1240,13 @@ func convertStringToXSDValue(datatype string,
 			resultValue, err = time.Parse(time.RFC3339Nano, value)
 		}
 
-	// this is for v2, it would break current MT root
-	//nolint: gocritic // reson: for future use
-	//case ld.XSDDouble:
-	//	f, err := strconv.ParseFloat(value, 64)
-	//	if err != nil {
-	//		return "", err
-	//	}
-	//	resultValue = ld.GetCanonicalDouble(f)
+	case ld.XSDDouble:
+		var f float64
+		f, err = strconv.ParseFloat(value, 64)
+		if err != nil {
+			return "", err
+		}
+		resultValue = ld.GetCanonicalDouble(f)
 
 	default:
 		resultValue = value
@@ -1677,7 +1675,12 @@ func mkValueString(h Hasher, val string) (*big.Int, error) {
 }
 
 func mkValueTime(h Hasher, val time.Time) (*big.Int, error) {
-	return mkValueInt(h, val.UnixNano())
+	var x = new(big.Int).Mul(
+		big.NewInt(val.Unix()),
+		big.NewInt(1_000_000_000))
+	x.Add(x, big.NewInt(int64(val.Nanosecond())))
+	x.Mod(x, h.Prime())
+	return x, nil
 }
 
 // assert consistency of dataset and validate that only

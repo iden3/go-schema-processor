@@ -802,7 +802,7 @@ var doc1 = `
         "KYCAgeCredential"
     ],
     "id": "http://myid.com",
-    "expirationDate": "2361-03-21T21:14:48+02:00",
+    "expirationDate": "2261-03-21T21:14:48+02:00",
     "credentialSubject": {
         "type": "KYCAgeCredential",
         "id": "did:iden3:polygon:mumbai:wyFiV4w71QgWPn6bYLsZoysFay66gKtVa9kfu6yMZ",
@@ -1236,6 +1236,12 @@ func TestHashValue(t *testing.T) {
 			wantHash: "1546300800000000000",
 		},
 		{
+			name:     "xsd:dateTime in the distant future",
+			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:    "4000-01-01T00:00:00Z",
+			wantHash: "64060588800000000000",
+		},
+		{
 			name:     "xsd:dateTime < January 1st, 1970 RFC3339Nano",
 			datatype: "http://www.w3.org/2001/XMLSchema#dateTime",
 			value:    "1960-02-20T11:20:33Z",
@@ -1492,7 +1498,7 @@ func TestRoots(t *testing.T) {
 		{
 			name:     "doc1",
 			doc:      doc1,
-			wantRoot: "10272719837413875229881209264203748224508385138831284537815130356356451726720",
+			wantRoot: "14254126130605812747518773069191924472136034086074656038330159471066163388520",
 		},
 		{
 			name:     "multigraphDoc2",
@@ -1507,7 +1513,7 @@ func TestRoots(t *testing.T) {
 		{
 			name:     "docWithFloat",
 			doc:      docWithFloat,
-			wantRoot: "21537869856020100030973709089104354702264298701645723027366622468003633791751",
+			wantRoot: "16807151140873243281836480228059250043791482248223749610516824774207131149216",
 		},
 	}
 	for _, tt := range testcases {
