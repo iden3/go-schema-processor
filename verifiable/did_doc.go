@@ -1,13 +1,20 @@
 package verifiable
 
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/pkg/errors"
+)
+
 // DIDDocument defines current supported did doc model.
 type DIDDocument struct {
-	Context            []string      `json:"@context"`
-	ID                 string        `json:"id"`
-	Service            []interface{} `json:"service"`
-	VerificationMethod []interface{} `json:"verificationMethod"`
-	Authentication     []interface{} `json:"authentication"`
-	KeyAgreement       []interface{} `json:"keyAgreement"`
+	Context            []string                 `json:"@context"`
+	ID                 string                   `json:"id"`
+	Service            []interface{}            `json:"service"`
+	VerificationMethod CommonVerificationMethod `json:"verificationMethod"`
+	Authentication     []Authentication         `json:"authentication"`
+	KeyAgreement       []interface{}            `json:"keyAgreement"`
 }
 
 // Service describes standard DID document service field.
@@ -42,12 +49,45 @@ type DeviceMetadata struct {
 
 // CommonVerificationMethod DID doc verification method.
 type CommonVerificationMethod struct {
-	ID                  string      `json:"id"`
-	Type                string      `json:"type"`
-	Controller          string      `json:"controller"`
-	PublicKeyJwk        interface{} `json:"publicKeyJwk"`
-	PublicKeyMultibase  string      `json:"publicKeyMultibase,omitempty"`
-	PublicKeyHex        string      `json:"publicKeyHex,omitempty"`
-	EthereumAddress     string      `json:"ethereumAddress,omitempty"`
-	BlockchainAccountID string      `json:"blockchainAccountId,omitempty"`
+	ID                  string                 `json:"id"`
+	Type                string                 `json:"type"`
+	Controller          string                 `json:"controller"`
+	PublicKeyJwk        map[string]interface{} `json:"publicKeyJwk"`
+	PublicKeyMultibase  string                 `json:"publicKeyMultibase,omitempty"`
+	PublicKeyHex        string                 `json:"publicKeyHex,omitempty"`
+	EthereumAddress     string                 `json:"ethereumAddress,omitempty"`
+	BlockchainAccountID string                 `json:"blockchainAccountId,omitempty"`
+}
+
+type Authentication struct {
+	CommonVerificationMethod
+	did string
+}
+
+func (a *Authentication) UnmarshalJSON(b []byte) error {
+	switch b[0] {
+	case '{':
+		tmp := Authentication{}
+		err := json.Unmarshal(b, &tmp)
+		if err != nil {
+			return errors.Errorf("invalid json payload for authentication: %w", err)
+		}
+		*a = (Authentication)(tmp)
+	case '"':
+		err := json.Unmarshal(b, &a.did)
+		if err != nil {
+			return fmt.Errorf("faild parse did: %w", err)
+		}
+	default:
+		return errors.New("authentication is invalid")
+	}
+	return nil
+}
+
+func (a *Authentication) MarshalJSON() ([]byte, error) {
+	if a.did == "" {
+		return json.Marshal(a.CommonVerificationMethod)
+	} else {
+		return json.Marshal(a)
+	}
 }
