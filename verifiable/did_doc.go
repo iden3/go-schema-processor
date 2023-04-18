@@ -2,9 +2,12 @@ package verifiable
 
 // DIDDocument defines current supported did doc model.
 type DIDDocument struct {
-	Context []string      `json:"@context"`
-	ID      string        `json:"id"`
-	Service []interface{} `json:"service"`
+	Context            []string      `json:"@context"`
+	ID                 string        `json:"id"`
+	Service            []interface{} `json:"service"`
+	VerificationMethod []interface{} `json:"verificationMethod"`
+	Authentication     []interface{} `json:"authentication"`
+	KeyAgreement       []interface{} `json:"keyAgreement"`
 }
 
 // Service describes standard DID document service field.
@@ -35,4 +38,16 @@ type EncryptedDeviceMetadata struct {
 type DeviceMetadata struct {
 	AppID     string `json:"app_id"`
 	PushToken string `json:"push_token"`
+}
+
+// CommonVerificationMethod DID doc verification method.
+type CommonVerificationMethod struct {
+	ID                  string      `json:"id"`
+	Type                string      `json:"type"`
+	Controller          string      `json:"controller"`
+	PublicKeyJwk        interface{} `json:"publicKeyJwk"`
+	PublicKeyMultibase  string      `json:"publicKeyMultibase,omitempty"`
+	PublicKeyHex        string      `json:"publicKeyHex,omitempty"`
+	EthereumAddress     string      `json:"ethereumAddress,omitempty"`
+	BlockchainAccountId string      `json:"blockchainAccountId,omitempty"`
 }
