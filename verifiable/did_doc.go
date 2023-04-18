@@ -9,12 +9,12 @@ import (
 
 // DIDDocument defines current supported did doc model.
 type DIDDocument struct {
-	Context            []string                 `json:"@context"`
-	ID                 string                   `json:"id"`
-	Service            []interface{}            `json:"service"`
-	VerificationMethod CommonVerificationMethod `json:"verificationMethod"`
-	Authentication     []Authentication         `json:"authentication"`
-	KeyAgreement       []interface{}            `json:"keyAgreement"`
+	Context            []string                   `json:"@context"`
+	ID                 string                     `json:"id"`
+	Service            []interface{}              `json:"service"`
+	VerificationMethod []CommonVerificationMethod `json:"verificationMethod"`
+	Authentication     []Authentication           `json:"authentication"`
+	KeyAgreement       []interface{}              `json:"keyAgreement"`
 }
 
 // Service describes standard DID document service field.
@@ -64,19 +64,27 @@ type Authentication struct {
 	did string
 }
 
+func (a *Authentication) IsDID() bool {
+	return a.did != ""
+}
+
+func (a *Authentication) DID() string {
+	return a.did
+}
+
 func (a *Authentication) UnmarshalJSON(b []byte) error {
 	switch b[0] {
 	case '{':
 		tmp := Authentication{}
 		err := json.Unmarshal(b, &tmp)
 		if err != nil {
-			return errors.Errorf("invalid json payload for authentication: %w", err)
+			return errors.Errorf("invalid json payload for authentication: %v", err)
 		}
-		*a = (Authentication)(tmp)
+		*a = tmp
 	case '"':
 		err := json.Unmarshal(b, &a.did)
 		if err != nil {
-			return fmt.Errorf("faild parse did: %w", err)
+			return fmt.Errorf("faild parse did: %v", err)
 		}
 	default:
 		return errors.New("authentication is invalid")
