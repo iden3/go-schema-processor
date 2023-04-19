@@ -73,14 +73,15 @@ func (a *Authentication) DID() string {
 }
 
 func (a *Authentication) UnmarshalJSON(b []byte) error {
+	type Alias Authentication
 	switch b[0] {
 	case '{':
-		tmp := Authentication{}
+		tmp := Alias{}
 		err := json.Unmarshal(b, &tmp)
 		if err != nil {
 			return errors.Errorf("invalid json payload for authentication: %v", err)
 		}
-		*a = tmp
+		*a = (Authentication)(tmp)
 	case '"':
 		err := json.Unmarshal(b, &a.did)
 		if err != nil {
