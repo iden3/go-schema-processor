@@ -1314,6 +1314,18 @@ func TestHashValue(t *testing.T) {
 			value:    int64(1234567890123456),
 			wantHash: strHash("1.234567890123456E15"),
 		},
+		{
+			name:     "false boolean xsd type with float64(0) value",
+			datatype: "http://www.w3.org/2001/XMLSchema#boolean",
+			value:    float64(0),
+			wantHash: "19014214495641488759237505126948346942972912379615652741039992445865937985820",
+		},
+		{
+			name:     "boolean xsd type with float64(1) value",
+			datatype: "http://www.w3.org/2001/XMLSchema#boolean",
+			value:    float64(1),
+			wantHash: "18586133768512220936620570745912940619677854269274689475585506675881198879027",
+		},
 	}
 
 	for _, tt := range tests {

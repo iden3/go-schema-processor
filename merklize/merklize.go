@@ -1198,9 +1198,9 @@ func convertStringToXSDValue(datatype string,
 	switch datatype {
 	case ld.XSDBoolean:
 		switch value {
-		case "false", "0":
+		case "false", "0", "0.0E0":
 			resultValue = false
-		case "true", "1":
+		case "true", "1", "1.0E0":
 			resultValue = true
 		default:
 			err = errors.New("incorrect boolean value")
