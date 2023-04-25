@@ -3,9 +3,9 @@ module github.com/iden3/go-schema-processor
 go 1.18
 
 require (
-	github.com/iden3/go-iden3-core v1.0.0
-	github.com/iden3/go-iden3-crypto v0.0.14
-	github.com/iden3/go-merkletree-sql/v2 v2.0.2
+	github.com/iden3/go-iden3-core v1.0.2
+	github.com/iden3/go-iden3-crypto v0.0.15
+	github.com/iden3/go-merkletree-sql/v2 v2.0.4
 	github.com/ipfs/go-ipfs-api v0.4.0
 	// We require the `json-gold` bugfix which has not yet been included in the
 	// stable version. After the release of version 0.5.1 or later, it will be
