@@ -55,6 +55,7 @@ type CommonVerificationMethod struct {
 	PublicKeyJwk        map[string]interface{} `json:"publicKeyJwk"`
 	PublicKeyMultibase  string                 `json:"publicKeyMultibase,omitempty"`
 	PublicKeyHex        string                 `json:"publicKeyHex,omitempty"`
+	PublicKeyBase58     string                 `json:"publicKeyBase58,omitempty"`
 	EthereumAddress     string                 `json:"ethereumAddress,omitempty"`
 	BlockchainAccountID string                 `json:"blockchainAccountId,omitempty"`
 }
