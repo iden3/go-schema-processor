@@ -27,7 +27,7 @@ const testDocument = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://w3id.org/citizenship/v1",
-    "https://gist.githubusercontent.com/ilya-korotya/2a98a9359f8d05e6c1dd41b38d740792/raw/09ebd087ae0492dd25bcc0fb267353e655195ba0/security%2520context"
+	"https://w3id.org/security/bbs/v1"
   ],
   "id": "https://issuer.oidp.uscis.gov/credentials/83627465",
   "type": ["VerifiableCredential", "PermanentResidentCard"],
