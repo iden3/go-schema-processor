@@ -73,6 +73,9 @@ type CredentialSchema struct {
 	Type string `json:"type"`
 }
 
+// CredentialStatusType type for understanding revocation type
+type CredentialStatusType string
+
 // CredentialStatus represents the URL to fetch claim revocation info directly from the issuer.
 type CredentialStatus struct {
 	ID              string               `json:"id"`
@@ -88,8 +91,14 @@ type RHSCredentialStatus struct {
 	StatusIssuer    *CredentialStatus    `json:"statusIssuer,omitempty"`
 }
 
-// CredentialStatusType type for understanding revocation type
-type CredentialStatusType string
+// OnChainCredentialStatus contains type, smart contract address and network to fetch on-chain info,
+// issuer ID and revocation nonce and backup option to fetch credential status
+type OnChainCredentialStatus struct {
+	ID              string               `json:"id"`
+	Type            CredentialStatusType `json:"type"`
+	RevocationNonce uint64               `json:"revocationNonce"`
+	StatusIssuer    *CredentialStatus    `json:"statusIssuer,omitempty"`
+}
 
 // RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
 type RevocationStatus struct {
