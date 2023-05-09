@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	core "github.com/iden3/go-iden3-core"
+	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 )

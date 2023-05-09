@@ -5,9 +5,8 @@ import (
 	commonJSON "encoding/json"
 	"testing"
 
-	json "github.com/iden3/go-schema-processor/json"
-	"github.com/iden3/go-schema-processor/processor"
-
+	"github.com/iden3/go-schema-processor/v2/json"
+	"github.com/iden3/go-schema-processor/v2/processor"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )

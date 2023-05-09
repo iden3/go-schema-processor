@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"time"
 
-	core "github.com/iden3/go-iden3-core"
+	core "github.com/iden3/go-iden3-core/v2"
 	mt "github.com/iden3/go-merkletree-sql/v2"
-	"github.com/iden3/go-schema-processor/merklize"
+	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/pkg/errors"
 )
 

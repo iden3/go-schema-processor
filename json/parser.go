@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-schema-processor/processor"
-	"github.com/iden3/go-schema-processor/utils"
-	"github.com/iden3/go-schema-processor/verifiable"
+	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-iden3-core/v2/did"
+	"github.com/iden3/go-schema-processor/v2/processor"
+	"github.com/iden3/go-schema-processor/v2/utils"
+	"github.com/iden3/go-schema-processor/v2/verifiable"
 	"github.com/pkg/errors"
 )
 
@@ -74,17 +75,22 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		claim.SetExpirationDate(*credential.Expiration)
 	}
 	if subjectID != nil {
-		var did *core.DID
-		did, err = core.ParseDID(fmt.Sprintf("%v", subjectID))
+		var subjDID *did.DID
+		subjDID, err = did.Parse(fmt.Sprintf("%v", subjectID))
+		if err != nil {
+			return nil, err
+		}
+
+		id, err := core.IDFromDID(*subjDID)
 		if err != nil {
 			return nil, err
 		}
 
 		switch opts.SubjectPosition {
 		case "", utils.SubjectPositionIndex:
-			claim.SetIndexID(did.ID)
+			claim.SetIndexID(id)
 		case utils.SubjectPositionValue:
-			claim.SetValueID(did.ID)
+			claim.SetValueID(id)
 		default:
 			return nil, errors.New("unknown subject position")
 		}

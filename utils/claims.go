@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	core "github.com/iden3/go-iden3-core"
+	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/pkg/errors"
 )
 
