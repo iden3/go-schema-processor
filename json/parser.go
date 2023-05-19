@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	core "github.com/iden3/go-iden3-core/v2"
-	"github.com/iden3/go-iden3-core/v2/did"
+	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-schema-processor/v2/processor"
 	"github.com/iden3/go-schema-processor/v2/utils"
 	"github.com/iden3/go-schema-processor/v2/verifiable"
@@ -75,13 +75,13 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		claim.SetExpirationDate(*credential.Expiration)
 	}
 	if subjectID != nil {
-		var subjDID *did.DID
-		subjDID, err = did.Parse(fmt.Sprintf("%v", subjectID))
+		var did *w3c.DID
+		did, err = w3c.ParseDID(fmt.Sprintf("%v", subjectID))
 		if err != nil {
 			return nil, err
 		}
 
-		id, err := core.IDFromDID(*subjDID)
+		id, err := core.IDFromDID(*did)
 		if err != nil {
 			return nil, err
 		}
