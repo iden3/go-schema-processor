@@ -78,9 +78,11 @@ type CredentialStatus struct {
 	ID              string               `json:"id"`
 	Type            CredentialStatusType `json:"type"`
 	RevocationNonce uint64               `json:"revocationNonce"`
+	StatusIssuer    *CredentialStatus    `json:"statusIssuer,omitempty"`
 }
 
 // RHSCredentialStatus contains type, url to fetch RHS info, issuer ID and revocation nonce and backup option to fetch credential status
+// Deprecated: use CredentialStatus instead
 type RHSCredentialStatus struct {
 	ID              string               `json:"id"`
 	Type            CredentialStatusType `json:"type"`

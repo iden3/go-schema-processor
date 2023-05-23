@@ -51,14 +51,22 @@ const (
 	CredentialMerklizedRootPositionValue = "value"
 
 	// CredentialMerklizedRootPositionNone is for non-merklized W3CCredential
-	CredentialMerklizedRootPositionNone = "none"
+	CredentialMerklizedRootPositionNone = ""
 
 	// CredentialSubjectPositionIndex is subject position of W3CCredential in index (core claim)
 	CredentialSubjectPositionIndex = "index"
 
+	// CredentialSubjectPositionValue is subject position of W3CCredential in value (core claim)
+	CredentialSubjectPositionValue = "value"
+
 	// CredentialSubjectRootPositionValue is subject position of W3CCredential in value (core claim)
+	// Deprecated: use CredentialSubjectPositionValue instead
 	CredentialSubjectRootPositionValue = "value"
 
-	// CredentialSubjectPositionNone is for self issued W3CCredential
-	CredentialSubjectPositionNone = "none"
+	// Iden3CommRevocationStatus is CredentialStatusType for iden3comm revocation status
+	Iden3CommRevocationStatus CredentialStatusType = "iden3-communication-revocation-status"
+
+	// Iden3OnChainSparseMerkleTreeProofType is a proof type for MTP proofs with iden3 metadata.
+	// Context is defined here: https://schema.iden3.io/core/jsonld/iden3proofs.jsonld
+	Iden3OnChainSparseMerkleTreeProofType CredentialStatusType = "Iden3OnChainSparseMerkleTreeProofType"
 )
