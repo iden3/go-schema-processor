@@ -44,8 +44,8 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		opts = &processor.CoreClaimOptions{
 			RevNonce:              0,
 			Version:               0,
-			SubjectPosition:       "index",
-			MerklizedRootPosition: "none",
+			SubjectPosition:       utils.SubjectPositionIndex,
+			MerklizedRootPosition: utils.MerklizedRootPositionNone,
 			Updatable:             false,
 		}
 	}
