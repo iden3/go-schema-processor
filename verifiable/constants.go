@@ -63,10 +63,9 @@ const (
 	// Deprecated: use CredentialSubjectPositionValue instead
 	CredentialSubjectRootPositionValue = "value"
 
-	// Iden3CommRevocationStatus is CredentialStatusType for iden3comm revocation status
-	Iden3CommRevocationStatus CredentialStatusType = "iden3-communication-revocation-status"
+	// Iden3commRevocationStatus is CredentialStatusType for iden3comm revocation status
+	Iden3commRevocationStatus CredentialStatusType = "Iden3commRevocationStatusV1.0"
 
-	// Iden3OnChainSparseMerkleTreeProofType is a proof type for MTP proofs with iden3 metadata.
-	// Context is defined here: https://schema.iden3.io/core/jsonld/iden3proofs.jsonld
-	Iden3OnChainSparseMerkleTreeProofType CredentialStatusType = "Iden3OnChainSparseMerkleTreeProofType"
+	// Iden3OnсhainSparseMerkleTreeProof2023 is a proof type for MTP proofs with iden3 metadata from blockchain
+	Iden3OnchainSparseMerkleTreeProof2023 CredentialStatusType = "Iden3OnchainSparseMerkleTreeProof2023"
 )
