@@ -1081,6 +1081,31 @@ func TestTypeFromContext(t *testing.T) {
 	require.Equal(t, "http://www.w3.org/2001/XMLSchema#integer", typ)
 }
 
+func TestTypeIDFromContext(t *testing.T) {
+	t.Run("url-like id", func(t *testing.T) {
+		ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
+		require.NoError(t, err)
+
+		typeName := "KYCCountryOfResidenceCredential"
+		typeID, err := TypeIDFromContext(ctxBytes, typeName)
+		require.NoError(t, err)
+		require.Equal(t,
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v4.json-ld#KYCCountryOfResidenceCredential",
+			typeID)
+	})
+
+	t.Run("urn-like id", func(t *testing.T) {
+		ctxBytes, err := os.ReadFile("testdata/kyc-v102.jsonld")
+		require.NoError(t, err)
+
+		typeName := "KYCCountryOfResidenceCredential"
+		typeID, err := TypeIDFromContext(ctxBytes, typeName)
+		require.NoError(t, err)
+		require.Equal(t, "urn:uuid:a81d4fae-7dec-11d0-a765-00a0c91e6bf0",
+			typeID)
+	})
+}
+
 func TestHashValues_FromDocument(t *testing.T) {
 	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
