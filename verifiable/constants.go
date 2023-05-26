@@ -51,14 +51,21 @@ const (
 	CredentialMerklizedRootPositionValue = "value"
 
 	// CredentialMerklizedRootPositionNone is for non-merklized W3CCredential
-	CredentialMerklizedRootPositionNone = "none"
+	CredentialMerklizedRootPositionNone = ""
 
 	// CredentialSubjectPositionIndex is subject position of W3CCredential in index (core claim)
 	CredentialSubjectPositionIndex = "index"
 
+	// CredentialSubjectPositionValue is subject position of W3CCredential in value (core claim)
+	CredentialSubjectPositionValue = "value"
+
 	// CredentialSubjectRootPositionValue is subject position of W3CCredential in value (core claim)
+	// Deprecated: use CredentialSubjectPositionValue instead
 	CredentialSubjectRootPositionValue = "value"
 
-	// CredentialSubjectPositionNone is for self issued W3CCredential
-	CredentialSubjectPositionNone = "none"
+	// Iden3commRevocationStatusV1 is CredentialStatusType for iden3comm revocation status
+	Iden3commRevocationStatusV1 CredentialStatusType = "Iden3commRevocationStatusV1.0"
+
+	// Iden3OnсhainSparseMerkleTreeProof2023 is a proof type for MTP proofs with iden3 metadata from blockchain
+	Iden3OnchainSparseMerkleTreeProof2023 CredentialStatusType = "Iden3OnchainSparseMerkleTreeProof2023"
 )
