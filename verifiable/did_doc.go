@@ -11,10 +11,10 @@ import (
 type DIDDocument struct {
 	Context            []string                   `json:"@context"`
 	ID                 string                     `json:"id"`
-	Service            []interface{}              `json:"service"`
-	VerificationMethod []CommonVerificationMethod `json:"verificationMethod"`
-	Authentication     []Authentication           `json:"authentication"`
-	KeyAgreement       []interface{}              `json:"keyAgreement"`
+	Service            []interface{}              `json:"service,omitempty"`
+	VerificationMethod []CommonVerificationMethod `json:"verificationMethod,omitempty"`
+	Authentication     []Authentication           `json:"authentication,omitempty"`
+	KeyAgreement       []interface{}              `json:"keyAgreement,omitempty"`
 }
 
 // Service describes standard DID document service field.
@@ -74,6 +74,9 @@ func (a *Authentication) DID() string {
 }
 
 func (a *Authentication) UnmarshalJSON(b []byte) error {
+	if b == nil {
+		return nil
+	}
 	type Alias Authentication
 	switch b[0] {
 	case '{':
