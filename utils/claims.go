@@ -10,15 +10,20 @@ import (
 
 const (
 	// SubjectPositionIndex save subject in index part of claim. By default.
+	// Deprecated: use verifiable.CredentialSubjectPositionIndex instead
 	SubjectPositionIndex = "index"
 	// SubjectPositionValue save subject in value part of claim.
+	// Deprecated: use verifiable.CredentialSubjectPositionValue instead
 	SubjectPositionValue = "value"
 
 	// MerklizedRootPositionIndex merklized root is stored in index.
+	// Deprecated: use verifiable.CredentialMerklizedRootPositionIndex instead
 	MerklizedRootPositionIndex = "index"
 	// MerklizedRootPositionValue merklized root is stored in value.
+	// Deprecated: use verifiable.CredentialMerklizedRootPositionValue instead
 	MerklizedRootPositionValue = "value"
 	// MerklizedRootPositionNone merklized root is not stored in the claim. By Default.
+	// Deprecated: use verifiable.CredentialMerklizedRootPositionNone instead
 	MerklizedRootPositionNone = ""
 )
 

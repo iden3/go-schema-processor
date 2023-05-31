@@ -162,6 +162,41 @@ func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, 
 	return resPath, nil
 }
 
+// TypeIDFromContext returns @id attribute for type from JSON-LD context
+func TypeIDFromContext(ctxBytes []byte, typeName string) (string, error) {
+	var ctxObj map[string]interface{}
+	err := json.Unmarshal(ctxBytes, &ctxObj)
+	if err != nil {
+		return "", err
+	}
+
+	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxObj["@context"])
+	if err != nil {
+		return "", err
+	}
+
+	typeDef := ldCtx.GetTermDefinition(typeName)
+
+	_, isType := typeDef["@context"]
+	if !isType {
+		return "", fmt.Errorf("looks like %v is not a type", typeName)
+	}
+
+	typeID, idFound := typeDef["@id"]
+	if !idFound {
+		return "", fmt.Errorf("@id attribute is not found for type %v",
+			typeName)
+	}
+
+	typeIDStr, ok := typeID.(string)
+	if !ok {
+		return "", fmt.Errorf("@id attribute is not a string for type %v",
+			typeName)
+	}
+
+	return typeIDStr, nil
+}
+
 // TypeFromContext returns type of field from context by path.
 func TypeFromContext(ctxBytes []byte, path string) (string, error) {
 	var ctxObj map[string]interface{}

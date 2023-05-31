@@ -45,8 +45,8 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		opts = &processor.CoreClaimOptions{
 			RevNonce:              0,
 			Version:               0,
-			SubjectPosition:       "index",
-			MerklizedRootPosition: "none",
+			SubjectPosition:       verifiable.CredentialSubjectPositionIndex,
+			MerklizedRootPosition: verifiable.CredentialMerklizedRootPositionNone,
 			Updatable:             false,
 		}
 	}
@@ -87,9 +87,9 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		}
 
 		switch opts.SubjectPosition {
-		case "", utils.SubjectPositionIndex:
+		case "", verifiable.CredentialSubjectPositionIndex:
 			claim.SetIndexID(id)
-		case utils.SubjectPositionValue:
+		case verifiable.CredentialSubjectPositionValue:
 			claim.SetValueID(id)
 		default:
 			return nil, errors.New("unknown subject position")
@@ -97,7 +97,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 	}
 
 	switch opts.MerklizedRootPosition {
-	case utils.MerklizedRootPositionIndex:
+	case verifiable.CredentialMerklizedRootPositionIndex:
 		mkRoot, err := credential.Merklize(ctx)
 		if err != nil {
 			return nil, err
@@ -106,7 +106,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		if err != nil {
 			return nil, err
 		}
-	case utils.MerklizedRootPositionValue:
+	case verifiable.CredentialMerklizedRootPositionValue:
 		mkRoot, err := credential.Merklize(ctx)
 		if err != nil {
 			return nil, err
@@ -115,7 +115,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		if err != nil {
 			return nil, err
 		}
-	case utils.MerklizedRootPositionNone:
+	case verifiable.CredentialMerklizedRootPositionNone:
 		break
 	default:
 		return nil, errors.New("unknown merklized root position")

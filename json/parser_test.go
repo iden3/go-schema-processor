@@ -56,8 +56,8 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 	opts := processor.CoreClaimOptions{
 		RevNonce:              127366661,
 		Version:               0,
-		SubjectPosition:       "index",
-		MerklizedRootPosition: "",
+		SubjectPosition:       verifiable.CredentialSubjectPositionIndex,
+		MerklizedRootPosition: verifiable.CredentialMerklizedRootPositionNone,
 		Updatable:             true,
 	}
 
@@ -105,8 +105,8 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 	opts := processor.CoreClaimOptions{
 		RevNonce:              127366661,
 		Version:               0,
-		SubjectPosition:       "index",
-		MerklizedRootPosition: "index",
+		SubjectPosition:       verifiable.CredentialSubjectPositionIndex,
+		MerklizedRootPosition: verifiable.CredentialMerklizedRootPositionIndex,
 		Updatable:             true,
 	}
 	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, schemaBytes, &opts)
