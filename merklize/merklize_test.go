@@ -23,6 +23,52 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const nestedFieldDocument = `{
+  "@context": [
+    {
+      "@version": 1.1,
+      "@protected": true,
+      "id": "@id",
+      "type": "@type",
+      "CustomType": {
+        "@id": "urn:uuid:79f824ba-fee3-11ed-be56-0242ac120002",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "@propagate": true,
+          "id": "@id",
+          "type": "@type",
+          "xsd": "http://www.w3.org/2001/XMLSchema#",
+          "customField": {
+            "@id": "polygon-vocab:customField",
+            "@type": "xsd:string"
+          },
+          "polygon-vocab": "urn:uuid:87caf7a2-fee3-11ed-be56-0242ac120001#",
+          "objectField": {
+            "@id": "polygon-vocab:objectField",
+            "@context": {
+              "@version": 1.1,
+              "@protected": true,
+              "id": "@id",
+              "type": "@type",
+              "customNestedField": {
+                "@id": "polygon-vocab:customNestedField",
+                "@type": "xsd:integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "id": "urn:urn:e27a921e-fee5-11ed-be56-0242ac100000",
+  "type": ["CustomType"],
+  "customField": "1234",
+  "objectField": {
+    "customNestedField": 1
+  }
+}`
+
 const testDocument = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
@@ -685,17 +731,30 @@ func TestFieldPathFromContext(t *testing.T) {
 }
 
 func TestPathFromDocument(t *testing.T) {
-	in := "credentialSubject.1.birthDate"
-	result, err := NewPathFromDocument([]byte(testDocument), in)
-	require.NoError(t, err)
+	t.Run("path with index array", func(t *testing.T) {
+		in := "credentialSubject.1.birthDate"
+		result, err := NewPathFromDocument([]byte(testDocument), in)
+		require.NoError(t, err)
 
-	want, err := NewPath(
-		"https://www.w3.org/2018/credentials#credentialSubject",
-		1,
-		"http://schema.org/birthDate")
-	require.NoError(t, err)
+		want, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject",
+			1,
+			"http://schema.org/birthDate")
+		require.NoError(t, err)
 
-	require.Equal(t, want, result)
+		require.Equal(t, want, result)
+	})
+
+	t.Run("path to nested field", func(t *testing.T) {
+		path, err := NewPathFromDocument([]byte(nestedFieldDocument),
+			"objectField.customNestedField")
+		require.NoError(t, err)
+
+		want, err := NewPath(
+			"urn:uuid:87caf7a2-fee3-11ed-be56-0242ac120001#objectField",
+			"urn:uuid:87caf7a2-fee3-11ed-be56-0242ac120001#customNestedField")
+		require.Equal(t, want, path)
+	})
 }
 
 func TestMkValueInt(t *testing.T) {
