@@ -399,6 +399,14 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 		return nil, fmt.Errorf("@id attr is not of type string: %T", id)
 	}
 
+	termContext, termHasCtx := m["@context"]
+	if termHasCtx {
+		ldCtx, err = ldCtx.Parse(termContext)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	moreParts, err := pathFromDocument(ldCtx, docObjMap[term], newPathParts,
 		true)
 	if err != nil {
