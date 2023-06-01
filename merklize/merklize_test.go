@@ -753,6 +753,7 @@ func TestPathFromDocument(t *testing.T) {
 		want, err := NewPath(
 			"urn:uuid:87caf7a2-fee3-11ed-be56-0242ac120001#objectField",
 			"urn:uuid:87caf7a2-fee3-11ed-be56-0242ac120001#customNestedField")
+		require.NoError(t, err)
 		require.Equal(t, want, path)
 	})
 }
