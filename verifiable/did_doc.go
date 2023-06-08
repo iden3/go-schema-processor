@@ -9,7 +9,7 @@ import (
 
 // DIDDocument defines current supported did doc model.
 type DIDDocument struct {
-	Context            []string                   `json:"@context"`
+	Context            interface{}                `json:"@context"`
 	ID                 string                     `json:"id"`
 	Service            []interface{}              `json:"service,omitempty"`
 	VerificationMethod []CommonVerificationMethod `json:"verificationMethod,omitempty"`
