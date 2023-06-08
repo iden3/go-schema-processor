@@ -28,10 +28,11 @@ func (d *documentLoader) LoadDocument(
 
 	const ipfsPrefix = "ipfs://"
 
-	if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
+	switch {
+	case strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://"):
 		return d.httpLoader.LoadDocument(u)
 
-	} else if strings.HasPrefix(u, ipfsPrefix) {
+	case strings.HasPrefix(u, ipfsPrefix):
 		// ipfs://<cid>/dir/schema.json
 		// ipfs://<cid>
 
@@ -64,7 +65,7 @@ func (d *documentLoader) LoadDocument(
 
 		return doc, nil
 
-	} else {
+	default:
 		err = errors.New("unsupported URL schema")
 		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
 	}
