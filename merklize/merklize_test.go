@@ -1,6 +1,7 @@
 package merklize
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,12 +13,14 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/iden3/go-iden3-crypto/constants"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1563,4 +1566,110 @@ func TestRoots(t *testing.T) {
 			require.Equal(t, tt.wantRoot, root.BigInt().String())
 		})
 	}
+}
+
+const ipfsDocument = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "{{ .CitizenshipContext }}",
+	"{{ .BBSContext }}"
+  ],
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627465",
+  "type": ["VerifiableCredential", "PermanentResidentCard"],
+  "issuer": "did:example:489398593",
+  "identifier": 83627465,
+  "name": "Permanent Resident Card",
+  "description": "Government of Example Permanent Resident Card.",
+  "issuanceDate": "2019-12-03T12:19:52Z",
+  "expirationDate": "2029-12-03T12:19:52Z",
+  "credentialSubject": [
+    {
+      "id": "did:example:b34ca6cd37bbf23",
+      "type": ["PermanentResident", "Person"],
+      "givenName": "JOHN",
+      "familyName": "SMITH",
+      "gender": "Male",
+      "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+      "residentSince": "2015-01-01",
+      "lprCategory": "C09",
+      "lprNumber": "999-999-999",
+      "commuterClassification": "C1",
+      "birthCountry": "Bahamas",
+      "birthDate": "1958-07-17"
+    },
+    {
+      "id": "did:example:b34ca6cd37bbf24",
+      "type": ["PermanentResident", "Person"],
+      "givenName": "JOHN",
+      "familyName": "SMITH",
+      "gender": "Male",
+      "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+      "residentSince": "2015-01-01",
+      "lprCategory": "C09",
+      "lprNumber": "999-999-999",
+      "commuterClassification": "C1",
+      "birthCountry": "Bahamas",
+      "birthDate": "1958-07-18"
+    }
+  ]
+}`
+
+func TestIPFSContext(t *testing.T) {
+	ipfsURL := os.Getenv("IPFS_URL")
+	if ipfsURL == "" {
+		t.Skip("IPFS_URL is not set")
+	}
+
+	ipfsCli := shell.NewShell(ipfsURL)
+
+	// Context inside some directory
+	bbsCtx, err := ipfsCli.AddDir("testdata/ipfs/dir1")
+	require.NoError(t, err)
+	bbsCtx = "ipfs://" + bbsCtx + "/dir2/bbs-v2.jsonld"
+
+	f, err := os.Open("testdata/ipfs/citizenship-v1.jsonld")
+	require.NoError(t, err)
+	// no need to close f
+
+	// Context is a pure file (no directory)
+	citizenshipCtx, err := ipfsCli.Add(f)
+	require.NoError(t, err)
+	citizenshipCtx = "ipfs://" + citizenshipCtx
+
+	tmpl := template.Must(template.New("").Parse(ipfsDocument))
+	b := bytes.NewBuffer(nil)
+	err = tmpl.Execute(b, map[string]interface{}{
+		"CitizenshipContext": citizenshipCtx,
+		"BBSContext":         bbsCtx,
+	})
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	t.Run("no ipfs client", func(t *testing.T) {
+		_, err = MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
+		require.ErrorContains(t, err,
+			"loading document failed: ipfs is not configured")
+	})
+
+	t.Run("with ipfs client", func(t *testing.T) {
+		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
+			WithIPFSClient(ipfsCli))
+		require.NoError(t, err2)
+		require.Equal(t,
+			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
+			mz.Root().BigInt().String())
+	})
+
+	t.Run("with document loader", func(t *testing.T) {
+		docLoader := NewDocumentLoader(ipfsCli)
+		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
+			WithDocumentLoader(docLoader))
+		require.NoError(t, err2)
+		require.Equal(t,
+			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
+			mz.Root().BigInt().String())
+	})
+
 }

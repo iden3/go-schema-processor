@@ -17,6 +17,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -1407,12 +1408,14 @@ func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 
 // Merklizer is a struct to work with json-ld doc merklization
 type Merklizer struct {
-	srcDoc    []byte
-	compacted map[string]interface{}
-	mt        MerkleTree
-	entries   map[string]RDFEntry
-	hasher    Hasher
-	safeMode  bool
+	srcDoc         []byte
+	compacted      map[string]interface{}
+	mt             MerkleTree
+	entries        map[string]RDFEntry
+	hasher         Hasher
+	safeMode       bool
+	ipfsCli        *shell.Shell
+	documentLoader ld.DocumentLoader
 }
 
 // MerklizeOption is options for merklizer
@@ -1440,6 +1443,22 @@ func WithMerkleTree(mt MerkleTree) MerklizeOption {
 func WithSafeMode(safeMode bool) MerklizeOption {
 	return func(m *Merklizer) {
 		m.safeMode = safeMode
+	}
+}
+
+// WithIPFSClient sets IPFS client option required to resolve ipfs:// contexts.
+// It works only if documentLoader is not set using WithDocumentLoader option.
+// Otherwise, it will be ignored.
+func WithIPFSClient(ipfsCli *shell.Shell) MerklizeOption {
+	return func(m *Merklizer) {
+		m.ipfsCli = ipfsCli
+	}
+}
+
+// WithDocumentLoader sets DocumentLoader
+func WithDocumentLoader(documentLoader ld.DocumentLoader) MerklizeOption {
+	return func(m *Merklizer) {
+		m.documentLoader = documentLoader
 	}
 }
 
@@ -1483,6 +1502,12 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	options := ld.NewJsonLdOptions("")
 	options.Algorithm = ld.AlgorithmURDNA2015
 	options.SafeMode = mz.safeMode
+
+	if mz.documentLoader == nil {
+		options.DocumentLoader = NewDocumentLoader(mz.ipfsCli)
+	} else {
+		options.DocumentLoader = mz.documentLoader
+	}
 
 	normDoc, err := proc.Normalize(obj, options)
 	if err != nil {
