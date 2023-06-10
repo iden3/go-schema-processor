@@ -12,14 +12,16 @@ import (
 type documentLoader struct {
 	httpLoader *ld.RFC7324CachingDocumentLoader
 	ipfsCli    *shell.Shell
+	ipfsGW     string
 }
 
 // NewDocumentLoader creates a new document loader with a cache for http.
 // ipfs cache is not implemented yet.
-func NewDocumentLoader(ipfsCli *shell.Shell) ld.DocumentLoader {
+func NewDocumentLoader(ipfsCli *shell.Shell, ipfsGW string) ld.DocumentLoader {
 	return &documentLoader{
 		httpLoader: ld.NewRFC7324CachingDocumentLoader(nil),
 		ipfsCli:    ipfsCli,
+		ipfsGW:     ipfsGW,
 	}
 }
 
@@ -33,32 +35,24 @@ func (d *documentLoader) LoadDocument(
 		return d.httpLoader.LoadDocument(u)
 
 	case strings.HasPrefix(u, ipfsPrefix):
+		// supported URLs:
 		// ipfs://<cid>/dir/schema.json
 		// ipfs://<cid>
+
+		doc = &ld.RemoteDocument{DocumentURL: u}
 
 		// strip ipfs:// prefix
 		u = u[len(ipfsPrefix):]
 
-		if d.ipfsCli == nil {
-			err = errors.New("ipfs is not configured")
-			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
+		switch {
+		case d.ipfsCli != nil:
+			doc.Document, err = d.loadDocumentFromIPFSNode(u)
+		case d.ipfsGW != "":
+			doc.Document, err = d.loadDocumentFromIPFSGW(u)
+		default:
+			err = ld.NewJsonLdError(ld.LoadingDocumentFailed,
+				errors.New("ipfs is not configured"))
 		}
-
-		doc = &ld.RemoteDocument{DocumentURL: u}
-
-		var r io.ReadCloser
-		r, err = d.ipfsCli.Cat(u)
-		if err != nil {
-			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
-		}
-		defer func() {
-			err2 := r.Close()
-			if err == nil {
-				err = err2
-			}
-		}()
-
-		doc.Document, err = ld.DocumentFromReader(r)
 		if err != nil {
 			return nil, err
 		}
@@ -69,4 +63,38 @@ func (d *documentLoader) LoadDocument(
 		err = errors.New("unsupported URL schema")
 		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
 	}
+}
+
+func (d *documentLoader) loadDocumentFromIPFSNode(
+	ipfsURL string) (document any, err error) {
+
+	if d.ipfsCli == nil {
+		return nil, errors.New("ipfs is not configured")
+	}
+
+	var r io.ReadCloser
+	r, err = d.ipfsCli.Cat(ipfsURL)
+	if err != nil {
+		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
+	}
+	defer func() {
+		err2 := r.Close()
+		if err == nil {
+			err = err2
+		}
+	}()
+
+	return ld.DocumentFromReader(r)
+}
+
+func (d *documentLoader) loadDocumentFromIPFSGW(
+	ipfsURL string) (any, error) {
+
+	ipfsURL = strings.TrimRight(d.ipfsGW, "/") + "/ipfs/" +
+		strings.TrimLeft(ipfsURL, "/")
+	doc, err := d.httpLoader.LoadDocument(ipfsURL)
+	if err != nil {
+		return nil, err
+	}
+	return doc.Document, nil
 }
