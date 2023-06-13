@@ -1456,14 +1456,15 @@ func WithIPFSClient(ipfsCli *shell.Shell) MerklizeOption {
 	}
 }
 
-// WithIPFSGW sets IPFS gateway URL option required to resolve ipfs:// contexts.
+// WithIPFSGateway sets IPFS gateway URL option required to resolve
+// ipfs:// contexts.
 //
 // If WithIPFSClient option is set, gateway would be ignored and ipfs requests
 // would be sent directly to the client.
 //
 // If WithDocumentLoader option is set, gateway would be ignored and documents
 // would be loaded using the document loader.
-func WithIPFSGW(ipfsGW string) MerklizeOption {
+func WithIPFSGateway(ipfsGW string) MerklizeOption {
 	return func(m *Merklizer) {
 		m.ipfsGW = ipfsGW
 	}

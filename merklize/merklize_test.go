@@ -1682,7 +1682,7 @@ func TestIPFSContext(t *testing.T) {
 
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithIPFSClient(ipfsCli),
-			WithIPFSGW("http://ipfs.io"))
+			WithIPFSGateway("http://ipfs.io"))
 		require.NoError(t, err2)
 		require.Equal(t,
 			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
@@ -1698,7 +1698,7 @@ func TestIPFSContext(t *testing.T) {
 		})()
 
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
-			WithIPFSGW(ipfsGW))
+			WithIPFSGateway(ipfsGW))
 		require.NoError(t, err2)
 		require.Equal(t,
 			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
