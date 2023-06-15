@@ -6,7 +6,7 @@ require (
 	github.com/iden3/go-iden3-core/v2 v2.0.0-20230519124718-42b31ff46f37
 	github.com/iden3/go-iden3-crypto v0.0.15
 	github.com/iden3/go-merkletree-sql/v2 v2.0.4
-	github.com/ipfs/go-ipfs-api v0.4.0
+	github.com/ipfs/go-ipfs-api v0.6.0
 	// We require the `json-gold` bugfix which has not yet been included in the
 	// stable version. After the release of version 0.5.1 or later, it will be
 	// necessary to update to the stable version.
@@ -24,15 +24,12 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/blake512 v1.0.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/ipfs/go-cid v0.3.2 // indirect
-	github.com/ipfs/go-ipfs-files v0.0.9 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.1 // indirect
+	github.com/ipfs/boxo v0.8.0 // indirect
+	github.com/ipfs/go-cid v0.4.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
-	github.com/libp2p/go-libp2p v0.24.2 // indirect
-	github.com/libp2p/go-openssl v0.1.0 // indirect
-	github.com/mattn/go-pointer v0.0.1 // indirect
+	github.com/libp2p/go-libp2p v0.26.3 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
@@ -40,16 +37,17 @@ require (
 	github.com/multiformats/go-base36 v0.2.0 // indirect
 	github.com/multiformats/go-multiaddr v0.8.0 // indirect
 	github.com/multiformats/go-multibase v0.1.1 // indirect
-	github.com/multiformats/go-multicodec v0.7.0 // indirect
+	github.com/multiformats/go-multicodec v0.8.1 // indirect
 	github.com/multiformats/go-multihash v0.2.1 // indirect
+	github.com/multiformats/go-multistream v0.4.1 // indirect
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/qri-io/jsonpointer v0.1.1 // indirect
-	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b // indirect
 	golang.org/x/sys v0.6.0 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
