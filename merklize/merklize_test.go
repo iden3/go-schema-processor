@@ -1,23 +1,30 @@
 package merklize
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/iden3/go-iden3-crypto/constants"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1622,5 +1629,228 @@ func TestRoots(t *testing.T) {
 			root := mz.Root()
 			require.Equal(t, tt.wantRoot, root.BigInt().String())
 		})
+	}
+}
+
+const ipfsDocument = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "{{ .CitizenshipContext }}",
+	"{{ .BBSContext }}"
+  ],
+  "id": "https://issuer.oidp.uscis.gov/credentials/83627465",
+  "type": ["VerifiableCredential", "PermanentResidentCard"],
+  "issuer": "did:example:489398593",
+  "identifier": 83627465,
+  "name": "Permanent Resident Card",
+  "description": "Government of Example Permanent Resident Card.",
+  "issuanceDate": "2019-12-03T12:19:52Z",
+  "expirationDate": "2029-12-03T12:19:52Z",
+  "credentialSubject": [
+    {
+      "id": "did:example:b34ca6cd37bbf23",
+      "type": ["PermanentResident", "Person"],
+      "givenName": "JOHN",
+      "familyName": "SMITH",
+      "gender": "Male",
+      "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+      "residentSince": "2015-01-01",
+      "lprCategory": "C09",
+      "lprNumber": "999-999-999",
+      "commuterClassification": "C1",
+      "birthCountry": "Bahamas",
+      "birthDate": "1958-07-17"
+    },
+    {
+      "id": "did:example:b34ca6cd37bbf24",
+      "type": ["PermanentResident", "Person"],
+      "givenName": "JOHN",
+      "familyName": "SMITH",
+      "gender": "Male",
+      "image": "data:image/png;base64,iVBORw0KGgokJggg==",
+      "residentSince": "2015-01-01",
+      "lprCategory": "C09",
+      "lprNumber": "999-999-999",
+      "commuterClassification": "C1",
+      "birthCountry": "Bahamas",
+      "birthDate": "1958-07-18"
+    }
+  ]
+}`
+
+func TestIPFSContext(t *testing.T) {
+	ipfsURL := os.Getenv("IPFS_URL")
+	if ipfsURL == "" {
+		t.Skip("IPFS_URL is not set")
+	}
+
+	ipfsCli := shell.NewShell(ipfsURL)
+
+	// Context inside some directory
+	bbsCtx, err := ipfsCli.AddDir("testdata/ipfs/dir1")
+	require.NoError(t, err)
+	bbsCtx = "ipfs://" + bbsCtx + "/dir2/bbs-v2.jsonld"
+
+	f, err := os.Open("testdata/ipfs/citizenship-v1.jsonld")
+	require.NoError(t, err)
+	// no need to close f
+
+	// Context is a pure file (no directory)
+	citizenshipCtx, err := ipfsCli.Add(f)
+	require.NoError(t, err)
+	citizenshipCtx = "ipfs://" + citizenshipCtx
+
+	tmpl := template.Must(template.New("").Parse(ipfsDocument))
+	b := bytes.NewBuffer(nil)
+	err = tmpl.Execute(b, map[string]interface{}{
+		"CitizenshipContext": citizenshipCtx,
+		"BBSContext":         bbsCtx,
+	})
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	t.Run("no ipfs client", func(t *testing.T) {
+		defer mockHTTPClient(t, map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+		})()
+
+		_, err = MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
+		require.ErrorContains(t, err,
+			"loading document failed: ipfs is not configured")
+	})
+
+	t.Run("with ipfs client", func(t *testing.T) {
+		defer mockHTTPClient(t, map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+		})()
+
+		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
+			WithIPFSClient(ipfsCli))
+		require.NoError(t, err2)
+		require.Equal(t,
+			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
+			mz.Root().BigInt().String())
+	})
+
+	// If both IPFS client and gateway URL are provided, the client is used.
+	t.Run("with ipfs client and gateway URL", func(t *testing.T) {
+		defer mockHTTPClient(t, map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+		})()
+
+		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
+			WithIPFSClient(ipfsCli),
+			WithIPFSGateway("http://ipfs.io"))
+		require.NoError(t, err2)
+		require.Equal(t,
+			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
+			mz.Root().BigInt().String())
+	})
+
+	t.Run("with ipfs gateway", func(t *testing.T) {
+		ipfsGW := "http://ipfs.io"
+		defer mockHTTPClient(t, map[string]string{
+			"https://www.w3.org/2018/credentials/v1":                                           "testdata/httpresp/credentials-v1.jsonld",
+			ipfsGW + "/ipfs/QmdP4MZkESEabRVB322r2xWm7TCi7LueMNWMJawYmSy7hp":                    "testdata/ipfs/citizenship-v1.jsonld",
+			ipfsGW + "/ipfs/Qmbp4kwoHULnmK71abrxdksjPH5sAjxSAXU5PEp2XRMFNw/dir2/bbs-v2.jsonld": "testdata/ipfs/dir1/dir2/bbs-v2.jsonld",
+		})()
+
+		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
+			WithIPFSGateway(ipfsGW))
+		require.NoError(t, err2)
+		require.Equal(t,
+			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
+			mz.Root().BigInt().String())
+	})
+
+	t.Run("with document loader", func(t *testing.T) {
+		defer mockHTTPClient(t, map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+		})()
+
+		docLoader := NewDocumentLoader(ipfsCli, "")
+		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
+			WithDocumentLoader(docLoader))
+		require.NoError(t, err2)
+		require.Equal(t,
+			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
+			mz.Root().BigInt().String())
+	})
+
+}
+
+type mockedRouterTripper struct {
+	t         testing.TB
+	routes    map[string]string
+	seenURLsM sync.Mutex
+	seenURLs  map[string]struct{}
+}
+
+func (m *mockedRouterTripper) RoundTrip(
+	request *http.Request) (*http.Response, error) {
+
+	urlStr := request.URL.String()
+	routerKey := urlStr
+	rr := httptest.NewRecorder()
+	var postData []byte
+	if request.Method == http.MethodPost {
+		var err error
+		postData, err = io.ReadAll(request.Body)
+		if err != nil {
+			http.Error(rr, err.Error(), http.StatusInternalServerError)
+
+			httpResp := rr.Result()
+			httpResp.Request = request
+			return httpResp, nil
+		}
+		if len(postData) > 0 {
+			routerKey += "%%%" + string(postData)
+		}
+	}
+
+	respFile, ok := m.routes[routerKey]
+	if !ok {
+		var requestBodyStr = string(postData)
+		if requestBodyStr == "" {
+			m.t.Errorf("unexpected http request: %v", urlStr)
+		} else {
+			m.t.Errorf("unexpected http request: %v\nBody: %v",
+				urlStr, requestBodyStr)
+		}
+		rr2 := httptest.NewRecorder()
+		rr2.WriteHeader(http.StatusNotFound)
+		httpResp := rr2.Result()
+		httpResp.Request = request
+		return httpResp, nil
+	}
+
+	m.seenURLsM.Lock()
+	if m.seenURLs == nil {
+		m.seenURLs = make(map[string]struct{})
+	}
+	m.seenURLs[routerKey] = struct{}{}
+	m.seenURLsM.Unlock()
+
+	http.ServeFile(rr, request, respFile)
+
+	rr2 := rr.Result()
+	rr2.Request = request
+	return rr2, nil
+}
+
+func mockHTTPClient(t testing.TB, routes map[string]string) func() {
+	oldRoundTripper := http.DefaultTransport
+	transport := &mockedRouterTripper{t: t, routes: routes}
+	http.DefaultTransport = transport
+	return func() {
+		http.DefaultTransport = oldRoundTripper
+
+		for u := range routes {
+			_, ok := transport.seenURLs[u]
+			assert.True(t, ok,
+				"found a URL in routes that we did not touch: %v", u)
+		}
 	}
 }
