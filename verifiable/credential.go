@@ -27,7 +27,8 @@ type W3CCredential struct {
 }
 
 // Merklize merklizes verifiable credential
-func (vc *W3CCredential) Merklize(ctx context.Context) (*merklize.Merklizer, error) {
+func (vc *W3CCredential) Merklize(ctx context.Context,
+	opts ...merklize.MerklizeOption) (*merklize.Merklizer, error) {
 
 	credentialBytes, err := json.Marshal(vc)
 	if err != nil {
@@ -46,7 +47,8 @@ func (vc *W3CCredential) Merklize(ctx context.Context) (*merklize.Merklizer, err
 		return nil, err
 	}
 
-	mk, err := merklize.MerklizeJSONLD(ctx, bytes.NewReader(credentialWithoutProofBytes))
+	mk, err := merklize.MerklizeJSONLD(ctx,
+		bytes.NewReader(credentialWithoutProofBytes), opts...)
 	if err != nil {
 		return nil, err
 	}
