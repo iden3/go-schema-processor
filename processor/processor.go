@@ -4,6 +4,7 @@ import (
 	"context"
 
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/iden3/go-schema-processor/v2/verifiable"
 	"github.com/pkg/errors"
 )
@@ -45,6 +46,7 @@ type CoreClaimOptions struct {
 	SubjectPosition       string `json:"subjectPosition"`
 	MerklizedRootPosition string `json:"merklizedRootPosition"`
 	Updatable             bool   `json:"updatable"`
+	MerklizerOpts         []merklize.MerklizeOption
 }
 
 var (

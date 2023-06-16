@@ -48,6 +48,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 			SubjectPosition:       verifiable.CredentialSubjectPositionIndex,
 			MerklizedRootPosition: verifiable.CredentialMerklizedRootPositionNone,
 			Updatable:             false,
+			MerklizerOpts:         nil,
 		}
 	}
 
@@ -98,7 +99,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 
 	switch opts.MerklizedRootPosition {
 	case verifiable.CredentialMerklizedRootPositionIndex:
-		mkRoot, err := credential.Merklize(ctx)
+		mkRoot, err := credential.Merklize(ctx, opts.MerklizerOpts...)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +108,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 			return nil, err
 		}
 	case verifiable.CredentialMerklizedRootPositionValue:
-		mkRoot, err := credential.Merklize(ctx)
+		mkRoot, err := credential.Merklize(ctx, opts.MerklizerOpts...)
 		if err != nil {
 			return nil, err
 		}
