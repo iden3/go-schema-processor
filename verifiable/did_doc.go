@@ -129,7 +129,7 @@ type GistInfo struct {
 
 // IdentityState representation all info about identity.
 type IdentityState struct {
-	Published bool       `json:"published,omitempty"`
+	Published *bool      `json:"published,omitempty"`
 	Info      *StateInfo `json:"info,omitempty"`
 	Global    *GistInfo  `json:"global,omitempty"`
 }
