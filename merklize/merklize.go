@@ -17,6 +17,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -397,6 +398,14 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	idStr, ok := id.(string)
 	if !ok {
 		return nil, fmt.Errorf("@id attr is not of type string: %T", id)
+	}
+
+	termContext, termHasCtx := m["@context"]
+	if termHasCtx {
+		ldCtx, err = ldCtx.Parse(termContext)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	moreParts, err := pathFromDocument(ldCtx, docObjMap[term], newPathParts,
@@ -1407,12 +1416,15 @@ func MerkleTreeSQLAdapter(mt *merkletree.MerkleTree) MerkleTree {
 
 // Merklizer is a struct to work with json-ld doc merklization
 type Merklizer struct {
-	srcDoc    []byte
-	compacted map[string]interface{}
-	mt        MerkleTree
-	entries   map[string]RDFEntry
-	hasher    Hasher
-	safeMode  bool
+	srcDoc         []byte
+	compacted      map[string]interface{}
+	mt             MerkleTree
+	entries        map[string]RDFEntry
+	hasher         Hasher
+	safeMode       bool
+	ipfsCli        *shell.Shell
+	ipfsGW         string
+	documentLoader ld.DocumentLoader
 }
 
 // MerklizeOption is options for merklizer
@@ -1440,6 +1452,36 @@ func WithMerkleTree(mt MerkleTree) MerklizeOption {
 func WithSafeMode(safeMode bool) MerklizeOption {
 	return func(m *Merklizer) {
 		m.safeMode = safeMode
+	}
+}
+
+// WithIPFSClient sets IPFS client option required to resolve ipfs:// contexts.
+// It works only if documentLoader is not set using WithDocumentLoader option.
+// Otherwise, it will be ignored.
+func WithIPFSClient(ipfsCli *shell.Shell) MerklizeOption {
+	return func(m *Merklizer) {
+		m.ipfsCli = ipfsCli
+	}
+}
+
+// WithIPFSGateway sets IPFS gateway URL option required to resolve
+// ipfs:// contexts.
+//
+// If WithIPFSClient option is set, gateway would be ignored and ipfs requests
+// would be sent directly to the client.
+//
+// If WithDocumentLoader option is set, gateway would be ignored and documents
+// would be loaded using the document loader.
+func WithIPFSGateway(ipfsGW string) MerklizeOption {
+	return func(m *Merklizer) {
+		m.ipfsGW = ipfsGW
+	}
+}
+
+// WithDocumentLoader sets DocumentLoader
+func WithDocumentLoader(documentLoader ld.DocumentLoader) MerklizeOption {
+	return func(m *Merklizer) {
+		m.documentLoader = documentLoader
 	}
 }
 
@@ -1483,6 +1525,12 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	options := ld.NewJsonLdOptions("")
 	options.Algorithm = ld.AlgorithmURDNA2015
 	options.SafeMode = mz.safeMode
+
+	if mz.documentLoader == nil {
+		options.DocumentLoader = NewDocumentLoader(mz.ipfsCli, mz.ipfsGW)
+	} else {
+		options.DocumentLoader = mz.documentLoader
+	}
 
 	normDoc, err := proc.Normalize(obj, options)
 	if err != nil {
