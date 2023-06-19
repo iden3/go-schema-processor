@@ -58,6 +58,7 @@ type CommonVerificationMethod struct {
 	PublicKeyBase58     string                 `json:"publicKeyBase58,omitempty"`
 	EthereumAddress     string                 `json:"ethereumAddress,omitempty"`
 	BlockchainAccountID string                 `json:"blockchainAccountId,omitempty"`
+	IdentityState
 }
 
 type Authentication struct {
@@ -103,4 +104,32 @@ func (a *Authentication) MarshalJSON() ([]byte, error) {
 	} else {
 		return json.Marshal(a)
 	}
+}
+
+// StateInfo is information about identity state
+type StateInfo struct {
+	ID                  string `json:"id"`
+	State               string `json:"state"`
+	ReplacedByState     string `json:"replacedByState"`
+	CreatedAtTimestamp  string `json:"createdAtTimestamp"`
+	ReplacedAtTimestamp string `json:"replacedAtTimestamp"`
+	CreatedAtBlock      string `json:"createdAtBlock"`
+	ReplacedAtBlock     string `json:"replacedAtBlock"`
+}
+
+// GistInfo representation state of gist root.
+type GistInfo struct {
+	Root                string `json:"root"`
+	ReplacedByRoot      string `json:"replacedByRoot"`
+	CreatedAtTimestamp  string `json:"createdAtTimestamp"`
+	ReplacedAtTimestamp string `json:"replacedAtTimestamp"`
+	CreatedAtBlock      string `json:"createdAtBlock"`
+	ReplacedAtBlock     string `json:"replacedAtBlock"`
+}
+
+// IdentityState representation all info about identity.
+type IdentityState struct {
+	Published bool       `json:"published,omitempty"`
+	Info      *StateInfo `json:"info,omitempty"`
+	Global    *GistInfo  `json:"global,omitempty"`
 }
