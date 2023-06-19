@@ -85,6 +85,6 @@ func TestValidatorWithInvalidField(t *testing.T) {
 	err = jsonProcessor.ValidateData(dataBytes, schema)
 
 	assert.NotNil(t, err)
-	assert.Containsf(t, err.Error(), "\"birthday\" value is required", "expected error containing %q, got %s", "\"birthdayYear\" value is required", err)
+	assert.Containsf(t, err.Error(), "missing properties: 'birthday'", "expected error containing %q, got %s", "missing properties: 'birthDayYear'", err)
 
 }

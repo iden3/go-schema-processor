@@ -19,7 +19,11 @@ const (
 	Iden3ReverseSparseMerkleTreeProof CredentialStatusType = "Iden3ReverseSparseMerkleTreeProof"
 
 	// JSONSchemaValidator2018 JSON schema for verification of W3CCredential
+	// Deprecated: https://www.w3.org/2018/credentials/#JsonSchemaValidator2018
 	JSONSchemaValidator2018 = "JsonSchemaValidator2018"
+
+	// JSONSchema2023 JSON schema for verification of W3CCredential (https://www.w3.org/TR/vc-json-schema/#jsonschema2023)
+	JSONSchema2023 = "JsonSchema2023"
 
 	// BJJSignatureProofType is a proof type for BJJ signature proofs
 	BJJSignatureProofType ProofType = "BJJSignature2021"
