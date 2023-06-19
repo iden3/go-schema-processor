@@ -23,7 +23,7 @@ const (
 	JSONSchemaValidator2018 = "JsonSchemaValidator2018"
 
 	// JSONSchema2023 JSON schema for verification of W3CCredential (https://www.w3.org/TR/vc-json-schema/#jsonschema2023)
-	JSONSchema2023 = "JSONSchema2023"
+	JSONSchema2023 = "JsonSchema2023"
 
 	// BJJSignatureProofType is a proof type for BJJ signature proofs
 	BJJSignatureProofType ProofType = "BJJSignature2021"
