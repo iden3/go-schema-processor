@@ -117,8 +117,7 @@ func NewPathFromContext(ctxBytes []byte, path string) (Path, error) {
 	err := out.pathFromContext(ctxBytes, path)
 	return out, err
 }
-
-func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
+func NewPathFromDocumentWithLoader(docBytes []byte, path string, loader *ld.DocumentLoader) (Path, error) {
 	var docObj map[string]interface{}
 	err := json.Unmarshal(docBytes, &docObj)
 	if err != nil {
@@ -130,12 +129,23 @@ func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
 		return Path{}, errors.New("path is empty")
 	}
 
-	pathPartsI, err := pathFromDocument(nil, docObj, pathParts, false)
+	var ldCtx *ld.Context
+	if loader != nil {
+		ldCtx = ld.NewContext(nil, &ld.JsonLdOptions{
+			DocumentLoader: *loader,
+		})
+	}
+
+	pathPartsI, err := pathFromDocument(ldCtx, docObj, pathParts, false)
 	if err != nil {
 		return Path{}, err
 	}
 
 	return Path{parts: pathPartsI, hasher: defaultHasher}, nil
+}
+
+func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
+	return NewPathFromDocumentWithLoader(docBytes, path, nil)
 }
 
 // NewFieldPathFromContext resolves field path without type path prefix
@@ -1657,7 +1667,14 @@ func (m *Merklizer) JSONLDType(path Path) (string, error) {
 }
 
 func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
-	realPath, err := NewPathFromDocument(m.srcDoc, path)
+
+	var documentLoader ld.DocumentLoader
+	if m.documentLoader == nil {
+		documentLoader = NewDocumentLoader(m.ipfsCli, m.ipfsGW)
+	} else {
+		documentLoader = m.documentLoader
+	}
+	realPath, err := NewPathFromDocumentWithLoader(m.srcDoc, path, &documentLoader)
 	if err != nil {
 		return Path{}, err
 	}
