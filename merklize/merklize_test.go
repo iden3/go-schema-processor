@@ -122,37 +122,6 @@ const testDocument = `{
   ]
 }`
 
-const testDocument2 = `{
-            "@context": [
-                "https://www.w3.org/2018/credentials/v1",
-                "https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
-                "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld"
-            ],
-            "credentialSchema": {
-                "id": "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json/KYCAgeCredential-v3.json",
-                "type": "JsonSchema2023"
-            },
-            "credentialStatus": {
-                "id": "http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLF272gi3KyZwsVDJK4QpL6TvYYseWi6sYAwyDR4X/claims/revocation/status/799757862",
-                "revocationNonce": 799757862,
-                "type": "SparseMerkleTreeProof"
-            },
-            "credentialSubject": {
-                "birthday": 19960424,
-                "documentType": 2,
-                "id": "did:polygonid:polygon:mumbai:2qPiof2wkGkrqZ7gHCR8nyj8CSSwm2DYe8YeSWLFXb",
-                "type": "KYCAgeCredential"
-            },
-            "expirationDate": "2361-03-21T21:14:48+02:00",
-            "id": "http://localhost:8001/api/v1/identities/did:polygonid:polygon:mumbai:2qLF272gi3KyZwsVDJK4QpL6TvYYseWi6sYAwyDR4X/claims/3dbaf004-0ece-11ee-8072-de17148ce1ce",
-            "issuanceDate": "2023-06-19T21:22:25.677704+03:00",
-            "issuer": "did:polygonid:polygon:mumbai:2qLF272gi3KyZwsVDJK4QpL6TvYYseWi6sYAwyDR4X",
-            "type": [
-                "VerifiableCredential",
-                "KYCAgeCredential"
-            ]
-        }`
-
 const testDocumentIPFS = `{
   "id": "https://dev.polygonid.me/api/v1/identities/did:polygonid:polygon:mumbai:2qLPqvayNQz9TA2r5VPxUugoF18teGU583zJ859wfy/claims/eca334b0-0e7d-11ee-889c-0242ac1d0006",
   "@context": [
