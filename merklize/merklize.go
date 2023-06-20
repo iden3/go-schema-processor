@@ -1557,12 +1557,7 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	options := ld.NewJsonLdOptions("")
 	options.Algorithm = ld.AlgorithmURDNA2015
 	options.SafeMode = mz.safeMode
-
-	if mz.documentLoader == nil {
-		options.DocumentLoader = NewDocumentLoader(mz.ipfsCli, mz.ipfsGW)
-	} else {
-		options.DocumentLoader = mz.documentLoader
-	}
+	options.DocumentLoader = mz.getDocumentLoader()
 
 	normDoc, err := proc.Normalize(obj, options)
 	if err != nil {

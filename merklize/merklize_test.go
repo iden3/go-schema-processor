@@ -864,47 +864,6 @@ func TestPathFromDocument(t *testing.T) {
 	})
 }
 
-func TestPathFromDocumentIPFS(t *testing.T) {
-	t.Run("with redefined default document loader", func(t *testing.T) {
-		oldDefaultDocumentLoader := defaultDocumentLoader
-		t.Cleanup(func() {
-			SetDocumentLoader(oldDefaultDocumentLoader)
-		})
-
-		loader := NewDocumentLoader(nil, "https://ipfs.io")
-		SetDocumentLoader(loader)
-
-		in := "credentialSubject.1.testNewTypeInt"
-		result, err := NewPathFromDocument([]byte(testDocumentIPFS), in)
-		require.NoError(t, err)
-
-		want, err := NewPath(
-			"https://www.w3.org/2018/credentials#credentialSubject",
-			1,
-			"urn:uuid:0a8092e3-7100-4068-ba67-fae502cc6e7b#testNewTypeInt")
-		require.NoError(t, err)
-
-		require.Equal(t, want, result)
-	})
-
-	t.Run("with document loader option", func(t *testing.T) {
-		loader := NewDocumentLoader(nil, "https://ipfs.io")
-		opts := Options{DocumentLoader: loader}
-
-		in := "credentialSubject.1.testNewTypeInt"
-		result, err := opts.NewPathFromDocument([]byte(testDocumentIPFS), in)
-		require.NoError(t, err)
-
-		want, err := NewPath(
-			"https://www.w3.org/2018/credentials#credentialSubject",
-			1,
-			"urn:uuid:0a8092e3-7100-4068-ba67-fae502cc6e7b#testNewTypeInt")
-		require.NoError(t, err)
-
-		require.Equal(t, want, result)
-	})
-}
-
 func TestMkValueInt(t *testing.T) {
 	testCases := []struct {
 		in   int64
@@ -1840,6 +1799,18 @@ const ipfsDocument = `{
   ]
 }`
 
+func uploadIPFSFile(t testing.TB, ipfsCli *shell.Shell, fName string) string {
+	f, err := os.Open(fName)
+	require.NoError(t, err)
+	// no need to close f
+
+	// Context is a pure file (no directory)
+	cid, err := ipfsCli.Add(f)
+	require.NoError(t, err)
+
+	return cid
+}
+
 func TestIPFSContext(t *testing.T) {
 	ipfsURL := os.Getenv("IPFS_URL")
 	if ipfsURL == "" {
@@ -1853,13 +1824,8 @@ func TestIPFSContext(t *testing.T) {
 	require.NoError(t, err)
 	bbsCtx = "ipfs://" + bbsCtx + "/dir2/bbs-v2.jsonld"
 
-	f, err := os.Open("testdata/ipfs/citizenship-v1.jsonld")
-	require.NoError(t, err)
-	// no need to close f
-
-	// Context is a pure file (no directory)
-	citizenshipCtx, err := ipfsCli.Add(f)
-	require.NoError(t, err)
+	citizenshipCtx := uploadIPFSFile(t, ipfsCli,
+		"testdata/ipfs/citizenship-v1.jsonld")
 	citizenshipCtx = "ipfs://" + citizenshipCtx
 
 	tmpl := template.Must(template.New("").Parse(ipfsDocument))
@@ -1869,6 +1835,10 @@ func TestIPFSContext(t *testing.T) {
 		"BBSContext":         bbsCtx,
 	})
 	require.NoError(t, err)
+
+	cid := uploadIPFSFile(t, ipfsCli, "testdata/ipfs/testNewType.jsonld")
+	// CID should be equal to the on in `testDocumentIPFS` document
+	require.Equal(t, "QmeMevwUeD7o6hjfmdaeFD1q4L84hSDiRjeXZLi1bZK1My", cid)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
@@ -1890,6 +1860,24 @@ func TestIPFSContext(t *testing.T) {
 
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithIPFSClient(ipfsCli))
+		require.NoError(t, err2)
+		require.Equal(t,
+			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
+			mz.Root().BigInt().String())
+	})
+
+	t.Run("with default ipfs client", func(t *testing.T) {
+		defer mockHTTPClient(t, map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+		})()
+
+		oldDocLoader := defaultDocumentLoader
+		t.Cleanup(func() { SetDocumentLoader(oldDocLoader) })
+
+		docLoader := NewDocumentLoader(ipfsCli, "")
+		SetDocumentLoader(docLoader)
+
+		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
 		require.NoError(t, err2)
 		require.Equal(t,
 			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
@@ -1939,6 +1927,45 @@ func TestIPFSContext(t *testing.T) {
 		require.Equal(t,
 			"19309047812100087948241250053335720576191969395309912987389452441269932261840",
 			mz.Root().BigInt().String())
+	})
+
+	t.Run("NewPathFromDocument with default document loader", func(t *testing.T) {
+		oldDefaultDocumentLoader := defaultDocumentLoader
+		t.Cleanup(func() {
+			SetDocumentLoader(oldDefaultDocumentLoader)
+		})
+
+		docLoader := NewDocumentLoader(ipfsCli, "")
+		SetDocumentLoader(docLoader)
+
+		in := "credentialSubject.1.testNewTypeInt"
+		result, err := NewPathFromDocument([]byte(testDocumentIPFS), in)
+		require.NoError(t, err)
+
+		want, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject",
+			1,
+			"urn:uuid:0a8092e3-7100-4068-ba67-fae502cc6e7b#testNewTypeInt")
+		require.NoError(t, err)
+
+		require.Equal(t, want, result)
+	})
+
+	t.Run("NewPathFromDocument with document loader option", func(t *testing.T) {
+		docLoader := NewDocumentLoader(ipfsCli, "")
+		opts := Options{DocumentLoader: docLoader}
+
+		in := "credentialSubject.1.testNewTypeInt"
+		result, err := opts.NewPathFromDocument([]byte(testDocumentIPFS), in)
+		require.NoError(t, err)
+
+		want, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject",
+			1,
+			"urn:uuid:0a8092e3-7100-4068-ba67-fae502cc6e7b#testNewTypeInt")
+		require.NoError(t, err)
+
+		require.Equal(t, want, result)
 	})
 
 }
