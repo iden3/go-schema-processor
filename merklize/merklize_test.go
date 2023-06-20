@@ -865,10 +865,17 @@ func TestPathFromDocument(t *testing.T) {
 }
 
 func TestPathFromDocumentIPFS(t *testing.T) {
-	t.Run("path with index array", func(t *testing.T) {
-		in := "credentialSubject.1.testNewTypeInt"
+	t.Run("with redefined default document loader", func(t *testing.T) {
+		oldDefaultDocumentLoader := defaultDocumentLoader
+		t.Cleanup(func() {
+			SetDocumentLoader(oldDefaultDocumentLoader)
+		})
+
 		loader := NewDocumentLoader(nil, "https://ipfs.io")
-		result, err := NewPathFromDocumentWithLoader([]byte(testDocumentIPFS), in, &loader)
+		SetDocumentLoader(loader)
+
+		in := "credentialSubject.1.testNewTypeInt"
+		result, err := NewPathFromDocument([]byte(testDocumentIPFS), in)
 		require.NoError(t, err)
 
 		want, err := NewPath(
@@ -880,7 +887,24 @@ func TestPathFromDocumentIPFS(t *testing.T) {
 		require.Equal(t, want, result)
 	})
 
+	t.Run("with document loader option", func(t *testing.T) {
+		loader := NewDocumentLoader(nil, "https://ipfs.io")
+		opts := Options{DocumentLoader: loader}
+
+		in := "credentialSubject.1.testNewTypeInt"
+		result, err := opts.NewPathFromDocument([]byte(testDocumentIPFS), in)
+		require.NoError(t, err)
+
+		want, err := NewPath(
+			"https://www.w3.org/2018/credentials#credentialSubject",
+			1,
+			"urn:uuid:0a8092e3-7100-4068-ba67-fae502cc6e7b#testNewTypeInt")
+		require.NoError(t, err)
+
+		require.Equal(t, want, result)
+	})
 }
+
 func TestMkValueInt(t *testing.T) {
 	testCases := []struct {
 		in   int64

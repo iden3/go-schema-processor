@@ -22,8 +22,9 @@ import (
 )
 
 var (
-	defaultHasher Hasher = PoseidonHasher{}
-	numRE                = regexp.MustCompile(`^\d+$`)
+	defaultHasher         Hasher = PoseidonHasher{}
+	defaultDocumentLoader        = NewDocumentLoader(nil, "")
+	numRE                        = regexp.MustCompile(`^\d+$`)
 )
 
 var (
@@ -43,10 +44,16 @@ func SetHasher(h Hasher) {
 	defaultHasher = h
 }
 
+// SetDocumentLoader changes default DocumentLoader
+func SetDocumentLoader(docLoader ld.DocumentLoader) {
+	defaultDocumentLoader = docLoader
+}
+
 // Options type allows to change hashing algorithm and create Path and RDFEntry
 // instances with hasher different from default one.
 type Options struct {
-	Hasher Hasher
+	Hasher         Hasher
+	DocumentLoader ld.DocumentLoader
 }
 
 func (o Options) getHasher() Hasher {
@@ -54,6 +61,23 @@ func (o Options) getHasher() Hasher {
 		return o.Hasher
 	}
 	return defaultHasher
+}
+
+func (o Options) getDocumentLoader() ld.DocumentLoader {
+	if o.DocumentLoader != nil {
+		return o.DocumentLoader
+	}
+	return defaultDocumentLoader
+}
+
+func (o Options) getJSONLdOptions() *ld.JsonLdOptions {
+	docLoader := o.getDocumentLoader()
+	if docLoader == nil {
+		return nil
+	}
+	return &ld.JsonLdOptions{
+		DocumentLoader: docLoader,
+	}
 }
 
 func (o Options) NewPath(parts ...interface{}) (Path, error) {
@@ -64,7 +88,7 @@ func (o Options) NewPath(parts ...interface{}) (Path, error) {
 
 func (o Options) PathFromContext(ctxBytes []byte, path string) (Path, error) {
 	out := Path{hasher: o.getHasher()}
-	err := out.pathFromContext(ctxBytes, path)
+	err := out.pathFromContext(ctxBytes, path, o.getJSONLdOptions())
 	return out, err
 }
 
@@ -87,6 +111,28 @@ func (o Options) NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
 	}
 
 	return e, nil
+}
+
+func (o Options) NewPathFromDocument(docBytes []byte,
+	path string) (Path, error) {
+
+	var docObj map[string]interface{}
+	err := json.Unmarshal(docBytes, &docObj)
+	if err != nil {
+		return Path{}, err
+	}
+
+	pathParts := strings.Split(path, ".")
+	if len(pathParts) == 0 {
+		return Path{}, errors.New("path is empty")
+	}
+
+	pathPartsI, err := o.pathFromDocument(nil, docObj, pathParts, false)
+	if err != nil {
+		return Path{}, err
+	}
+
+	return Path{parts: pathPartsI, hasher: o.getHasher()}, nil
 }
 
 type Path struct {
@@ -113,39 +159,14 @@ func NewPath(parts ...interface{}) (Path, error) {
 // NewPathFromContext parses context and do its best to generate full Path
 // from shortcut line field1.field2.field3...
 func NewPathFromContext(ctxBytes []byte, path string) (Path, error) {
-	var out = Path{hasher: defaultHasher}
-	err := out.pathFromContext(ctxBytes, path)
+	defaultOpts := Options{}
+	var out = Path{hasher: defaultOpts.getHasher()}
+	err := out.pathFromContext(ctxBytes, path, defaultOpts.getJSONLdOptions())
 	return out, err
-}
-func NewPathFromDocumentWithLoader(docBytes []byte, path string, loader *ld.DocumentLoader) (Path, error) {
-	var docObj map[string]interface{}
-	err := json.Unmarshal(docBytes, &docObj)
-	if err != nil {
-		return Path{}, err
-	}
-
-	pathParts := strings.Split(path, ".")
-	if len(pathParts) == 0 {
-		return Path{}, errors.New("path is empty")
-	}
-
-	var ldCtx *ld.Context
-	if loader != nil {
-		ldCtx = ld.NewContext(nil, &ld.JsonLdOptions{
-			DocumentLoader: *loader,
-		})
-	}
-
-	pathPartsI, err := pathFromDocument(ldCtx, docObj, pathParts, false)
-	if err != nil {
-		return Path{}, err
-	}
-
-	return Path{parts: pathPartsI, hasher: defaultHasher}, nil
 }
 
 func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
-	return NewPathFromDocumentWithLoader(docBytes, path, nil)
+	return Options{}.NewPathFromDocument(docBytes, path)
 }
 
 // NewFieldPathFromContext resolves field path without type path prefix
@@ -174,14 +195,17 @@ func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, 
 }
 
 // TypeIDFromContext returns @id attribute for type from JSON-LD context
-func TypeIDFromContext(ctxBytes []byte, typeName string) (string, error) {
+func (o Options) TypeIDFromContext(ctxBytes []byte,
+	typeName string) (string, error) {
+
 	var ctxObj map[string]interface{}
 	err := json.Unmarshal(ctxBytes, &ctxObj)
 	if err != nil {
 		return "", err
 	}
 
-	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxObj["@context"])
+	ldCtx, err := ld.NewContext(nil, o.getJSONLdOptions()).
+		Parse(ctxObj["@context"])
 	if err != nil {
 		return "", err
 	}
@@ -208,15 +232,21 @@ func TypeIDFromContext(ctxBytes []byte, typeName string) (string, error) {
 	return typeIDStr, nil
 }
 
+// TypeIDFromContext returns @id attribute for type from JSON-LD context
+func TypeIDFromContext(ctxBytes []byte, typeName string) (string, error) {
+	return Options{}.TypeIDFromContext(ctxBytes, typeName)
+}
+
 // TypeFromContext returns type of field from context by path.
-func TypeFromContext(ctxBytes []byte, path string) (string, error) {
+func (o Options) TypeFromContext(ctxBytes []byte, path string) (string, error) {
 	var ctxObj map[string]interface{}
 	err := json.Unmarshal(ctxBytes, &ctxObj)
 	if err != nil {
 		return "", err
 	}
 
-	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxObj["@context"])
+	ldCtx, err := ld.NewContext(nil, o.getJSONLdOptions()).
+		Parse(ctxObj["@context"])
 	if err != nil {
 		return "", err
 	}
@@ -246,7 +276,13 @@ func TypeFromContext(ctxBytes []byte, path string) (string, error) {
 	return ldCtx.GetTypeMapping(parts[len(parts)-1]), nil
 }
 
-func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
+// TypeFromContext returns type of field from context by path.
+func TypeFromContext(ctxBytes []byte, path string) (string, error) {
+	return Options{}.TypeFromContext(ctxBytes, path)
+}
+
+func (p *Path) pathFromContext(ctxBytes []byte, path string,
+	jsonLdOptions *ld.JsonLdOptions) error {
 
 	var ctxObj map[string]interface{}
 	err := json.Unmarshal(ctxBytes, &ctxObj)
@@ -254,7 +290,7 @@ func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 		return err
 	}
 
-	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxObj["@context"])
+	ldCtx, err := ld.NewContext(nil, jsonLdOptions).Parse(ctxObj["@context"])
 	if err != nil {
 		return err
 	}
@@ -299,7 +335,7 @@ func (p *Path) pathFromContext(ctxBytes []byte, path string) error {
 // Create path JSON-LD document.
 // If acceptArray is true, the previous element was index, and we accept an
 // array
-func pathFromDocument(ldCtx *ld.Context, docObj interface{},
+func (o Options) pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	pathParts []string, acceptArray bool) ([]interface{}, error) {
 
 	if len(pathParts) == 0 {
@@ -315,7 +351,7 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 			return nil, err
 		}
 
-		moreParts, err := pathFromDocument(ldCtx, docObj, newPathParts, true)
+		moreParts, err := o.pathFromDocument(ldCtx, docObj, newPathParts, true)
 		if err != nil {
 			return nil, err
 		}
@@ -335,7 +371,7 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 			return nil, errors.New("unexpected array element")
 		}
 
-		return pathFromDocument(ldCtx, docObjT[0], pathParts, false)
+		return o.pathFromDocument(ldCtx, docObjT[0], pathParts, false)
 	case map[string]interface{}:
 		// pass
 		docObjMap = docObjT
@@ -344,7 +380,7 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	}
 
 	if ldCtx == nil {
-		ldCtx = ld.NewContext(nil, nil)
+		ldCtx = ld.NewContext(nil, o.getJSONLdOptions())
 	}
 
 	var err error
@@ -418,7 +454,7 @@ func pathFromDocument(ldCtx *ld.Context, docObj interface{},
 		}
 	}
 
-	moreParts, err := pathFromDocument(ldCtx, docObjMap[term], newPathParts,
+	moreParts, err := o.pathFromDocument(ldCtx, docObjMap[term], newPathParts,
 		true)
 	if err != nil {
 		return nil, err
@@ -599,21 +635,7 @@ func (v *value) AsBool() (bool, error) {
 }
 
 func NewRDFEntry(key Path, value any) (RDFEntry, error) {
-	e := RDFEntry{key: key}
-	if len(key.parts) == 0 {
-		return e, errors.New("key length is zero")
-	}
-
-	switch v := value.(type) {
-	case int:
-		e.value = int64(v)
-	case int64, string, bool, time.Time:
-		e.value = value
-	default:
-		return e, fmt.Errorf("incorrect value type: %T", value)
-	}
-
-	return e, nil
+	return Options{}.NewRDFEntry(key, value)
 }
 
 func (e RDFEntry) KeyMtEntry() (*big.Int, error) {
@@ -1589,6 +1611,13 @@ func (m *Merklizer) entry(path Path) (RDFEntry, error) {
 	return e, nil
 }
 
+func (m *Merklizer) getDocumentLoader() ld.DocumentLoader {
+	if m.documentLoader != nil {
+		return m.documentLoader
+	}
+	return NewDocumentLoader(m.ipfsCli, m.ipfsGW)
+}
+
 func rvExtractObjField(obj any, field string) (any, error) {
 	jsObj, isJSONObj := obj.(map[string]any)
 	if !isJSONObj {
@@ -1667,18 +1696,18 @@ func (m *Merklizer) JSONLDType(path Path) (string, error) {
 }
 
 func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
-
-	var documentLoader ld.DocumentLoader
-	if m.documentLoader == nil {
-		documentLoader = NewDocumentLoader(m.ipfsCli, m.ipfsGW)
-	} else {
-		documentLoader = m.documentLoader
+	opts := Options{
+		Hasher:         m.hasher,
+		DocumentLoader: m.getDocumentLoader(),
 	}
-	realPath, err := NewPathFromDocumentWithLoader(m.srcDoc, path, &documentLoader)
+	if opts.Hasher == nil {
+		opts.Hasher = defaultHasher
+	}
+
+	realPath, err := opts.NewPathFromDocument(m.srcDoc, path)
 	if err != nil {
 		return Path{}, err
 	}
-	realPath.hasher = m.hasher
 	return realPath, nil
 }
 
