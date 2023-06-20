@@ -1844,9 +1844,11 @@ func TestIPFSContext(t *testing.T) {
 	defer cancel()
 
 	t.Run("no ipfs client", func(t *testing.T) {
+		// ignoreUntouchedURLs is used because we can check IPFS schema
+		// before HTTP and do not touch a mocked request
 		defer mockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
+		}, ignoreUntouchedURLs())()
 
 		_, err = MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
 		require.ErrorContains(t, err,
@@ -2029,17 +2031,38 @@ func (m *mockedRouterTripper) RoundTrip(
 	return rr2, nil
 }
 
-func mockHTTPClient(t testing.TB, routes map[string]string) func() {
+type mockHTTPClientOptions struct {
+	ignoreUntouchedURLs bool
+}
+
+type mockHTTPClientOption func(*mockHTTPClientOptions)
+
+func ignoreUntouchedURLs() mockHTTPClientOption {
+	return func(opts *mockHTTPClientOptions) {
+		opts.ignoreUntouchedURLs = true
+	}
+}
+
+func mockHTTPClient(t testing.TB, routes map[string]string,
+	opts ...mockHTTPClientOption) func() {
+
+	var op mockHTTPClientOptions
+	for _, o := range opts {
+		o(&op)
+	}
+
 	oldRoundTripper := http.DefaultTransport
 	transport := &mockedRouterTripper{t: t, routes: routes}
 	http.DefaultTransport = transport
 	return func() {
 		http.DefaultTransport = oldRoundTripper
 
-		for u := range routes {
-			_, ok := transport.seenURLs[u]
-			assert.True(t, ok,
-				"found a URL in routes that we did not touch: %v", u)
+		if !op.ignoreUntouchedURLs {
+			for u := range routes {
+				_, ok := transport.seenURLs[u]
+				assert.True(t, ok,
+					"found a URL in routes that we did not touch: %v", u)
+			}
 		}
 	}
 }
