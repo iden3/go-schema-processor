@@ -1615,6 +1615,9 @@ func (m *Merklizer) getDocumentLoader() ld.DocumentLoader {
 	if m.documentLoader != nil {
 		return m.documentLoader
 	}
+	if m.ipfsCli == nil && m.ipfsGW == "" {
+		return defaultDocumentLoader
+	}
 	return NewDocumentLoader(m.ipfsCli, m.ipfsGW)
 }
 
