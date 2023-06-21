@@ -49,15 +49,15 @@ type DeviceMetadata struct {
 
 // CommonVerificationMethod DID doc verification method.
 type CommonVerificationMethod struct {
-	ID                  string                 `json:"id"`
-	Type                string                 `json:"type"`
-	Controller          string                 `json:"controller"`
-	PublicKeyJwk        map[string]interface{} `json:"publicKeyJwk,omitempty"`
-	PublicKeyMultibase  string                 `json:"publicKeyMultibase,omitempty"`
-	PublicKeyHex        string                 `json:"publicKeyHex,omitempty"`
-	PublicKeyBase58     string                 `json:"publicKeyBase58,omitempty"`
-	EthereumAddress     string                 `json:"ethereumAddress,omitempty"`
-	BlockchainAccountID string                 `json:"blockchainAccountId,omitempty"`
+	ID                   string                 `json:"id"`
+	Type                 string                 `json:"type"`
+	Controller           string                 `json:"controller"`
+	PublicKeyJwk         map[string]interface{} `json:"publicKeyJwk,omitempty"`
+	PublicKeyMultibase   string                 `json:"publicKeyMultibase,omitempty"`
+	PublicKeyHex         string                 `json:"publicKeyHex,omitempty"`
+	PublicKeyBase58      string                 `json:"publicKeyBase58,omitempty"`
+	EthereumAddress      string                 `json:"ethereumAddress,omitempty"`
+	StateContractAddress string                 `json:"stateContractAddress,omitempty"`
 	IdentityState
 }
 
