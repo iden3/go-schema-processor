@@ -57,6 +57,7 @@ type CommonVerificationMethod struct {
 	PublicKeyHex         string                 `json:"publicKeyHex,omitempty"`
 	PublicKeyBase58      string                 `json:"publicKeyBase58,omitempty"`
 	EthereumAddress      string                 `json:"ethereumAddress,omitempty"`
+	BlockchainAccountID  string                 `json:"blockchainAccountId,omitempty"`
 	StateContractAddress string                 `json:"stateContractAddress,omitempty"`
 	IdentityState
 }
