@@ -104,6 +104,9 @@ const (
         },
         "ethereumAddress": {
           "type": "string"
+        },
+        "stateContractAddress": {
+          "type": "string"
         }
       },
       "required": [
