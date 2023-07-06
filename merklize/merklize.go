@@ -92,6 +92,29 @@ func (o Options) PathFromContext(ctxBytes []byte, path string) (Path, error) {
 	return out, err
 }
 
+func (o Options) FieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, error) {
+	if ctxType == "" {
+		return Path{}, ErrorContextTypeIsEmpty
+	}
+	if fieldPath == "" {
+		return Path{}, ErrorFieldIsEmpty
+	}
+
+	fullPath, err := o.PathFromContext(ctxBytes, fmt.Sprintf("%s.%s", ctxType, fieldPath))
+	if err != nil {
+		return Path{}, err
+	}
+
+	typePath, err := o.PathFromContext(ctxBytes, ctxType)
+	if err != nil {
+		return Path{}, err
+	}
+
+	resPath := Path{parts: fullPath.parts[len(typePath.parts):], hasher: o.getHasher()}
+
+	return resPath, nil
+}
+
 func (o Options) NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
 	e := RDFEntry{
 		key:    key,
@@ -159,10 +182,7 @@ func NewPath(parts ...interface{}) (Path, error) {
 // NewPathFromContext parses context and do its best to generate full Path
 // from shortcut line field1.field2.field3...
 func NewPathFromContext(ctxBytes []byte, path string) (Path, error) {
-	defaultOpts := Options{}
-	var out = Path{hasher: defaultOpts.getHasher()}
-	err := out.pathFromContext(ctxBytes, path, defaultOpts.getJSONLdOptions())
-	return out, err
+	return Options{}.PathFromContext(ctxBytes, path)
 }
 
 func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
@@ -171,27 +191,7 @@ func NewPathFromDocument(docBytes []byte, path string) (Path, error) {
 
 // NewFieldPathFromContext resolves field path without type path prefix
 func NewFieldPathFromContext(ctxBytes []byte, ctxType, fieldPath string) (Path, error) {
-
-	if ctxType == "" {
-		return Path{}, ErrorContextTypeIsEmpty
-	}
-	if fieldPath == "" {
-		return Path{}, ErrorFieldIsEmpty
-	}
-
-	fullPath, err := NewPathFromContext(ctxBytes, fmt.Sprintf("%s.%s", ctxType, fieldPath))
-	if err != nil {
-		return Path{}, err
-	}
-
-	typePath, err := NewPathFromContext(ctxBytes, ctxType)
-	if err != nil {
-		return Path{}, err
-	}
-
-	resPath := Path{parts: fullPath.parts[len(typePath.parts):], hasher: defaultHasher}
-
-	return resPath, nil
+	return Options{}.FieldPathFromContext(ctxBytes, ctxType, fieldPath)
 }
 
 // TypeIDFromContext returns @id attribute for type from JSON-LD context
