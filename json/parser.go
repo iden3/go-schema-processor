@@ -44,10 +44,9 @@ type Parser struct {
 }
 
 // ParseClaim creates Claim object from W3CCredential
-// TODO: remove jsonSchemaBytes
 // TODO: remove credentialType (get the same way as in parseSlots)
 func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string,
-	jsonSchemaBytes []byte, opts *processor.CoreClaimOptions) (*core.Claim, error) {
+	opts *processor.CoreClaimOptions) (*core.Claim, error) {
 
 	if opts == nil {
 		opts = &processor.CoreClaimOptions{
@@ -62,7 +61,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 
 	subjectID := credential.CredentialSubject["id"]
 
-	slots, err := s.parseSlots(credential, jsonSchemaBytes)
+	slots, err := s.parseSlots(ctx, credential)
 	if err != nil {
 		return nil, err
 	}
@@ -316,9 +315,34 @@ func jsonDocToReader(doc any) (io.Reader, error) {
 	return bytes.NewReader(b), nil
 }
 
-func (s Parser) assignSlots2(ctx context.Context,
-	credential verifiable.W3CCredential) (processor.ParsedSlots, error) {
+func fillSlot(slotData []byte, mz *merklize.Merklizer, path string) error {
+	if path == "" {
+		return nil
+	}
+	path = "credentialSubject." + path
+	p, err := mz.ResolveDocPath(path)
+	if err != nil {
+		return err
+	}
+	log.Printf("[23] %v", p)
+	entry, err := mz.Entry(p)
+	if err != nil {
+		return err
+	}
+	log.Printf("[24] %v", entry)
 
+	intVal, err := entry.ValueMtEntry()
+	if err != nil {
+		return err
+	}
+	bytesVal := utils.SwapEndianness(intVal.Bytes())
+	copy(slotData, bytesVal)
+	return nil
+}
+
+// parseSlots converts payload to claim slots using provided schema
+// TODO: break, make private
+func (s Parser) parseSlots(ctx context.Context, credential verifiable.W3CCredential) (processor.ParsedSlots, error) {
 	slots := processor.ParsedSlots{
 		IndexA: make([]byte, 32),
 		IndexB: make([]byte, 32),
@@ -386,71 +410,24 @@ func (s Parser) assignSlots2(ctx context.Context,
 	if err != nil {
 		return slots, err
 	}
-	err = fillSlot2(slots.IndexA, mz, sPaths.indexAPath)
+	err = fillSlot(slots.IndexA, mz, sPaths.indexAPath)
 	if err != nil {
 		return slots, err
 	}
-	err = fillSlot2(slots.IndexB, mz, sPaths.indexBPath)
+	err = fillSlot(slots.IndexB, mz, sPaths.indexBPath)
 	if err != nil {
 		return slots, err
 	}
-	err = fillSlot2(slots.ValueA, mz, sPaths.valueAPath)
+	err = fillSlot(slots.ValueA, mz, sPaths.valueAPath)
 	if err != nil {
 		return slots, err
 	}
-	err = fillSlot2(slots.ValueB, mz, sPaths.valueBPath)
+	err = fillSlot(slots.ValueB, mz, sPaths.valueBPath)
 	if err != nil {
 		return slots, err
 	}
 
 	return slots, nil
-}
-
-func fillSlot2(slotData []byte, mz *merklize.Merklizer, path string) error {
-	if path == "" {
-		return nil
-	}
-	path = "credentialSubject." + path
-	p, err := mz.ResolveDocPath(path)
-	if err != nil {
-		return err
-	}
-	log.Printf("[23] %v", p)
-	entry, err := mz.Entry(p)
-	if err != nil {
-		return err
-	}
-	log.Printf("[24] %v", entry)
-
-	intVal, err := entry.ValueMtEntry()
-	if err != nil {
-		return err
-	}
-	bytesVal := utils.SwapEndianness(intVal.Bytes())
-	copy(slotData, bytesVal)
-	return nil
-}
-
-// parseSlots converts payload to claim slots using provided schema
-// TODO: break, make private
-func (s Parser) parseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (processor.ParsedSlots, error) {
-
-	if len(schemaBytes) > 0 {
-		var schema Schema
-
-		err := json.Unmarshal(schemaBytes, &schema)
-		if err != nil {
-			return processor.ParsedSlots{}, err
-		}
-
-		if schema.Metadata != nil && schema.Metadata.Serialization != nil {
-			return s.assignSlots(credential.CredentialSubject,
-				*schema.Metadata.Serialization)
-		}
-	}
-
-	ctx := context.TODO()
-	return s.assignSlots2(ctx, credential)
 }
 
 // convert from the slice of concrete type to the slice of interface{}
@@ -493,59 +470,4 @@ func (s Parser) GetFieldSlotIndex(field string, schemaBytes []byte) (int, error)
 	default:
 		return -1, errors.Errorf("field `%s` not specified in serialization info", field)
 	}
-}
-
-// assignSlots assigns index and value fields to specific slot according array order
-func (s Parser) assignSlots(data map[string]interface{}, schema SerializationSchema) (processor.ParsedSlots, error) {
-
-	var err error
-	result := processor.ParsedSlots{
-		IndexA: make([]byte, 0, 32),
-		IndexB: make([]byte, 0, 32),
-		ValueA: make([]byte, 0, 32),
-		ValueB: make([]byte, 0, 32),
-	}
-
-	result.IndexA, err = fillSlot(data, schema.IndexDataSlotA)
-	if err != nil {
-		return result, err
-	}
-	result.IndexB, err = fillSlot(data, schema.IndexDataSlotB)
-	if err != nil {
-		return result, err
-	}
-	result.ValueA, err = fillSlot(data, schema.ValueDataSlotB)
-	if err != nil {
-		return result, err
-	}
-	result.ValueB, err = fillSlot(data, schema.ValueDataSlotB)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
-}
-
-func fillSlot(data map[string]interface{}, fieldName string) ([]byte, error) {
-	slot := make([]byte, 0, 32)
-
-	if fieldName == "" {
-		return slot, nil
-	}
-	field, ok := data[fieldName]
-	if !ok {
-		return slot, errors.Errorf("%s field is not in data", fieldName)
-	}
-	// TODO: Make support for other types as with merklized.
-	//       (?) should we change anything here for old json-schema shit?
-	byteValue, err := utils.FieldToByteArray(field)
-	if err != nil {
-		return nil, err
-	}
-	if utils.DataFillsSlot(slot, byteValue) {
-		slot = append(slot, byteValue...)
-	} else {
-		return nil, processor.ErrSlotsOverflow
-	}
-	return slot, nil
 }
