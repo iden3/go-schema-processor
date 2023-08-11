@@ -114,6 +114,7 @@ func (s *Processor) ParseClaim(ctx context.Context, credential verifiable.W3CCre
 }
 
 // GetFieldSlotIndex returns index of slot for specified field according to schema
+// TODO: what to do with this method?
 func (s *Processor) GetFieldSlotIndex(field string, schema []byte) (int, error) {
 	if s.Parser == nil {
 		return 0, errParserNotDefined

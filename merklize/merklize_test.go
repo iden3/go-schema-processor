@@ -5,17 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"math/big"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -24,6 +20,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	tst "github.com/iden3/go-schema-processor/testing"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
@@ -1846,9 +1843,9 @@ func TestIPFSContext(t *testing.T) {
 	t.Run("no ipfs client", func(t *testing.T) {
 		// ignoreUntouchedURLs is used because we can check IPFS schema
 		// before HTTP and do not touch a mocked request
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		}, ignoreUntouchedURLs())()
+		}, tst.IgnoreUntouchedURLs())()
 
 		_, err = MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
 		require.ErrorContains(t, err,
@@ -1856,7 +1853,7 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with ipfs client", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
@@ -1869,7 +1866,7 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with default ipfs client", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
@@ -1888,7 +1885,7 @@ func TestIPFSContext(t *testing.T) {
 
 	// If both IPFS client and gateway URL are provided, the client is used.
 	t.Run("with ipfs client and gateway URL", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
@@ -1903,7 +1900,7 @@ func TestIPFSContext(t *testing.T) {
 
 	t.Run("with ipfs gateway", func(t *testing.T) {
 		ipfsGW := "http://ipfs.io"
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1":                                           "testdata/httpresp/credentials-v1.jsonld",
 			ipfsGW + "/ipfs/QmdP4MZkESEabRVB322r2xWm7TCi7LueMNWMJawYmSy7hp":                    "testdata/ipfs/citizenship-v1.jsonld",
 			ipfsGW + "/ipfs/Qmbp4kwoHULnmK71abrxdksjPH5sAjxSAXU5PEp2XRMFNw/dir2/bbs-v2.jsonld": "testdata/ipfs/dir1/dir2/bbs-v2.jsonld",
@@ -1918,7 +1915,7 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with document loader", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
@@ -1970,99 +1967,4 @@ func TestIPFSContext(t *testing.T) {
 		require.Equal(t, want, result)
 	})
 
-}
-
-type mockedRouterTripper struct {
-	t         testing.TB
-	routes    map[string]string
-	seenURLsM sync.Mutex
-	seenURLs  map[string]struct{}
-}
-
-func (m *mockedRouterTripper) RoundTrip(
-	request *http.Request) (*http.Response, error) {
-
-	urlStr := request.URL.String()
-	routerKey := urlStr
-	rr := httptest.NewRecorder()
-	var postData []byte
-	if request.Method == http.MethodPost {
-		var err error
-		postData, err = io.ReadAll(request.Body)
-		if err != nil {
-			http.Error(rr, err.Error(), http.StatusInternalServerError)
-
-			httpResp := rr.Result()
-			httpResp.Request = request
-			return httpResp, nil
-		}
-		if len(postData) > 0 {
-			routerKey += "%%%" + string(postData)
-		}
-	}
-
-	respFile, ok := m.routes[routerKey]
-	if !ok {
-		var requestBodyStr = string(postData)
-		if requestBodyStr == "" {
-			m.t.Errorf("unexpected http request: %v", urlStr)
-		} else {
-			m.t.Errorf("unexpected http request: %v\nBody: %v",
-				urlStr, requestBodyStr)
-		}
-		rr2 := httptest.NewRecorder()
-		rr2.WriteHeader(http.StatusNotFound)
-		httpResp := rr2.Result()
-		httpResp.Request = request
-		return httpResp, nil
-	}
-
-	m.seenURLsM.Lock()
-	if m.seenURLs == nil {
-		m.seenURLs = make(map[string]struct{})
-	}
-	m.seenURLs[routerKey] = struct{}{}
-	m.seenURLsM.Unlock()
-
-	http.ServeFile(rr, request, respFile)
-
-	rr2 := rr.Result()
-	rr2.Request = request
-	return rr2, nil
-}
-
-type mockHTTPClientOptions struct {
-	ignoreUntouchedURLs bool
-}
-
-type mockHTTPClientOption func(*mockHTTPClientOptions)
-
-func ignoreUntouchedURLs() mockHTTPClientOption {
-	return func(opts *mockHTTPClientOptions) {
-		opts.ignoreUntouchedURLs = true
-	}
-}
-
-func mockHTTPClient(t testing.TB, routes map[string]string,
-	opts ...mockHTTPClientOption) func() {
-
-	var op mockHTTPClientOptions
-	for _, o := range opts {
-		o(&op)
-	}
-
-	oldRoundTripper := http.DefaultTransport
-	transport := &mockedRouterTripper{t: t, routes: routes}
-	http.DefaultTransport = transport
-	return func() {
-		http.DefaultTransport = oldRoundTripper
-
-		if !op.ignoreUntouchedURLs {
-			for u := range routes {
-				_, ok := transport.seenURLs[u]
-				assert.True(t, ok,
-					"found a URL in routes that we did not touch: %v", u)
-			}
-		}
-	}
 }

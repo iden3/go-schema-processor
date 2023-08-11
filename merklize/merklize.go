@@ -266,7 +266,6 @@ func (o Options) TypeFromContext(ctxBytes []byte, path string) (string, error) {
 
 		nextCtx, ok := m["@context"]
 		if ok {
-			var err error
 			ldCtx, err = ldCtx.Parse(nextCtx)
 			if err != nil {
 				return "", nil
@@ -1593,13 +1592,14 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	return mz, err
 }
 
-func (m *Merklizer) entry(path Path) (RDFEntry, error) {
+func (m *Merklizer) Entry(path Path) (RDFEntry, error) {
 	key, err := path.MtEntry()
 	if err != nil {
 		return RDFEntry{}, err
 	}
 	e, ok := m.entries[key.String()]
 	if !ok {
+		// TODO: maybe change to sentinel error
 		return RDFEntry{}, errors.New("entry not found")
 	}
 
@@ -1686,7 +1686,7 @@ func (m *Merklizer) RawValue(path Path) (any, error) {
 // JSONLDType returns the JSON-LD type of the given path. If there is no literal
 // by this path, it returns an error.
 func (m *Merklizer) JSONLDType(path Path) (string, error) {
-	entry, err := m.entry(path)
+	entry, err := m.Entry(path)
 	if err != nil {
 		return "", err
 	}
@@ -1729,7 +1729,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 		entry, ok := m.entries[keyHash.String()]
 		if !ok {
 			return nil, nil, errors.New(
-				"[assertion] no entry found while existence is true")
+				"[assertion] no Entry found while existence is true")
 		}
 		value, err = NewValue(m.hasher, entry.value)
 		if err != nil {

@@ -9,7 +9,9 @@ import (
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/iden3/go-schema-processor/v2/processor"
+	tst "github.com/iden3/go-schema-processor/v2/testing"
 	"github.com/iden3/go-schema-processor/v2/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,8 +36,74 @@ func TestParser_ParseSlots(t *testing.T) {
 	require.NotEmpty(t, slots.IndexB)
 	require.Empty(t, slots.ValueA)
 	require.Empty(t, slots.ValueB)
-
 }
+
+func TestParser_ParseSlots2(t *testing.T) {
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+	})()
+
+	credentialBytes, err := os.ReadFile("testdata/non-merklized-1.json-ld")
+	require.NoError(t, err)
+
+	//t.Log(string(credentialBytes))
+
+	var credential verifiable.W3CCredential
+	err = json.Unmarshal(credentialBytes, &credential)
+	require.NoError(t, err)
+
+	//schemaBytes, err := os.ReadFile("testdata/schema-slots.json")
+	//require.NoError(t, err)
+
+	nullSlot := make([]byte, 32)
+	parser := Parser{}
+	slots, err := parser.ParseSlots(credential, nil)
+	require.NoError(t, err)
+	require.NotEqual(t, nullSlot, slots.IndexA)
+	require.Equal(t, nullSlot, slots.IndexB)
+	require.Equal(t, nullSlot, slots.ValueA)
+	require.NotEqual(t, nullSlot, slots.ValueB)
+}
+
+func TestGetSerializationAttr(t *testing.T) {
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+	})()
+	doc := map[string]any{
+		"@context": []any{
+			"https://www.w3.org/2018/credentials/v1",
+			"https://example.com/schema-delivery-address.json-ld",
+		},
+	}
+	options := ld.NewJsonLdOptions("")
+
+	t.Run("by type name", func(t *testing.T) {
+		serAttr, err := getSerializationAttr(doc, options,
+			"DeliverAddressMultiTestForked")
+		require.NoError(t, err)
+		require.Equal(t,
+			"iden3:v1:slotIndexA=price&slotValueB=postalProviderInformation.insured",
+			serAttr)
+	})
+
+	t.Run("by type id", func(t *testing.T) {
+		serAttr, err := getSerializationAttr(doc, options,
+			"urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100")
+		require.NoError(t, err)
+		require.Equal(t,
+			"iden3:v1:slotIndexA=price&slotValueB=postalProviderInformation.insured",
+			serAttr)
+	})
+
+	t.Run("unknown type", func(t *testing.T) {
+		serAttr, err := getSerializationAttr(doc, options, "bla-bla")
+		require.NoError(t, err)
+		require.Equal(t, "", serAttr)
+	})
+}
+
 func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 
 	credentialBytes, err := os.ReadFile("testdata/credential-non-merklized.json")
