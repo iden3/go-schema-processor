@@ -317,7 +317,6 @@ func jsonDocToReader(doc any) (io.Reader, error) {
 }
 
 func (s Parser) assignSlots2(ctx context.Context,
-	credentialSubject map[string]any, context []any,
 	credential verifiable.W3CCredential) (processor.ParsedSlots, error) {
 
 	slots := processor.ParsedSlots{
@@ -343,11 +342,11 @@ func (s Parser) assignSlots2(ctx context.Context,
 		return slots, err
 	}
 
-	credSubjKey := "https://www.w3.org/2018/credentials#credentialSubject"
+	subKey := "https://www.w3.org/2018/credentials#credentialSubject"
 	// TODO: find type another way by looking to type in upper level.
 	typeID, err := (&jsonObj{obj: expandedDoc}).
 		uniqObjFromList().
-		valueByKey(credSubjKey).
+		valueByKey(subKey).
 		uniqObjFromList().
 		valueByKey("@type").
 		uniqObjFromList().
@@ -436,7 +435,7 @@ func fillSlot2(slotData []byte, mz *merklize.Merklizer, path string) error {
 // TODO: break, make private
 func (s Parser) parseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (processor.ParsedSlots, error) {
 
-	if schemaBytes != nil && len(schemaBytes) > 0 {
+	if len(schemaBytes) > 0 {
 		var schema Schema
 
 		err := json.Unmarshal(schemaBytes, &schema)
@@ -451,8 +450,7 @@ func (s Parser) parseSlots(credential verifiable.W3CCredential, schemaBytes []by
 	}
 
 	ctx := context.TODO()
-	return s.assignSlots2(ctx, credential.CredentialSubject,
-		anySlice(credential.Context), credential)
+	return s.assignSlots2(ctx, credential)
 }
 
 // convert from the slice of concrete type to the slice of interface{}

@@ -47,14 +47,9 @@ func TestParser_parseSlots2(t *testing.T) {
 	credentialBytes, err := os.ReadFile("testdata/non-merklized-1.json-ld")
 	require.NoError(t, err)
 
-	//t.Log(string(credentialBytes))
-
 	var credential verifiable.W3CCredential
 	err = json.Unmarshal(credentialBytes, &credential)
 	require.NoError(t, err)
-
-	//schemaBytes, err := os.ReadFile("testdata/schema-slots.json")
-	//require.NoError(t, err)
 
 	nullSlot := make([]byte, 32)
 	parser := Parser{}
