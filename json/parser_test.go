@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParser_ParseSlots(t *testing.T) {
+func TestParser_parseSlots(t *testing.T) {
 
 	credentialBytes, err := os.ReadFile("testdata/credential-non-merklized.json")
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestParser_ParseSlots(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := Parser{}
-	slots, err := parser.ParseSlots(credential, schemaBytes)
+	slots, err := parser.parseSlots(credential, schemaBytes)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, slots.IndexA)
@@ -38,7 +38,7 @@ func TestParser_ParseSlots(t *testing.T) {
 	require.Empty(t, slots.ValueB)
 }
 
-func TestParser_ParseSlots2(t *testing.T) {
+func TestParser_parseSlots2(t *testing.T) {
 	defer tst.MockHTTPClient(t, map[string]string{
 		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
 		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
@@ -58,7 +58,7 @@ func TestParser_ParseSlots2(t *testing.T) {
 
 	nullSlot := make([]byte, 32)
 	parser := Parser{}
-	slots, err := parser.ParseSlots(credential, nil)
+	slots, err := parser.parseSlots(credential, nil)
 	require.NoError(t, err)
 	require.NotEqual(t, nullSlot, slots.IndexA)
 	require.Equal(t, nullSlot, slots.IndexB)

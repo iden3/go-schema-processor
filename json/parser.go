@@ -45,7 +45,7 @@ type Parser struct {
 
 // ParseClaim creates Claim object from W3CCredential
 // TODO: remove jsonSchemaBytes
-// TODO: remove credentialType (get the same way as in ParseSlots)
+// TODO: remove credentialType (get the same way as in parseSlots)
 func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string,
 	jsonSchemaBytes []byte, opts *processor.CoreClaimOptions) (*core.Claim, error) {
 
@@ -62,7 +62,7 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 
 	subjectID := credential.CredentialSubject["id"]
 
-	slots, err := s.ParseSlots(credential, jsonSchemaBytes)
+	slots, err := s.parseSlots(credential, jsonSchemaBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -432,9 +432,9 @@ func fillSlot2(slotData []byte, mz *merklize.Merklizer, path string) error {
 	return nil
 }
 
-// ParseSlots converts payload to claim slots using provided schema
+// parseSlots converts payload to claim slots using provided schema
 // TODO: break, make private
-func (s Parser) ParseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (processor.ParsedSlots, error) {
+func (s Parser) parseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (processor.ParsedSlots, error) {
 
 	if schemaBytes != nil && len(schemaBytes) > 0 {
 		var schema Schema

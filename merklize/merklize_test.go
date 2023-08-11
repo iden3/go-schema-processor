@@ -20,7 +20,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
-	tst "github.com/iden3/go-schema-processor/testing"
+	tst "github.com/iden3/go-schema-processor/v2/testing"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
