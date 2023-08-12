@@ -30,8 +30,18 @@ func TestParser_parseSlots(t *testing.T) {
 
 	nullSlot := make([]byte, 32)
 	ctx := context.Background()
+
+	// TODO get *JsonLdOptions in general way the same as in merklization
+	options := ld.NewJsonLdOptions("")
+	options.Algorithm = ld.AlgorithmURDNA2015
+	options.SafeMode = true
+
+	credentialDoc := jsonObjFromCredentialSubject(credential)
+	credentialType, err := findCredentialType(options, credentialDoc)
+	require.NoError(t, err)
+
 	parser := Parser{}
-	slots, err := parser.parseSlots(ctx, credential)
+	slots, err := parser.parseSlots(ctx, options, credentialDoc, credentialType)
 	require.NoError(t, err)
 	require.NotEqual(t, nullSlot, slots.IndexA)
 	require.Equal(t, nullSlot, slots.IndexB)
@@ -90,8 +100,6 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 
 	parser := Parser{}
 
-	credentialType := "Test"
-
 	opts := processor.CoreClaimOptions{
 		RevNonce:              127366661,
 		Version:               0,
@@ -100,7 +108,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 		Updatable:             true,
 	}
 
-	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, &opts)
+	claim, err := parser.ParseClaim(context.Background(), credential, &opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -135,8 +143,6 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 
 	parser := Parser{}
 
-	credentialType := "Test"
-
 	opts := processor.CoreClaimOptions{
 		RevNonce:              127366661,
 		Version:               0,
@@ -144,7 +150,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 		MerklizedRootPosition: verifiable.CredentialMerklizedRootPositionIndex,
 		Updatable:             true,
 	}
-	claim, err := parser.ParseClaim(context.Background(), credential, credentialType, &opts)
+	claim, err := parser.ParseClaim(context.Background(), credential, &opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()

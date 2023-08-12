@@ -54,8 +54,8 @@ type Parser struct {
 }
 
 // ParseClaim creates Claim object from W3CCredential
-// TODO: remove credentialType (get the same way as in parseSlots)
-func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string,
+func (s Parser) ParseClaim(ctx context.Context,
+	credential verifiable.W3CCredential,
 	opts *processor.CoreClaimOptions) (*core.Claim, error) {
 
 	if opts == nil {
@@ -69,9 +69,21 @@ func (s Parser) ParseClaim(ctx context.Context, credential verifiable.W3CCredent
 		}
 	}
 
+	// TODO get *JsonLdOptions in general way the same as in merklization
+	options := ld.NewJsonLdOptions("")
+	options.Algorithm = ld.AlgorithmURDNA2015
+	options.SafeMode = true
+
+	credDoc := jsonObjFromCredentialSubject(credential)
+
+	credentialType, err := findCredentialType(options, credDoc)
+	if err != nil {
+		return nil, err
+	}
+
 	subjectID := credential.CredentialSubject["id"]
 
-	slots, err := s.parseSlots(ctx, credential)
+	slots, err := s.parseSlots(ctx, options, credDoc, credentialType)
 	if err != nil {
 		return nil, err
 	}
@@ -217,6 +229,14 @@ func expandDoc(doc any, options *ld.JsonLdOptions) (any, error) {
 type jsonObj struct {
 	obj any
 	err error
+}
+
+func jsonObjFromCredentialSubject(credential verifiable.W3CCredential) any {
+	return map[string]any{
+		contextFullKey:       anySlice(credential.Context),
+		typeFullKey:          anySlice(credential.Type),
+		credentialSubjectKey: credential.CredentialSubject,
+	}
 }
 
 // assert that jsonObj is a list of length 1 and return the first element
@@ -423,7 +443,9 @@ func findCredentialType(options *ld.JsonLdOptions,
 }
 
 // parseSlots converts payload to claim slots using provided schema
-func (s Parser) parseSlots(ctx context.Context, credential verifiable.W3CCredential) (processor.ParsedSlots, error) {
+func (s Parser) parseSlots(ctx context.Context, options *ld.JsonLdOptions,
+	credentialDoc any, credentialType string) (processor.ParsedSlots, error) {
+
 	slots := processor.ParsedSlots{
 		IndexA: make([]byte, 32),
 		IndexB: make([]byte, 32),
@@ -431,26 +453,7 @@ func (s Parser) parseSlots(ctx context.Context, credential verifiable.W3CCredent
 		ValueB: make([]byte, 32),
 	}
 
-	var doc any = map[string]any{
-		contextFullKey:       anySlice(credential.Context),
-		typeFullKey:          anySlice(credential.Type),
-		credentialSubjectKey: credential.CredentialSubject,
-	}
-	logI(doc, 1)
-
-	// TODO get *JsonLdOptions in general way the same as in merklization
-	options := ld.NewJsonLdOptions("")
-	options.Algorithm = ld.AlgorithmURDNA2015
-	options.SafeMode = true
-
-	typeID, err := findCredentialType(options, doc)
-	if err != nil {
-		return slots, err
-	}
-
-	log.Printf("[20] %v", typeID)
-
-	serAddr, err := getSerializationAttr(doc, options, typeID)
+	serAddr, err := getSerializationAttr(credentialDoc, options, credentialType)
 	if err != nil {
 		return slots, err
 	}
@@ -471,7 +474,7 @@ func (s Parser) parseSlots(ctx context.Context, credential verifiable.W3CCredent
 		return slots, nil
 	}
 
-	docReader, err := jsonDocToReader(doc)
+	docReader, err := jsonDocToReader(credentialDoc)
 	if err != nil {
 		return slots, err
 	}

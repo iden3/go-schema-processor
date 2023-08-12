@@ -34,7 +34,8 @@ type ParsedSlots struct {
 
 // Parser is an interface to parse claim slots
 type Parser interface {
-	ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, options *CoreClaimOptions) (*core.Claim, error)
+	ParseClaim(ctx context.Context, credential verifiable.W3CCredential,
+		options *CoreClaimOptions) (*core.Claim, error)
 	GetFieldSlotIndex(field string, schema []byte) (int, error)
 }
 
@@ -95,11 +96,14 @@ func (s *Processor) Load(ctx context.Context) (schema []byte, extension string, 
 }
 
 // ParseClaim will serialize input data to index and value fields.
-func (s *Processor) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, opts *CoreClaimOptions) (*core.Claim, error) {
+func (s *Processor) ParseClaim(ctx context.Context,
+	credential verifiable.W3CCredential,
+	opts *CoreClaimOptions) (*core.Claim, error) {
+
 	if s.Parser == nil {
 		return nil, errParserNotDefined
 	}
-	return s.Parser.ParseClaim(ctx, credential, credentialType, opts)
+	return s.Parser.ParseClaim(ctx, credential, opts)
 }
 
 // GetFieldSlotIndex returns index of slot for specified field according to schema
