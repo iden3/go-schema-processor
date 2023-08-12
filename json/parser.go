@@ -19,6 +19,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	credentialSubjectKey = "credentialSubject"
+	//nolint:gosec // G101: this is not a hardcoded credential
+	credentialSubjectFullKey = "www.w3.org/2018/credentials#credentialSubject"
+	//nolint:gosec // G101: this is not a hardcoded credential
+	verifiableCredentialFullKey = "https://www.w3.org/2018/credentials#VerifiableCredential"
+	typeFullKey                 = "@type"
+	contextFullKey              = "@context"
+)
+
 // SerializationSchema Common JSON
 type SerializationSchema struct {
 	IndexDataSlotA string `json:"indexDataSlotA"`
@@ -152,7 +162,7 @@ func getSerializationAttr(doc any, opts *ld.JsonLdOptions,
 		return "", errors.New("document is not an object")
 	}
 
-	docCtx, ok := docM["@context"]
+	docCtx, ok := docM[contextFullKey]
 	if !ok {
 		return "", errors.New("no @context in document")
 	}
@@ -178,7 +188,7 @@ func getSerializationAttr(doc any, opts *ld.JsonLdOptions,
 			// not a type
 			continue
 		}
-		typeCtx, ok := typeDefM["@context"]
+		typeCtx, ok := typeDefM[contextFullKey]
 		if !ok {
 			// not a type
 			continue
@@ -225,6 +235,29 @@ func (j *jsonObj) uniqObjFromList() *jsonObj {
 	}
 
 	return &jsonObj{obj: l[0]}
+}
+
+// assert that a jsonObj is a list of strings and return []string
+func (j *jsonObj) stringsFromList() ([]string, error) {
+	if j.err != nil {
+		return nil, j.err
+	}
+
+	l, isList := j.obj.([]any)
+	if !isList {
+		return nil, errors.New("not a list")
+	}
+
+	var stringsList = make([]string, len(l))
+	var ok bool
+	for i, v := range l {
+		stringsList[i], ok = v.(string)
+		if !ok {
+			return nil, fmt.Errorf("array element #%v is not a string", i)
+		}
+	}
+
+	return stringsList, nil
 }
 
 // assert that jsonObj is an object and return the value by key
@@ -319,7 +352,7 @@ func fillSlot(slotData []byte, mz *merklize.Merklizer, path string) error {
 	if path == "" {
 		return nil
 	}
-	path = "credentialSubject." + path
+	path = credentialSubjectKey + "." + path
 	p, err := mz.ResolveDocPath(path)
 	if err != nil {
 		return err
@@ -340,8 +373,56 @@ func fillSlot(slotData []byte, mz *merklize.Merklizer, path string) error {
 	return nil
 }
 
+func findCredentialType(options *ld.JsonLdOptions,
+	credentialsDoc any) (string, error) {
+
+	expandedDoc, err := expandDoc(credentialsDoc, options)
+	if err != nil {
+		return "", err
+	}
+
+	logI(expandedDoc, 2)
+
+	typeID, err := (&jsonObj{obj: expandedDoc}).
+		uniqObjFromList().
+		valueByKey(credentialSubjectFullKey).
+		uniqObjFromList().
+		valueByKey(typeFullKey).
+		uniqObjFromList().
+		toString()
+	if err == nil {
+		return typeID, nil
+	}
+
+	// if previous method to find a type returned with an error, then assert
+	// that the top document @type field is an array of two types:
+	// * "https://www.w3.org/2018/credentials#VerifiableCredential"
+	// * and the second type that we are looking for.
+	topLevelTypes, err := (&jsonObj{obj: expandedDoc}).
+		uniqObjFromList().
+		valueByKey(typeFullKey).
+		stringsFromList()
+	if err != nil {
+		return "", err
+	}
+	if len(topLevelTypes) != 2 {
+		return "", fmt.Errorf(
+			"document @type(s) are expected to be of length 2 (actual: %v)",
+			len(topLevelTypes))
+	}
+
+	switch verifiableCredentialFullKey {
+	case topLevelTypes[0]:
+		return topLevelTypes[1], nil
+	case topLevelTypes[1]:
+		return topLevelTypes[0], nil
+	default:
+		return "", fmt.Errorf(
+			"@type(s) are expected to contain VerifiableCredential type")
+	}
+}
+
 // parseSlots converts payload to claim slots using provided schema
-// TODO: break, make private
 func (s Parser) parseSlots(ctx context.Context, credential verifiable.W3CCredential) (processor.ParsedSlots, error) {
 	slots := processor.ParsedSlots{
 		IndexA: make([]byte, 32),
@@ -351,30 +432,18 @@ func (s Parser) parseSlots(ctx context.Context, credential verifiable.W3CCredent
 	}
 
 	var doc any = map[string]any{
-		"@context":          anySlice(credential.Context),
-		"@type":             anySlice(credential.Type),
-		"credentialSubject": credential.CredentialSubject,
+		contextFullKey:       anySlice(credential.Context),
+		typeFullKey:          anySlice(credential.Type),
+		credentialSubjectKey: credential.CredentialSubject,
 	}
 	logI(doc, 1)
 
+	// TODO get *JsonLdOptions in general way the same as in merklization
 	options := ld.NewJsonLdOptions("")
 	options.Algorithm = ld.AlgorithmURDNA2015
 	options.SafeMode = true
 
-	expandedDoc, err := expandDoc(doc, options)
-	if err != nil {
-		return slots, err
-	}
-
-	subKey := "https://www.w3.org/2018/credentials#credentialSubject"
-	// TODO: find type another way by looking to type in upper level.
-	typeID, err := (&jsonObj{obj: expandedDoc}).
-		uniqObjFromList().
-		valueByKey(subKey).
-		uniqObjFromList().
-		valueByKey("@type").
-		uniqObjFromList().
-		toString()
+	typeID, err := findCredentialType(options, doc)
 	if err != nil {
 		return slots, err
 	}

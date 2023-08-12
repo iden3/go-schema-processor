@@ -204,3 +204,139 @@ func Test_GetFieldSlotIndex(t *testing.T) {
 
 	require.Equal(t, 2, slotIndex)
 }
+
+func parseJSON(in string) any {
+	var out any
+	err := json.Unmarshal([]byte(in), &out)
+	if err != nil {
+		panic(err)
+	}
+	return out
+}
+
+func TestFindCredentialType(t *testing.T) {
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+	})()
+
+	options := ld.NewJsonLdOptions("")
+	t.Run("empty document", func(t *testing.T) {
+		doc := map[string]any{}
+		_, err := findCredentialType(options, doc)
+		require.EqualError(t, err, "list is not of length 1")
+	})
+	t.Run("type from internal field", func(t *testing.T) {
+		doc := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://example.com/schema-delivery-address.json-ld"
+    ],
+    "@type": [
+        "VerifiableCredential",
+        "DeliverAddressMultiTestForked"
+    ],
+    "credentialSubject": {
+        "isPostalProvider": false,
+        "postalProviderInformation": {
+            "insured": true,
+            "weight": "1.3"
+        },
+        "price": "123.52",
+        "type": "DeliverAddressMultiTestForked"
+    }
+}`
+		typeID, err := findCredentialType(options, parseJSON(doc))
+		require.NoError(t, err)
+		require.Equal(t, "urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100", typeID)
+	})
+	t.Run("type from top level", func(t *testing.T) {
+		doc := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://example.com/schema-delivery-address.json-ld"
+    ],
+    "@type": [
+        "VerifiableCredential",
+        "DeliverAddressMultiTestForked"
+    ],
+    "credentialSubject": {
+        "isPostalProvider": false,
+        "postalProviderInformation": {
+            "insured": true,
+            "weight": "1.3"
+        },
+        "price": "123.52"
+    }
+}`
+		typeID, err := findCredentialType(options, parseJSON(doc))
+		require.NoError(t, err)
+		require.Equal(t, "urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100", typeID)
+	})
+
+	t.Run("type from top level when internal incorrect", func(t *testing.T) {
+		doc := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://example.com/schema-delivery-address.json-ld"
+    ],
+    "@type": [
+        "VerifiableCredential",
+        "DeliverAddressMultiTestForked"
+    ],
+    "credentialSubject": {
+        "isPostalProvider": false,
+        "postalProviderInformation": {
+            "insured": true,
+            "weight": "1.3"
+        },
+        "price": "123.52",
+        "type": ["EcdsaSecp256k1Signature2019", "EcdsaSecp256r1Signature2019"]
+    }
+}`
+		typeID, err := findCredentialType(options, parseJSON(doc))
+		require.NoError(t, err)
+		require.Equal(t, "urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100", typeID)
+	})
+
+	t.Run("unexpected top level 1", func(t *testing.T) {
+		doc := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://example.com/schema-delivery-address.json-ld"
+    ],
+    "@type": [
+        "VerifiableCredential",
+        "DeliverAddressMultiTestForked",
+		"EcdsaSecp256k1Signature2019"
+    ],
+    "credentialSubject": {}
+}`
+		_, err := findCredentialType(options, parseJSON(doc))
+		require.EqualError(t, err,
+			"document @type(s) are expected to be of length 2 (actual: 3)")
+	})
+
+	t.Run("unexpected top level 2", func(t *testing.T) {
+		doc := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://example.com/schema-delivery-address.json-ld"
+    ],
+    "@type": [
+        "DeliverAddressMultiTestForked",
+		"EcdsaSecp256k1Signature2019"
+    ],
+    "credentialSubject": {}
+}`
+		_, err := findCredentialType(options, parseJSON(doc))
+		require.EqualError(t, err,
+			"@type(s) are expected to contain VerifiableCredential type")
+	})
+
+}
