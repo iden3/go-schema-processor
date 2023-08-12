@@ -442,11 +442,17 @@ func findCredentialType(options *ld.JsonLdOptions,
 	}
 }
 
+// parsedSlots is struct that represents iden3 claim specification
+type parsedSlots struct {
+	IndexA, IndexB []byte
+	ValueA, ValueB []byte
+}
+
 // parseSlots converts payload to claim slots using provided schema
 func (s Parser) parseSlots(ctx context.Context, options *ld.JsonLdOptions,
-	credentialDoc any, credentialType string) (processor.ParsedSlots, error) {
+	credentialDoc any, credentialType string) (parsedSlots, error) {
 
-	slots := processor.ParsedSlots{
+	slots := parsedSlots{
 		IndexA: make([]byte, 32),
 		IndexB: make([]byte, 32),
 		ValueA: make([]byte, 32),

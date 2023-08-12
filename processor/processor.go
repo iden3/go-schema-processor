@@ -26,12 +26,6 @@ type SchemaLoader interface {
 	Load(ctx context.Context) (schema []byte, extension string, err error)
 }
 
-// ParsedSlots is struct that represents iden3 claim specification
-type ParsedSlots struct {
-	IndexA, IndexB []byte
-	ValueA, ValueB []byte
-}
-
 // Parser is an interface to parse claim slots
 type Parser interface {
 	ParseClaim(ctx context.Context, credential verifiable.W3CCredential,
