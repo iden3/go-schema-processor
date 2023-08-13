@@ -157,20 +157,10 @@ func logI(i any, n int) {
 // Get @serialization attr definition from context document either using
 // type name like DeliverAddressMultiTestForked or by type id like
 // urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100.
-func getSerializationAttr(doc any, opts *ld.JsonLdOptions,
-	tp string) (string, error) {
+func getSerializationAttr(credential verifiable.W3CCredential,
+	opts *ld.JsonLdOptions, tp string) (string, error) {
 
-	docM, ok := doc.(map[string]any)
-	if !ok {
-		return "", errors.New("document is not an object")
-	}
-
-	docCtx, ok := docM[contextFullKey]
-	if !ok {
-		return "", errors.New("no @context in document")
-	}
-
-	ldCtx, err := ld.NewContext(nil, opts).Parse(docCtx)
+	ldCtx, err := ld.NewContext(nil, opts).Parse(anySlice(credential.Context))
 	if err != nil {
 		return "", err
 	}
@@ -210,14 +200,6 @@ func getSerializationAttr(doc any, opts *ld.JsonLdOptions,
 	}
 
 	return "", nil
-}
-
-func jsonObjFromCredentialSubject(credential verifiable.W3CCredential) any {
-	return map[string]any{
-		contextFullKey:       anySlice(credential.Context),
-		typeFullKey:          anySlice(credential.Type),
-		credentialSubjectKey: credential.CredentialSubject,
-	}
 }
 
 type slotsPaths struct {
@@ -296,7 +278,7 @@ func findCredentialType(mz *merklize.Merklizer) (string, error) {
 	opts := mz.Options()
 
 	// try to look into credentialSubject.@type to get type of credentials
-	path1, err := opts.NewPath(credentialSubjectFullKey, "@type")
+	path1, err := opts.NewPath(credentialSubjectFullKey, typeFullKey)
 	if err == nil {
 		var e any
 		e, err = mz.RawValue(path1)
@@ -311,7 +293,7 @@ func findCredentialType(mz *merklize.Merklizer) (string, error) {
 	// if type of credentials not found in credentialSubject.@type, loop at
 	// top level @types if it contains two elements: type we are looking for
 	// and "VerifiableCredential" type.
-	path2, err := opts.NewPath("@type")
+	path2, err := opts.NewPath(typeFullKey)
 	if err != nil {
 		return "", err
 	}
@@ -362,10 +344,8 @@ func (s Parser) parseSlots(mz *merklize.Merklizer,
 		ValueB: make([]byte, 32),
 	}
 
-	credentialDoc := jsonObjFromCredentialSubject(credential)
-
 	jsonLDOpts := mz.Options().JSONLDOptions()
-	serAddr, err := getSerializationAttr(credentialDoc, jsonLDOpts,
+	serAddr, err := getSerializationAttr(credential, jsonLDOpts,
 		credentialType)
 	if err != nil {
 		return slots, err

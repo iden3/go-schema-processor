@@ -52,16 +52,18 @@ func TestGetSerializationAttr(t *testing.T) {
 		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
 		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
 	})()
-	doc := map[string]any{
-		"@context": []any{
+
+	vc := verifiable.W3CCredential{
+		Context: []string{
 			"https://www.w3.org/2018/credentials/v1",
 			"https://example.com/schema-delivery-address.json-ld",
 		},
 	}
+
 	options := ld.NewJsonLdOptions("")
 
 	t.Run("by type name", func(t *testing.T) {
-		serAttr, err := getSerializationAttr(doc, options,
+		serAttr, err := getSerializationAttr(vc, options,
 			"DeliverAddressMultiTestForked")
 		require.NoError(t, err)
 		require.Equal(t,
@@ -70,7 +72,7 @@ func TestGetSerializationAttr(t *testing.T) {
 	})
 
 	t.Run("by type id", func(t *testing.T) {
-		serAttr, err := getSerializationAttr(doc, options,
+		serAttr, err := getSerializationAttr(vc, options,
 			"urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100")
 		require.NoError(t, err)
 		require.Equal(t,
@@ -79,7 +81,7 @@ func TestGetSerializationAttr(t *testing.T) {
 	})
 
 	t.Run("unknown type", func(t *testing.T) {
-		serAttr, err := getSerializationAttr(doc, options, "bla-bla")
+		serAttr, err := getSerializationAttr(vc, options, "bla-bla")
 		require.NoError(t, err)
 		require.Equal(t, "", serAttr)
 	})
