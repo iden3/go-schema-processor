@@ -88,9 +88,12 @@ func TestGetSerializationAttr(t *testing.T) {
 }
 
 func TestParser_ParseClaimWithDataSlots(t *testing.T) {
-	// TODO
-	t.Skip("broken, fixme")
-	credentialBytes, err := os.ReadFile("testdata/credential-non-merklized.json")
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+	})()
+
+	credentialBytes, err := os.ReadFile("testdata/non-merklized-1.json-ld")
 	require.NoError(t, err)
 
 	var credential verifiable.W3CCredential
@@ -114,22 +117,16 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 	index, value := claim.RawSlots()
 
 	require.NotEmpty(t, index[2])
-	require.NotEmpty(t, index[3])
+	require.Empty(t, index[3])
 
 	require.Empty(t, value[2])
-	require.Empty(t, value[3])
+	require.NotEmpty(t, value[3])
 
-	did := credential.CredentialSubject["id"].(string)
-	idFromClaim, err := claim.GetID()
-	require.NoError(t, err)
-	didFromClaim, err := core.ParseDIDFromID(idFromClaim)
-	require.NoError(t, err)
-	_, err = core.ParseDIDFromID(idFromClaim)
-	require.NoError(t, err)
-	require.Equal(t, did, didFromClaim.String())
+	_, err = claim.GetID()
+	require.EqualError(t, err, "ID is not set")
 	require.Equal(t, opts.Updatable, claim.GetFlagUpdatable())
-	exp, _ := claim.GetExpirationDate()
-	require.Equal(t, credential.Expiration.Unix(), exp.Unix())
+	_, ok := claim.GetExpirationDate()
+	require.False(t, ok)
 }
 
 func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
