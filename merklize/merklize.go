@@ -70,25 +70,19 @@ func (o Options) getDocumentLoader() ld.DocumentLoader {
 	return defaultDocumentLoader
 }
 
-func (o Options) getJSONLdOptions() *ld.JsonLdOptions {
-	docLoader := o.getDocumentLoader()
-	if docLoader == nil {
-		return nil
-	}
-	return &ld.JsonLdOptions{
-		DocumentLoader: docLoader,
-	}
+func (o Options) JSONLDOptions() *ld.JsonLdOptions {
+	return newJSONLDOptions(true, o.getDocumentLoader())
 }
 
 func (o Options) NewPath(parts ...interface{}) (Path, error) {
 	p := Path{hasher: o.getHasher()}
-	err := p.Append(parts)
+	err := p.Append(parts...)
 	return p, err
 }
 
 func (o Options) PathFromContext(ctxBytes []byte, path string) (Path, error) {
 	out := Path{hasher: o.getHasher()}
-	err := out.pathFromContext(ctxBytes, path, o.getJSONLdOptions())
+	err := out.pathFromContext(ctxBytes, path, o.JSONLDOptions())
 	return out, err
 }
 
@@ -161,7 +155,7 @@ func NewPath(parts ...interface{}) (Path, error) {
 func NewPathFromContext(ctxBytes []byte, path string) (Path, error) {
 	defaultOpts := Options{}
 	var out = Path{hasher: defaultOpts.getHasher()}
-	err := out.pathFromContext(ctxBytes, path, defaultOpts.getJSONLdOptions())
+	err := out.pathFromContext(ctxBytes, path, defaultOpts.JSONLDOptions())
 	return out, err
 }
 
@@ -204,7 +198,7 @@ func (o Options) TypeIDFromContext(ctxBytes []byte,
 		return "", err
 	}
 
-	ldCtx, err := ld.NewContext(nil, o.getJSONLdOptions()).
+	ldCtx, err := ld.NewContext(nil, o.JSONLDOptions()).
 		Parse(ctxObj["@context"])
 	if err != nil {
 		return "", err
@@ -245,7 +239,7 @@ func (o Options) TypeFromContext(ctxBytes []byte, path string) (string, error) {
 		return "", err
 	}
 
-	ldCtx, err := ld.NewContext(nil, o.getJSONLdOptions()).
+	ldCtx, err := ld.NewContext(nil, o.JSONLDOptions()).
 		Parse(ctxObj["@context"])
 	if err != nil {
 		return "", err
@@ -379,7 +373,7 @@ func (o Options) pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	}
 
 	if ldCtx == nil {
-		ldCtx = ld.NewContext(nil, o.getJSONLdOptions())
+		ldCtx = ld.NewContext(nil, o.JSONLDOptions())
 	}
 
 	var err error
@@ -1553,11 +1547,7 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	}
 
 	proc := ld.NewJsonLdProcessor()
-	options := ld.NewJsonLdOptions("")
-	options.Algorithm = ld.AlgorithmURDNA2015
-	options.SafeMode = mz.safeMode
-	options.DocumentLoader = mz.getDocumentLoader()
-
+	options := newJSONLDOptions(mz.safeMode, mz.getDocumentLoader())
 	normDoc, err := proc.Normalize(obj, options)
 	if err != nil {
 		return nil, err
@@ -1709,6 +1699,13 @@ func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
 	return realPath, nil
 }
 
+func (m *Merklizer) Options() Options {
+	return Options{
+		Hasher:         m.hasher,
+		DocumentLoader: m.getDocumentLoader(),
+	}
+}
+
 // Proof generate and return Proof and Value by the given Path.
 // If the path is not found, it returns nil as value interface.
 func (m *Merklizer) Proof(ctx context.Context,
@@ -1848,4 +1845,12 @@ func assertDatasetConsistency(ds *ld.RDFDataset) error {
 		}
 	}
 	return nil
+}
+
+func newJSONLDOptions(safeMode bool, docLoader ld.DocumentLoader) *ld.JsonLdOptions {
+	options := ld.NewJsonLdOptions("")
+	options.Algorithm = ld.AlgorithmURDNA2015
+	options.SafeMode = safeMode
+	options.DocumentLoader = docLoader
+	return options
 }

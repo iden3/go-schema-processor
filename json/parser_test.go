@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	core "github.com/iden3/go-iden3-core/v2"
@@ -31,17 +32,14 @@ func TestParser_parseSlots(t *testing.T) {
 	nullSlot := make([]byte, 32)
 	ctx := context.Background()
 
-	// TODO get *JsonLdOptions in general way the same as in merklization
-	options := ld.NewJsonLdOptions("")
-	options.Algorithm = ld.AlgorithmURDNA2015
-	options.SafeMode = true
+	mz, err := credential.Merklize(ctx)
+	require.NoError(t, err)
 
-	credentialDoc := jsonObjFromCredentialSubject(credential)
-	credentialType, err := findCredentialType(options, credentialDoc)
+	credentialType, err := findCredentialType(mz)
 	require.NoError(t, err)
 
 	parser := Parser{}
-	slots, err := parser.parseSlots(ctx, options, credentialDoc, credentialType)
+	slots, err := parser.parseSlots(mz, credential, credentialType)
 	require.NoError(t, err)
 	require.NotEqual(t, nullSlot, slots.IndexA)
 	require.Equal(t, nullSlot, slots.IndexB)
@@ -211,29 +209,24 @@ func Test_GetFieldSlotIndex(t *testing.T) {
 	require.Equal(t, 2, slotIndex)
 }
 
-func parseJSON(in string) any {
-	var out any
-	err := json.Unmarshal([]byte(in), &out)
-	if err != nil {
-		panic(err)
-	}
-	return out
-}
-
 func TestFindCredentialType(t *testing.T) {
-	defer tst.MockHTTPClient(t, map[string]string{
-		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
-		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
-	})()
+	mockHTTP := func(t testing.TB) func() {
+		return tst.MockHTTPClient(t,
+			map[string]string{
+				"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+				"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+			},
+			// requests are cached, so we don't check them on second and
+			// further runs
+			tst.IgnoreUntouchedURLs(),
+		)
+	}
 
-	options := ld.NewJsonLdOptions("")
-	t.Run("empty document", func(t *testing.T) {
-		doc := map[string]any{}
-		_, err := findCredentialType(options, doc)
-		require.EqualError(t, err, "list is not of length 1")
-	})
+	ctx := context.Background()
+
 	t.Run("type from internal field", func(t *testing.T) {
-		doc := `
+		defer mockHTTP(t)()
+		rdr := strings.NewReader(`
 {
     "@context": [
         "https://www.w3.org/2018/credentials/v1",
@@ -252,13 +245,17 @@ func TestFindCredentialType(t *testing.T) {
         "price": "123.52",
         "type": "DeliverAddressMultiTestForked"
     }
-}`
-		typeID, err := findCredentialType(options, parseJSON(doc))
+}`)
+		mz, err := merklize.MerklizeJSONLD(ctx, rdr)
+		require.NoError(t, err)
+		typeID, err := findCredentialType(mz)
 		require.NoError(t, err)
 		require.Equal(t, "urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100", typeID)
 	})
+
 	t.Run("type from top level", func(t *testing.T) {
-		doc := `
+		defer mockHTTP(t)()
+		rdr := strings.NewReader(`
 {
     "@context": [
         "https://www.w3.org/2018/credentials/v1",
@@ -276,14 +273,17 @@ func TestFindCredentialType(t *testing.T) {
         },
         "price": "123.52"
     }
-}`
-		typeID, err := findCredentialType(options, parseJSON(doc))
+}`)
+		mz, err := merklize.MerklizeJSONLD(ctx, rdr)
+		require.NoError(t, err)
+		typeID, err := findCredentialType(mz)
 		require.NoError(t, err)
 		require.Equal(t, "urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100", typeID)
 	})
 
 	t.Run("type from top level when internal incorrect", func(t *testing.T) {
-		doc := `
+		defer mockHTTP(t)()
+		rdr := strings.NewReader(`
 {
     "@context": [
         "https://www.w3.org/2018/credentials/v1",
@@ -302,14 +302,17 @@ func TestFindCredentialType(t *testing.T) {
         "price": "123.52",
         "type": ["EcdsaSecp256k1Signature2019", "EcdsaSecp256r1Signature2019"]
     }
-}`
-		typeID, err := findCredentialType(options, parseJSON(doc))
+}`)
+		mz, err := merklize.MerklizeJSONLD(ctx, rdr)
+		require.NoError(t, err)
+		typeID, err := findCredentialType(mz)
 		require.NoError(t, err)
 		require.Equal(t, "urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100", typeID)
 	})
 
 	t.Run("unexpected top level 1", func(t *testing.T) {
-		doc := `
+		defer mockHTTP(t)()
+		rdr := strings.NewReader(`
 {
     "@context": [
         "https://www.w3.org/2018/credentials/v1",
@@ -319,28 +322,27 @@ func TestFindCredentialType(t *testing.T) {
         "VerifiableCredential",
         "DeliverAddressMultiTestForked",
 		"EcdsaSecp256k1Signature2019"
-    ],
-    "credentialSubject": {}
-}`
-		_, err := findCredentialType(options, parseJSON(doc))
-		require.EqualError(t, err,
-			"document @type(s) are expected to be of length 2 (actual: 3)")
+    ]
+}`)
+		mz, err := merklize.MerklizeJSONLD(ctx, rdr)
+		require.NoError(t, err)
+		_, err = findCredentialType(mz)
+		require.EqualError(t, err, "top level @type expected to be of length 2")
 	})
 
 	t.Run("unexpected top level 2", func(t *testing.T) {
-		doc := `
+		defer mockHTTP(t)()
+		rdr := strings.NewReader(`
 {
     "@context": [
         "https://www.w3.org/2018/credentials/v1",
         "https://example.com/schema-delivery-address.json-ld"
     ],
-    "@type": [
-        "DeliverAddressMultiTestForked",
-		"EcdsaSecp256k1Signature2019"
-    ],
-    "credentialSubject": {}
-}`
-		_, err := findCredentialType(options, parseJSON(doc))
+    "@type": ["DeliverAddressMultiTestForked", "EcdsaSecp256k1Signature2019"]
+}`)
+		mz, err := merklize.MerklizeJSONLD(ctx, rdr)
+		require.NoError(t, err)
+		_, err = findCredentialType(mz)
 		require.EqualError(t, err,
 			"@type(s) are expected to contain VerifiableCredential type")
 	})

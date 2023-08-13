@@ -1,11 +1,9 @@
 package json
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"strings"
 
@@ -22,7 +20,7 @@ import (
 const (
 	credentialSubjectKey = "credentialSubject"
 	//nolint:gosec // G101: this is not a hardcoded credential
-	credentialSubjectFullKey = "www.w3.org/2018/credentials#credentialSubject"
+	credentialSubjectFullKey = "https://www.w3.org/2018/credentials#credentialSubject"
 	//nolint:gosec // G101: this is not a hardcoded credential
 	verifiableCredentialFullKey = "https://www.w3.org/2018/credentials#VerifiableCredential"
 	typeFullKey                 = "@type"
@@ -69,21 +67,19 @@ func (s Parser) ParseClaim(ctx context.Context,
 		}
 	}
 
-	// TODO get *JsonLdOptions in general way the same as in merklization
-	options := ld.NewJsonLdOptions("")
-	options.Algorithm = ld.AlgorithmURDNA2015
-	options.SafeMode = true
+	mz, err := credential.Merklize(ctx, opts.MerklizerOpts...)
+	if err != nil {
+		return nil, err
+	}
 
-	credDoc := jsonObjFromCredentialSubject(credential)
-
-	credentialType, err := findCredentialType(options, credDoc)
+	credentialType, err := findCredentialType(mz)
 	if err != nil {
 		return nil, err
 	}
 
 	subjectID := credential.CredentialSubject["id"]
 
-	slots, err := s.parseSlots(ctx, options, credDoc, credentialType)
+	slots, err := s.parseSlots(mz, credential, credentialType)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +107,8 @@ func (s Parser) ParseClaim(ctx context.Context,
 			return nil, err
 		}
 
-		id, err := core.IDFromDID(*did)
+		var id core.ID
+		id, err = core.IDFromDID(*did)
 		if err != nil {
 			return nil, err
 		}
@@ -128,24 +125,17 @@ func (s Parser) ParseClaim(ctx context.Context,
 
 	switch opts.MerklizedRootPosition {
 	case verifiable.CredentialMerklizedRootPositionIndex:
-		mkRoot, err := credential.Merklize(ctx, opts.MerklizerOpts...)
-		if err != nil {
-			return nil, err
-		}
-		err = claim.SetIndexMerklizedRoot(mkRoot.Root().BigInt())
+		err = claim.SetIndexMerklizedRoot(mz.Root().BigInt())
 		if err != nil {
 			return nil, err
 		}
 	case verifiable.CredentialMerklizedRootPositionValue:
-		mkRoot, err := credential.Merklize(ctx, opts.MerklizerOpts...)
-		if err != nil {
-			return nil, err
-		}
-		err = claim.SetValueMerklizedRoot(mkRoot.Root().BigInt())
+		err = claim.SetValueMerklizedRoot(mz.Root().BigInt())
 		if err != nil {
 			return nil, err
 		}
 	case verifiable.CredentialMerklizedRootPositionNone:
+		// TODO should me do something here?
 		break
 	default:
 		return nil, errors.New("unknown merklized root position")
@@ -154,6 +144,7 @@ func (s Parser) ParseClaim(ctx context.Context,
 	return claim, nil
 }
 
+//nolint
 func logI(i any, n int) {
 	ib, err := json.MarshalIndent(i, "", "    ")
 	if err != nil {
@@ -221,96 +212,12 @@ func getSerializationAttr(doc any, opts *ld.JsonLdOptions,
 	return "", nil
 }
 
-func expandDoc(doc any, options *ld.JsonLdOptions) (any, error) {
-	proc := ld.NewJsonLdProcessor()
-	return proc.Expand(doc, options)
-}
-
-type jsonObj struct {
-	obj any
-	err error
-}
-
 func jsonObjFromCredentialSubject(credential verifiable.W3CCredential) any {
 	return map[string]any{
 		contextFullKey:       anySlice(credential.Context),
 		typeFullKey:          anySlice(credential.Type),
 		credentialSubjectKey: credential.CredentialSubject,
 	}
-}
-
-// assert that jsonObj is a list of length 1 and return the first element
-func (j *jsonObj) uniqObjFromList() *jsonObj {
-	if j.err != nil {
-		return &jsonObj{err: j.err}
-	}
-
-	l, isList := j.obj.([]any)
-	if !isList {
-		return &jsonObj{err: errors.New("not a list")}
-	}
-
-	if len(l) != 1 {
-		return &jsonObj{err: errors.New("list is not of length 1")}
-	}
-
-	return &jsonObj{obj: l[0]}
-}
-
-// assert that a jsonObj is a list of strings and return []string
-func (j *jsonObj) stringsFromList() ([]string, error) {
-	if j.err != nil {
-		return nil, j.err
-	}
-
-	l, isList := j.obj.([]any)
-	if !isList {
-		return nil, errors.New("not a list")
-	}
-
-	var stringsList = make([]string, len(l))
-	var ok bool
-	for i, v := range l {
-		stringsList[i], ok = v.(string)
-		if !ok {
-			return nil, fmt.Errorf("array element #%v is not a string", i)
-		}
-	}
-
-	return stringsList, nil
-}
-
-// assert that jsonObj is an object and return the value by key
-func (j *jsonObj) valueByKey(key string) *jsonObj {
-	if j.err != nil {
-		return &jsonObj{err: j.err}
-	}
-
-	m, isMap := j.obj.(map[string]any)
-	if !isMap {
-		return &jsonObj{err: errors.New("not a map")}
-	}
-
-	v, ok := m[key]
-	if !ok {
-		return &jsonObj{err: errors.New("key not found")}
-	}
-
-	return &jsonObj{obj: v}
-}
-
-// assert that jsonObj is a string and return it.
-func (j *jsonObj) toString() (string, error) {
-	if j.err != nil {
-		return "", j.err
-	}
-
-	s, isStr := j.obj.(string)
-	if !isStr {
-		return "", errors.New("not a string")
-	}
-
-	return s, nil
 }
 
 type slotsPaths struct {
@@ -360,14 +267,6 @@ func parseSerializationAttr(serAttr string) (slotsPaths, error) {
 	return paths, nil
 }
 
-func jsonDocToReader(doc any) (io.Reader, error) {
-	b, err := json.Marshal(doc)
-	if err != nil {
-		return nil, err
-	}
-	return bytes.NewReader(b), nil
-}
-
 func fillSlot(slotData []byte, mz *merklize.Merklizer, path string) error {
 	if path == "" {
 		return nil
@@ -393,42 +292,45 @@ func fillSlot(slotData []byte, mz *merklize.Merklizer, path string) error {
 	return nil
 }
 
-func findCredentialType(options *ld.JsonLdOptions,
-	credentialsDoc any) (string, error) {
+func findCredentialType(mz *merklize.Merklizer) (string, error) {
+	opts := mz.Options()
 
-	expandedDoc, err := expandDoc(credentialsDoc, options)
+	// try to look into credentialSubject.@type to get type of credentials
+	path1, err := opts.NewPath(credentialSubjectFullKey, "@type")
+	if err == nil {
+		var e any
+		e, err = mz.RawValue(path1)
+		if err == nil {
+			tp, ok := e.(string)
+			if ok {
+				return tp, nil
+			}
+		}
+	}
+
+	// if type of credentials not found in credentialSubject.@type, loop at
+	// top level @types if it contains two elements: type we are looking for
+	// and "VerifiableCredential" type.
+	path2, err := opts.NewPath("@type")
 	if err != nil {
 		return "", err
 	}
 
-	logI(expandedDoc, 2)
-
-	typeID, err := (&jsonObj{obj: expandedDoc}).
-		uniqObjFromList().
-		valueByKey(credentialSubjectFullKey).
-		uniqObjFromList().
-		valueByKey(typeFullKey).
-		uniqObjFromList().
-		toString()
-	if err == nil {
-		return typeID, nil
+	e, err := mz.RawValue(path2)
+	if err != nil {
+		return "", err
 	}
 
-	// if previous method to find a type returned with an error, then assert
-	// that the top document @type field is an array of two types:
-	// * "https://www.w3.org/2018/credentials#VerifiableCredential"
-	// * and the second type that we are looking for.
-	topLevelTypes, err := (&jsonObj{obj: expandedDoc}).
-		uniqObjFromList().
-		valueByKey(typeFullKey).
-		stringsFromList()
+	eArr, ok := e.([]any)
+	if !ok {
+		return "", fmt.Errorf("top level @type expected to be an array")
+	}
+	topLevelTypes, err := toStringSlice(eArr)
 	if err != nil {
 		return "", err
 	}
 	if len(topLevelTypes) != 2 {
-		return "", fmt.Errorf(
-			"document @type(s) are expected to be of length 2 (actual: %v)",
-			len(topLevelTypes))
+		return "", fmt.Errorf("top level @type expected to be of length 2")
 	}
 
 	switch verifiableCredentialFullKey {
@@ -449,8 +351,9 @@ type parsedSlots struct {
 }
 
 // parseSlots converts payload to claim slots using provided schema
-func (s Parser) parseSlots(ctx context.Context, options *ld.JsonLdOptions,
-	credentialDoc any, credentialType string) (parsedSlots, error) {
+func (s Parser) parseSlots(mz *merklize.Merklizer,
+	credential verifiable.W3CCredential,
+	credentialType string) (parsedSlots, error) {
 
 	slots := parsedSlots{
 		IndexA: make([]byte, 32),
@@ -459,7 +362,11 @@ func (s Parser) parseSlots(ctx context.Context, options *ld.JsonLdOptions,
 		ValueB: make([]byte, 32),
 	}
 
-	serAddr, err := getSerializationAttr(credentialDoc, options, credentialType)
+	credentialDoc := jsonObjFromCredentialSubject(credential)
+
+	jsonLDOpts := mz.Options().JSONLDOptions()
+	serAddr, err := getSerializationAttr(credentialDoc, jsonLDOpts,
+		credentialType)
 	if err != nil {
 		return slots, err
 	}
@@ -480,14 +387,6 @@ func (s Parser) parseSlots(ctx context.Context, options *ld.JsonLdOptions,
 		return slots, nil
 	}
 
-	docReader, err := jsonDocToReader(credentialDoc)
-	if err != nil {
-		return slots, err
-	}
-	mz, err := merklize.MerklizeJSONLD(ctx, docReader)
-	if err != nil {
-		return slots, err
-	}
 	err = fillSlot(slots.IndexA, mz, sPaths.indexAPath)
 	if err != nil {
 		return slots, err
@@ -548,4 +447,16 @@ func (s Parser) GetFieldSlotIndex(field string, schemaBytes []byte) (int, error)
 	default:
 		return -1, errors.Errorf("field `%s` not specified in serialization info", field)
 	}
+}
+
+func toStringSlice(in []any) ([]string, error) {
+	out := make([]string, len(in))
+	for i, v := range in {
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("element #%v is not a string", i)
+		}
+		out[i] = s
+	}
+	return out, nil
 }
