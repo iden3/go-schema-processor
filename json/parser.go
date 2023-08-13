@@ -253,22 +253,25 @@ func fillSlot(slotData []byte, mz *merklize.Merklizer, path string) error {
 	if path == "" {
 		return nil
 	}
+
 	path = credentialSubjectKey + "." + path
 	p, err := mz.ResolveDocPath(path)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "field not found in credential %s", path)
 	}
-	log.Printf("[23] %v", p)
+
 	entry, err := mz.Entry(p)
-	if err != nil {
+	if errors.Is(err, merklize.ErrorEntryNotFound) {
+		return errors.Wrapf(err, "field not found in credential %s", path)
+	} else if err != nil {
 		return err
 	}
-	log.Printf("[24] %v", entry)
 
 	intVal, err := entry.ValueMtEntry()
 	if err != nil {
 		return err
 	}
+
 	bytesVal := utils.SwapEndianness(intVal.Bytes())
 	copy(slotData, bytesVal)
 	return nil

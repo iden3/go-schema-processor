@@ -34,6 +34,8 @@ var (
 	ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
 	// ErrorUnsupportedType is returned when type is not supported
 	ErrorUnsupportedType = errors.New("unsupported type")
+	// ErrorEntryNotFound is returned when entry not found in merklized document
+	ErrorEntryNotFound = errors.New("entry not found")
 )
 
 // SetHasher changes default hasher
@@ -1589,8 +1591,7 @@ func (m *Merklizer) Entry(path Path) (RDFEntry, error) {
 	}
 	e, ok := m.entries[key.String()]
 	if !ok {
-		// TODO: maybe change to sentinel error
-		return RDFEntry{}, errors.New("entry not found")
+		return RDFEntry{}, ErrorEntryNotFound
 	}
 
 	return e, nil
