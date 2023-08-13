@@ -101,7 +101,6 @@ func (s *Processor) ParseClaim(ctx context.Context,
 }
 
 // GetFieldSlotIndex returns index of slot for specified field according to schema
-// TODO: what to do with this method?
 func (s *Processor) GetFieldSlotIndex(field string, typeName string,
 	schema []byte) (int, error) {
 

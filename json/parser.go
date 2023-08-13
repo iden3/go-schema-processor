@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	core "github.com/iden3/go-iden3-core/v2"
@@ -115,23 +114,13 @@ func (s Parser) ParseClaim(ctx context.Context,
 			return nil, err
 		}
 	case verifiable.CredentialMerklizedRootPositionNone:
-		// TODO should me do something here?
+		// Slots where filled earlier. Nothing to do here.
 		break
 	default:
 		return nil, errors.New("unknown merklized root position")
 	}
 
 	return claim, nil
-}
-
-//nolint
-func logI(i any, n int) {
-	ib, err := json.MarshalIndent(i, "", "    ")
-	if err != nil {
-		panic(err)
-	}
-
-	log.Printf("[%v] %v", n, string(ib))
 }
 
 func getSerializationAttrFromParsedContext(ldCtx *ld.Context,
