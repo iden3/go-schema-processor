@@ -17,10 +17,12 @@ import (
 )
 
 func TestParser_parseSlots(t *testing.T) {
-	defer tst.MockHTTPClient(t, map[string]string{
-		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
-		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
-	})()
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+			"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+		},
+		tst.IgnoreUntouchedURLs())()
 
 	credentialBytes, err := os.ReadFile("testdata/non-merklized-1.json-ld")
 	require.NoError(t, err)
@@ -48,10 +50,12 @@ func TestParser_parseSlots(t *testing.T) {
 }
 
 func TestGetSerializationAttr(t *testing.T) {
-	defer tst.MockHTTPClient(t, map[string]string{
-		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
-		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
-	})()
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+			"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+		},
+		tst.IgnoreUntouchedURLs())()
 
 	vc := verifiable.W3CCredential{
 		Context: []string{
@@ -88,10 +92,12 @@ func TestGetSerializationAttr(t *testing.T) {
 }
 
 func TestParser_ParseClaimWithDataSlots(t *testing.T) {
-	defer tst.MockHTTPClient(t, map[string]string{
-		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
-		"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
-	})()
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+			"https://example.com/schema-delivery-address.json-ld": "testdata/schema-delivery-address.json-ld",
+		},
+		tst.IgnoreUntouchedURLs())()
 
 	credentialBytes, err := os.ReadFile("testdata/non-merklized-1.json-ld")
 	require.NoError(t, err)
@@ -196,16 +202,21 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 }
 
 func Test_GetFieldSlotIndex(t *testing.T) {
-	// TODO remove or rewrite this test and testdata/schema-slots.json for
-	//      the new @serialization attribute
-	schemaBytes, err := os.ReadFile("testdata/schema-slots.json")
+	contextBytes, err := os.ReadFile("testdata/schema-delivery-address.json-ld")
 	require.NoError(t, err)
 
 	parser := Parser{}
-	slotIndex, err := parser.GetFieldSlotIndex("birthday", schemaBytes)
-	require.NoError(t, err)
 
+	slotIndex, err := parser.GetFieldSlotIndex("price",
+		"DeliverAddressMultiTestForked", contextBytes)
+	require.NoError(t, err)
 	require.Equal(t, 2, slotIndex)
+
+	slotIndex, err = parser.GetFieldSlotIndex(
+		"postalProviderInformation.insured", "DeliverAddressMultiTestForked",
+		contextBytes)
+	require.NoError(t, err)
+	require.Equal(t, 7, slotIndex)
 }
 
 func TestFindCredentialType(t *testing.T) {

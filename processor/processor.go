@@ -30,7 +30,7 @@ type SchemaLoader interface {
 type Parser interface {
 	ParseClaim(ctx context.Context, credential verifiable.W3CCredential,
 		options *CoreClaimOptions) (*core.Claim, error)
-	GetFieldSlotIndex(field string, schema []byte) (int, error)
+	GetFieldSlotIndex(field string, typeName string, schema []byte) (int, error)
 }
 
 // CoreClaimOptions is params for core claim parsing
@@ -102,11 +102,13 @@ func (s *Processor) ParseClaim(ctx context.Context,
 
 // GetFieldSlotIndex returns index of slot for specified field according to schema
 // TODO: what to do with this method?
-func (s *Processor) GetFieldSlotIndex(field string, schema []byte) (int, error) {
+func (s *Processor) GetFieldSlotIndex(field string, typeName string,
+	schema []byte) (int, error) {
+
 	if s.Parser == nil {
 		return 0, errParserNotDefined
 	}
-	return s.Parser.GetFieldSlotIndex(field, schema)
+	return s.Parser.GetFieldSlotIndex(field, typeName, schema)
 }
 
 // ValidateData will validate a claim content by given schema.

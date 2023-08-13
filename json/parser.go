@@ -27,26 +27,6 @@ const (
 	contextFullKey              = "@context"
 )
 
-// SerializationSchema Common JSON
-type SerializationSchema struct {
-	IndexDataSlotA string `json:"indexDataSlotA"`
-	IndexDataSlotB string `json:"indexDataSlotB"`
-	ValueDataSlotA string `json:"valueDataSlotA"`
-	ValueDataSlotB string `json:"valueDataSlotB"`
-}
-
-// SchemaMetadata is metadata of json schema
-type SchemaMetadata struct {
-	Uris          map[string]interface{} `json:"uris"`
-	Serialization *SerializationSchema   `json:"serialization"`
-}
-
-type Schema struct {
-	Metadata *SchemaMetadata `json:"$metadata"`
-	Schema   string          `json:"$schema"`
-	Type     string          `json:"type"`
-}
-
 // Parser can parse claim data according to specification
 type Parser struct {
 }
@@ -154,16 +134,8 @@ func logI(i any, n int) {
 	log.Printf("[%v] %v", n, string(ib))
 }
 
-// Get @serialization attr definition from context document either using
-// type name like DeliverAddressMultiTestForked or by type id like
-// urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100.
-func getSerializationAttr(credential verifiable.W3CCredential,
-	opts *ld.JsonLdOptions, tp string) (string, error) {
-
-	ldCtx, err := ld.NewContext(nil, opts).Parse(anySlice(credential.Context))
-	if err != nil {
-		return "", err
-	}
+func getSerializationAttrFromParsedContext(ldCtx *ld.Context,
+	tp string) (string, error) {
 
 	termDef, ok := ldCtx.AsMap()["termDefinitions"]
 	if !ok {
@@ -200,6 +172,20 @@ func getSerializationAttr(credential verifiable.W3CCredential,
 	}
 
 	return "", nil
+}
+
+// Get @serialization attr definition from context document either using
+// type name like DeliverAddressMultiTestForked or by type id like
+// urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100.
+func getSerializationAttr(credential verifiable.W3CCredential,
+	opts *ld.JsonLdOptions, tp string) (string, error) {
+
+	ldCtx, err := ld.NewContext(nil, opts).Parse(anySlice(credential.Context))
+	if err != nil {
+		return "", err
+	}
+
+	return getSerializationAttrFromParsedContext(ldCtx, tp)
 }
 
 type slotsPaths struct {
@@ -348,23 +334,20 @@ func (s Parser) parseSlots(mz *merklize.Merklizer,
 	}
 
 	jsonLDOpts := mz.Options().JSONLDOptions()
-	serAddr, err := getSerializationAttr(credential, jsonLDOpts,
+	serAttr, err := getSerializationAttr(credential, jsonLDOpts,
 		credentialType)
 	if err != nil {
 		return slots, err
 	}
 
-	log.Printf("[21] %v", serAddr)
-	if serAddr == "" {
+	if serAttr == "" {
 		return slots, nil
 	}
 
-	sPaths, err := parseSerializationAttr(serAddr)
+	sPaths, err := parseSerializationAttr(serAttr)
 	if err != nil {
 		return slots, err
 	}
-
-	log.Printf("[22] %#v", sPaths)
 
 	if sPaths.isEmpty() {
 		return slots, nil
@@ -403,32 +386,56 @@ func anySlice[T any](in []T) []any {
 }
 
 // GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)
-// TODO: pass options too.
-// TODO: may be pass ctx for future use in ld.Parse
-func (s Parser) GetFieldSlotIndex(field string, schemaBytes []byte) (int, error) {
+func (s Parser) GetFieldSlotIndex(field string, typeName string,
+	schemaBytes []byte) (int, error) {
 
-	var schema Schema
-
-	err := json.Unmarshal(schemaBytes, &schema)
+	var ctxDoc any
+	err := json.Unmarshal(schemaBytes, &ctxDoc)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
-	if schema.Metadata == nil || schema.Metadata.Serialization == nil {
-		return -1, errors.New("serialization info is not set")
+	ctxDocM, ok := ctxDoc.(map[string]any)
+	if !ok {
+		return -1, errors.New("document is not an object")
+	}
+
+	ctxDoc, ok = ctxDocM[contextFullKey]
+	if !ok {
+		return -1, errors.New("document has no @context")
+	}
+
+	ldCtx, err := ld.NewContext(nil, nil).Parse(ctxDoc)
+	if err != nil {
+		return -1, err
+	}
+
+	serAttr, err := getSerializationAttrFromParsedContext(ldCtx, typeName)
+	if err != nil {
+		return -1, err
+	}
+	if serAttr == "" {
+		return -1, errors.Errorf(
+			"field `%s` not specified in serialization info", field)
+	}
+
+	sPaths, err := parseSerializationAttr(serAttr)
+	if err != nil {
+		return -1, err
 	}
 
 	switch field {
-	case schema.Metadata.Serialization.IndexDataSlotA:
+	case sPaths.indexAPath:
 		return 2, nil
-	case schema.Metadata.Serialization.IndexDataSlotB:
+	case sPaths.indexBPath:
 		return 3, nil
-	case schema.Metadata.Serialization.ValueDataSlotA:
+	case sPaths.valueAPath:
 		return 6, nil
-	case schema.Metadata.Serialization.ValueDataSlotB:
+	case sPaths.valueBPath:
 		return 7, nil
 	default:
-		return -1, errors.Errorf("field `%s` not specified in serialization info", field)
+		return -1, errors.Errorf(
+			"field `%s` not specified in serialization info", field)
 	}
 }
 
