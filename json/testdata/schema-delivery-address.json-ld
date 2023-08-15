@@ -9,7 +9,7 @@
         "@context": {
           "@propagate": true,
           "@protected": true,
-          "@serialization": "iden3:v1:slotIndexA=price&slotValueB=postalProviderInformation.insured",
+          "iden3_serialization": "iden3:v1:slotIndexA=price&slotValueB=postalProviderInformation.insured",
           "polygon-vocab": "urn:uuid:77157331-176d-4b84-814b-98ac52a1b870#",
           "xsd": "http://www.w3.org/2001/XMLSchema#",
           "operatorId": {

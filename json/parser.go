@@ -24,6 +24,7 @@ const (
 	verifiableCredentialFullKey = "https://www.w3.org/2018/credentials#VerifiableCredential"
 	typeFullKey                 = "@type"
 	contextFullKey              = "@context"
+	serializationFullKey        = "iden3_serialization"
 )
 
 // Parser can parse claim data according to specification
@@ -156,14 +157,14 @@ func getSerializationAttrFromParsedContext(ldCtx *ld.Context,
 			continue
 		}
 
-		serStr, _ := typeCtxM["@serialization"].(string)
+		serStr, _ := typeCtxM[serializationFullKey].(string)
 		return serStr, nil
 	}
 
 	return "", nil
 }
 
-// Get @serialization attr definition from context document either using
+// Get `iden3_serialization` attr definition from context document either using
 // type name like DeliverAddressMultiTestForked or by type id like
 // urn:uuid:ac2ede19-b3b9-454d-b1a9-a7b3d5763100.
 func getSerializationAttr(credential verifiable.W3CCredential,
