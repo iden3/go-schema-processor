@@ -64,6 +64,17 @@ func (s Parser) ParseClaim(ctx context.Context,
 		return nil, err
 	}
 
+	if slots.isZero() {
+		if opts.MerklizedRootPosition == verifiable.CredentialMerklizedRootPositionNone {
+			opts.MerklizedRootPosition = verifiable.CredentialMerklizedRootPositionIndex
+		}
+	} else {
+		if opts.MerklizedRootPosition != verifiable.CredentialMerklizedRootPositionNone {
+			return nil, errors.New(
+				"merklized root position is not supported for non-merklized claims")
+		}
+	}
+
 	claim, err := core.NewClaim(
 		utils.CreateSchemaHash([]byte(credentialType)),
 		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
@@ -309,6 +320,20 @@ func findCredentialType(mz *merklize.Merklizer) (string, error) {
 type parsedSlots struct {
 	IndexA, IndexB []byte
 	ValueA, ValueB []byte
+}
+
+func (s parsedSlots) isZero() bool {
+	return isZero(s.IndexA) && isZero(s.IndexB) &&
+		isZero(s.ValueA) && isZero(s.ValueB)
+}
+
+func isZero[T ~byte](in []T) bool {
+	for _, v := range in {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // parseSlots converts payload to claim slots using provided schema
