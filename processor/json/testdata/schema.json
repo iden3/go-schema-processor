@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": [
+    "documentType",
+    "birthday"
+  ],
+  "properties": {
+    "documentType": {
+      "type": "integer"
+    },
+    "birthday": {
+      "type": "integer"
+    }
+  }
+}

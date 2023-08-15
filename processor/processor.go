@@ -2,28 +2,25 @@ package processor
 
 import (
 	"context"
+	"encoding/json"
 
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/iden3/go-schema-processor/v2/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/pkg/errors"
 )
 
 // Processor is set of tool for claim processing
 type Processor struct {
-	Validator    Validator
-	SchemaLoader SchemaLoader
-	Parser       Parser
+	Validator      Validator
+	DocumentLoader ld.DocumentLoader
+	Parser         Parser
 }
 
 // Validator is interface to validate data and documents
 type Validator interface {
 	ValidateData(data, schema []byte) error
-}
-
-// SchemaLoader is interface to load schema
-type SchemaLoader interface {
-	Load(ctx context.Context) (schema []byte, extension string, err error)
 }
 
 // Parser is an interface to parse claim slots
@@ -59,10 +56,10 @@ func WithValidator(s Validator) Opt {
 	}
 }
 
-// WithSchemaLoader return new options
-func WithSchemaLoader(s SchemaLoader) Opt {
+// WithDocumentLoader return new options
+func WithDocumentLoader(s ld.DocumentLoader) Opt {
 	return func(opts *Processor) {
-		opts.SchemaLoader = s
+		opts.DocumentLoader = s
 	}
 }
 
@@ -82,11 +79,15 @@ func InitProcessorOptions(processor *Processor, opts ...Opt) *Processor {
 }
 
 // Load will load a schema by given url.
-func (s *Processor) Load(ctx context.Context) (schema []byte, extension string, err error) {
-	if s.SchemaLoader == nil {
-		return nil, "", errLoaderNotDefined
+func (s *Processor) Load(ctx context.Context, url string) (schema []byte, err error) {
+	if s.DocumentLoader == nil {
+		return nil, errLoaderNotDefined
 	}
-	return s.SchemaLoader.Load(ctx)
+	doc, err := s.DocumentLoader.LoadDocument(url)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(doc.Document)
 }
 
 // ParseClaim will serialize input data to index and value fields.
