@@ -17,13 +17,14 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	"github.com/iden3/go-schema-processor/v2/loaders"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 )
 
 var (
 	defaultHasher         Hasher = PoseidonHasher{}
-	defaultDocumentLoader        = NewDocumentLoader(nil, "")
+	defaultDocumentLoader        = loaders.NewDocumentLoader(nil, "")
 	numRE                        = regexp.MustCompile(`^\d+$`)
 )
 
@@ -1604,7 +1605,7 @@ func (m *Merklizer) getDocumentLoader() ld.DocumentLoader {
 	if m.ipfsCli == nil && m.ipfsGW == "" {
 		return defaultDocumentLoader
 	}
-	return NewDocumentLoader(m.ipfsCli, m.ipfsGW)
+	return loaders.NewDocumentLoader(m.ipfsCli, m.ipfsGW)
 }
 
 func rvExtractObjField(obj any, field string) (any, error) {

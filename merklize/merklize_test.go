@@ -20,6 +20,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	"github.com/iden3/go-schema-processor/v2/loaders"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
@@ -1873,7 +1874,7 @@ func TestIPFSContext(t *testing.T) {
 		oldDocLoader := defaultDocumentLoader
 		t.Cleanup(func() { SetDocumentLoader(oldDocLoader) })
 
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		SetDocumentLoader(docLoader)
 
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
@@ -1919,7 +1920,7 @@ func TestIPFSContext(t *testing.T) {
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithDocumentLoader(docLoader))
 		require.NoError(t, err2)
@@ -1934,7 +1935,7 @@ func TestIPFSContext(t *testing.T) {
 			SetDocumentLoader(oldDefaultDocumentLoader)
 		})
 
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		SetDocumentLoader(docLoader)
 
 		in := "credentialSubject.1.testNewTypeInt"
@@ -1951,7 +1952,7 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("NewPathFromDocument with document loader option", func(t *testing.T) {
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		opts := Options{DocumentLoader: docLoader}
 
 		in := "credentialSubject.1.testNewTypeInt"
