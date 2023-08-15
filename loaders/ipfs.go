@@ -21,7 +21,7 @@ type IPFS struct {
 func (l IPFS) Load(ctx context.Context) (schema []byte, extension string, err error) {
 
 	if l.URL == "" {
-		return nil, "", ErrorURLEmpty
+		return nil, "", errors.New("URL is empty")
 	}
 
 	if l.CID == "" {
