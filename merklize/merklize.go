@@ -17,13 +17,14 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	"github.com/iden3/go-schema-processor/v2/loaders"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 )
 
 var (
 	defaultHasher         Hasher = PoseidonHasher{}
-	defaultDocumentLoader        = NewDocumentLoader(nil, "")
+	defaultDocumentLoader        = loaders.NewDocumentLoader(nil, "")
 	numRE                        = regexp.MustCompile(`^\d+$`)
 )
 
@@ -34,6 +35,8 @@ var (
 	ErrorContextTypeIsEmpty = errors.New("ctxType is empty")
 	// ErrorUnsupportedType is returned when type is not supported
 	ErrorUnsupportedType = errors.New("unsupported type")
+	// ErrorEntryNotFound is returned when entry not found in merklized document
+	ErrorEntryNotFound = errors.New("entry not found")
 )
 
 // SetHasher changes default hasher
@@ -70,25 +73,19 @@ func (o Options) getDocumentLoader() ld.DocumentLoader {
 	return defaultDocumentLoader
 }
 
-func (o Options) getJSONLdOptions() *ld.JsonLdOptions {
-	docLoader := o.getDocumentLoader()
-	if docLoader == nil {
-		return nil
-	}
-	return &ld.JsonLdOptions{
-		DocumentLoader: docLoader,
-	}
+func (o Options) JSONLDOptions() *ld.JsonLdOptions {
+	return newJSONLDOptions(true, o.getDocumentLoader())
 }
 
 func (o Options) NewPath(parts ...interface{}) (Path, error) {
 	p := Path{hasher: o.getHasher()}
-	err := p.Append(parts)
+	err := p.Append(parts...)
 	return p, err
 }
 
 func (o Options) PathFromContext(ctxBytes []byte, path string) (Path, error) {
 	out := Path{hasher: o.getHasher()}
-	err := out.pathFromContext(ctxBytes, path, o.getJSONLdOptions())
+	err := out.pathFromContext(ctxBytes, path, o.JSONLDOptions())
 	return out, err
 }
 
@@ -204,7 +201,7 @@ func (o Options) TypeIDFromContext(ctxBytes []byte,
 		return "", err
 	}
 
-	ldCtx, err := ld.NewContext(nil, o.getJSONLdOptions()).
+	ldCtx, err := ld.NewContext(nil, o.JSONLDOptions()).
 		Parse(ctxObj["@context"])
 	if err != nil {
 		return "", err
@@ -245,7 +242,7 @@ func (o Options) TypeFromContext(ctxBytes []byte, path string) (string, error) {
 		return "", err
 	}
 
-	ldCtx, err := ld.NewContext(nil, o.getJSONLdOptions()).
+	ldCtx, err := ld.NewContext(nil, o.JSONLDOptions()).
 		Parse(ctxObj["@context"])
 	if err != nil {
 		return "", err
@@ -266,7 +263,6 @@ func (o Options) TypeFromContext(ctxBytes []byte, path string) (string, error) {
 
 		nextCtx, ok := m["@context"]
 		if ok {
-			var err error
 			ldCtx, err = ldCtx.Parse(nextCtx)
 			if err != nil {
 				return "", nil
@@ -380,7 +376,7 @@ func (o Options) pathFromDocument(ldCtx *ld.Context, docObj interface{},
 	}
 
 	if ldCtx == nil {
-		ldCtx = ld.NewContext(nil, o.getJSONLdOptions())
+		ldCtx = ld.NewContext(nil, o.JSONLDOptions())
 	}
 
 	var err error
@@ -1554,11 +1550,7 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	}
 
 	proc := ld.NewJsonLdProcessor()
-	options := ld.NewJsonLdOptions("")
-	options.Algorithm = ld.AlgorithmURDNA2015
-	options.SafeMode = mz.safeMode
-	options.DocumentLoader = mz.getDocumentLoader()
-
+	options := newJSONLDOptions(mz.safeMode, mz.getDocumentLoader())
 	normDoc, err := proc.Normalize(obj, options)
 	if err != nil {
 		return nil, err
@@ -1593,14 +1585,14 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	return mz, err
 }
 
-func (m *Merklizer) entry(path Path) (RDFEntry, error) {
+func (m *Merklizer) Entry(path Path) (RDFEntry, error) {
 	key, err := path.MtEntry()
 	if err != nil {
 		return RDFEntry{}, err
 	}
 	e, ok := m.entries[key.String()]
 	if !ok {
-		return RDFEntry{}, errors.New("entry not found")
+		return RDFEntry{}, ErrorEntryNotFound
 	}
 
 	return e, nil
@@ -1613,7 +1605,7 @@ func (m *Merklizer) getDocumentLoader() ld.DocumentLoader {
 	if m.ipfsCli == nil && m.ipfsGW == "" {
 		return defaultDocumentLoader
 	}
-	return NewDocumentLoader(m.ipfsCli, m.ipfsGW)
+	return loaders.NewDocumentLoader(m.ipfsCli, m.ipfsGW)
 }
 
 func rvExtractObjField(obj any, field string) (any, error) {
@@ -1686,7 +1678,7 @@ func (m *Merklizer) RawValue(path Path) (any, error) {
 // JSONLDType returns the JSON-LD type of the given path. If there is no literal
 // by this path, it returns an error.
 func (m *Merklizer) JSONLDType(path Path) (string, error) {
-	entry, err := m.entry(path)
+	entry, err := m.Entry(path)
 	if err != nil {
 		return "", err
 	}
@@ -1709,6 +1701,13 @@ func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
 	return realPath, nil
 }
 
+func (m *Merklizer) Options() Options {
+	return Options{
+		Hasher:         m.hasher,
+		DocumentLoader: m.getDocumentLoader(),
+	}
+}
+
 // Proof generate and return Proof and Value by the given Path.
 // If the path is not found, it returns nil as value interface.
 func (m *Merklizer) Proof(ctx context.Context,
@@ -1729,7 +1728,7 @@ func (m *Merklizer) Proof(ctx context.Context,
 		entry, ok := m.entries[keyHash.String()]
 		if !ok {
 			return nil, nil, errors.New(
-				"[assertion] no entry found while existence is true")
+				"[assertion] no Entry found while existence is true")
 		}
 		value, err = NewValue(m.hasher, entry.value)
 		if err != nil {
@@ -1848,4 +1847,12 @@ func assertDatasetConsistency(ds *ld.RDFDataset) error {
 		}
 	}
 	return nil
+}
+
+func newJSONLDOptions(safeMode bool, docLoader ld.DocumentLoader) *ld.JsonLdOptions {
+	options := ld.NewJsonLdOptions("")
+	options.Algorithm = ld.AlgorithmURDNA2015
+	options.SafeMode = safeMode
+	options.DocumentLoader = docLoader
+	return options
 }

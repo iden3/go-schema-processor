@@ -14,7 +14,8 @@ import (
 
 // W3CCredential is struct that represents claim json-ld document
 type W3CCredential struct {
-	ID                string                 `json:"id"`
+	ID string `json:"id,omitempty"`
+
 	Context           []string               `json:"@context"`
 	Type              []string               `json:"type"`
 	Expiration        *time.Time             `json:"expirationDate,omitempty"`

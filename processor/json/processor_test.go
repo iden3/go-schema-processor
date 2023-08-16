@@ -2,89 +2,80 @@ package json
 
 import (
 	"context"
-	commonJSON "encoding/json"
 	"testing"
 
 	"github.com/iden3/go-schema-processor/v2/json"
+	"github.com/iden3/go-schema-processor/v2/loaders"
 	"github.com/iden3/go-schema-processor/v2/processor"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
+	tst "github.com/iden3/go-schema-processor/v2/testing"
+	"github.com/stretchr/testify/require"
 )
 
-type MockLoader struct {
-}
-
-func (l MockLoader) Load(ctx context.Context) (schema []byte, extension string, err error) {
-	return []byte(`{"type":"object","required":["documentType","birthday"],"properties":{"documentType":{"type":"integer"},"birthday":{"type":"integer"}}}`), "json", nil
-
-}
-
 func TestInit(t *testing.T) {
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://example.com/schema.json": "testdata/schema.json",
+	}, tst.IgnoreUntouchedURLs())()
 
-	loader := MockLoader{}
+	loader := loaders.NewDocumentLoader(nil, "")
 	validator := json.Validator{}
 	parser := json.Parser{}
 
-	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
-	errLoaderNotDefined := errors.New("loader is not defined")
+	jsonProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithDocumentLoader(loader))
 
-	_, _, err := jsonProcessor.Load(context.Background())
-
-	notDefinedError := errors.Is(errLoaderNotDefined, err)
-	assert.Equal(t, false, notDefinedError)
-
+	ctx := context.Background()
+	_, err := jsonProcessor.Load(ctx, "https://example.com/schema.json")
+	require.NoError(t, err)
 }
 
 func TestValidator(t *testing.T) {
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://example.com/schema.json": "testdata/schema.json",
+	}, tst.IgnoreUntouchedURLs())()
 
-	loader := MockLoader{}
+	loader := loaders.NewDocumentLoader(nil, "")
 	validator := json.Validator{}
 	parser := json.Parser{}
 
-	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	jsonProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithDocumentLoader(loader))
 
-	schema, ext, err := jsonProcessor.Load(context.Background())
+	ctx := context.Background()
+	schema, err := jsonProcessor.Load(ctx, "https://example.com/schema.json")
+	require.NoError(t, err)
+	require.NotEmpty(t, schema)
 
-	assert.Nil(t, err)
-	assert.Equal(t, ext, "json")
-	assert.NotEmpty(t, schema)
-
-	data := make(map[string]interface{})
-	data["birthday"] = 1
-	data["documentType"] = 1
-
-	dataBytes, err := commonJSON.Marshal(data)
-	assert.Nil(t, err)
+	dataBytes := []byte(`{
+  "birthday": 1,
+  "documentType": 1
+}`)
 
 	err = jsonProcessor.ValidateData(dataBytes, schema)
-
-	assert.Nil(t, err)
-
+	require.NoError(t, err)
 }
 
 func TestValidatorWithInvalidField(t *testing.T) {
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://example.com/schema.json": "testdata/schema.json",
+	}, tst.IgnoreUntouchedURLs())()
 
-	loader := MockLoader{}
+	loader := loaders.NewDocumentLoader(nil, "")
 	validator := json.Validator{}
 	parser := json.Parser{}
 
-	jsonProcessor := New(processor.WithValidator(validator), processor.WithParser(parser), processor.WithSchemaLoader(loader))
+	jsonProcessor := New(processor.WithValidator(validator),
+		processor.WithParser(parser), processor.WithDocumentLoader(loader))
 
-	schema, ext, err := jsonProcessor.Load(context.Background())
+	schema, err := jsonProcessor.Load(context.Background(),
+		"https://example.com/schema.json")
 
-	assert.Nil(t, err)
-	assert.Equal(t, ext, "json")
-	assert.NotEmpty(t, schema)
+	require.NoError(t, err)
+	require.NotEmpty(t, schema)
 
-	data := make(map[string]interface{})
-	data["documentType"] = 1
-
-	dataBytes, err := commonJSON.Marshal(data)
-	assert.Nil(t, err)
+	dataBytes := []byte(`{
+  "documentType": 1
+}`)
 
 	err = jsonProcessor.ValidateData(dataBytes, schema)
-
-	assert.NotNil(t, err)
-	assert.Containsf(t, err.Error(), "missing properties: 'birthday'", "expected error containing %q, got %s", "missing properties: 'birthDayYear'", err)
-
+	require.ErrorContains(t, err, "missing properties: 'birthday'")
 }
