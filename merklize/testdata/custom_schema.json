@@ -232,6 +232,18 @@
       }
     },
 
+    "TestType1": {
+      "@id": "https://example.com/TestType1",
+      "@context": {
+        "@version": 1.1,
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "positiveNumber": {
+          "@id": "https://example.com/TestType1#positiveNumber",
+          "@type": "xsd:positiveInteger"
+        }
+      }
+    },
+
     "proof": {"@id": "https://w3id.org/security#proof", "@type": "@id", "@container": "@graph"}
   }
 }
