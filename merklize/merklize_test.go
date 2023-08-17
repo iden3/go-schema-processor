@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 	"os"
@@ -245,37 +244,6 @@ func mkPath(parts ...interface{}) Path {
 		panic(err)
 	}
 	return p
-}
-
-//nolint:deadcode,unused // use for generation of wantEntries
-func printEntriesRepresentation(entries []RDFEntry) {
-	for _, e := range entries {
-		var pathParts []string
-		for _, p := range e.key.parts {
-			switch p2 := p.(type) {
-			case string:
-				pathParts = append(pathParts, `"`+p2+`"`)
-			case int:
-				pathParts = append(pathParts, strconv.Itoa(p2))
-			default:
-				panic(p)
-			}
-		}
-
-		var value string
-		switch v2 := e.value.(type) {
-		case string:
-			value = `"` + v2 + `"`
-		case int64:
-			value = `int64(` + strconv.FormatInt(v2, 10) + `)`
-		default:
-			panic(fmt.Sprintf("%[1]T -- %[1]v", e.value))
-		}
-		fmt.Println("{")
-		fmt.Printf("key: mkPath(%v),\n", strings.Join(pathParts, ","))
-		fmt.Printf("value: %v,\n", value)
-		fmt.Println("},")
-	}
 }
 
 func TestEntriesFromRDF_multigraph(t *testing.T) {
@@ -774,13 +742,6 @@ func logDataset(in *ld.RDFDataset) {
 				g.Object, object, ol2,
 				g.Graph, graph)
 		}
-	}
-}
-
-//nolint:deadcode,unused //reason: used in debugging
-func logEntries(es []RDFEntry) {
-	for i, e := range es {
-		log.Printf("Entry %v: %v => %v", i, fmtPath(e.key), e.value)
 	}
 }
 
@@ -1296,12 +1257,17 @@ func TestHashValues_FromDocument(t *testing.T) {
 	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
 
+	ctxBytes2, err := os.ReadFile("testdata/custom_schema.json")
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
+		ctxBytes    []byte
 		pathToField string
 		datatype    string
 		value       interface{}
 		wantHash    string
+		wantHashErr string
 	}{
 		{
 			name:        "xsd:integer",
@@ -1387,17 +1353,84 @@ func TestHashValues_FromDocument(t *testing.T) {
 			value:       float64(19960424),
 			wantHash:    "19960424",
 		},
+		{
+			name:        "max value for positive integer",
+			ctxBytes:    ctxBytes2,
+			pathToField: "TestType1.positiveNumber",
+			datatype:    "http://www.w3.org/2001/XMLSchema#positiveInteger",
+			value:       "21888242871839275222246405745257275088548364400416034343698204186575808495616",
+			wantHash:    "21888242871839275222246405745257275088548364400416034343698204186575808495616",
+		},
+		{
+			name:        "max value for positive integer - too large error",
+			ctxBytes:    ctxBytes2,
+			pathToField: "TestType1.positiveNumber",
+			datatype:    "http://www.w3.org/2001/XMLSchema#positiveInteger",
+			value:       "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+			wantHashErr: "integer exceeds maximum value: 21888242871839275222246405745257275088548364400416034343698204186575808495617",
+		},
+		{
+			name:        "max value for positive integer - negative error",
+			ctxBytes:    ctxBytes2,
+			pathToField: "TestType1.positiveNumber",
+			datatype:    "http://www.w3.org/2001/XMLSchema#positiveInteger",
+			value:       "-100500",
+			wantHashErr: "integer is below minimum value: -100500",
+		},
+		{
+			name:        "max value for integer",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "10944121435919637611123202872628637544274182200208017171849102093287904247808",
+			wantHash:    "10944121435919637611123202872628637544274182200208017171849102093287904247808",
+		},
+		{
+			name:        "max value for integer - too large error",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "10944121435919637611123202872628637544274182200208017171849102093287904247809",
+			wantHashErr: "integer exceeds maximum value: 10944121435919637611123202872628637544274182200208017171849102093287904247809",
+		},
+		{
+			name:        "max value for integer - -1",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "-1",
+			wantHash:    "21888242871839275222246405745257275088548364400416034343698204186575808495616",
+		},
+		{
+			name:        "max value for integer - minimum value",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "-10944121435919637611123202872628637544274182200208017171849102093287904247808",
+			wantHash:    "10944121435919637611123202872628637544274182200208017171849102093287904247809",
+		},
+		{
+			name:        "max value for integer - too small error",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "-10944121435919637611123202872628637544274182200208017171849102093287904247809",
+			wantHashErr: "integer is below minimum value: -10944121435919637611123202872628637544274182200208017171849102093287904247809",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualType, err := TypeFromContext(ctxBytes, tt.pathToField)
+			ldContext := ctxBytes
+			if tt.ctxBytes != nil {
+				ldContext = tt.ctxBytes
+			}
+			actualType, err := TypeFromContext(ldContext, tt.pathToField)
 			require.NoError(t, err)
 			require.Equal(t, tt.datatype, actualType)
 
 			actualHash, err := HashValue(tt.datatype, tt.value)
-			require.NoError(t, err)
-			require.Equal(t, tt.wantHash, actualHash.String())
+			if tt.wantHashErr == "" {
+				require.NoError(t, err)
+				require.Equal(t, tt.wantHash, actualHash.String())
+			} else {
+				require.EqualError(t, err, tt.wantHashErr)
+			}
 		})
 	}
 }

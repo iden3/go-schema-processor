@@ -525,7 +525,7 @@ func (p *Path) Prepend(parts ...interface{}) error {
 
 type RDFEntry struct {
 	key Path
-	// valid types are: int64, string, bool, time.Time
+	// valid types are: int64, string, bool, time.Time, *big.Int
 	value    any
 	datatype string
 	hasher   Hasher
@@ -550,7 +550,7 @@ type Value interface {
 var ErrIncorrectType = errors.New("incorrect type")
 
 type value struct {
-	// valid types are: int64, string, bool, time.Time
+	// valid types are: int64, string, bool, time.Time, *big.Int
 	value  any
 	hasher Hasher
 }
@@ -558,7 +558,7 @@ type value struct {
 // NewValue creates new Value
 func NewValue(hasher Hasher, val any) (Value, error) {
 	switch val.(type) {
-	case int64, string, bool, time.Time:
+	case int64, string, bool, time.Time, *big.Int:
 	default:
 		return nil, ErrIncorrectType
 	}
@@ -628,6 +628,21 @@ func (v *value) AsBool() (bool, error) {
 		return false, ErrIncorrectType
 	}
 	return b, nil
+}
+
+// IsBigInt returns true is value is of type *big.Int
+func (v *value) IsBigInt() bool {
+	_, ok := v.value.(*big.Int)
+	return ok
+}
+
+// AsBigInt returns *big.Int value or error if value is not of type *big.Int
+func (v *value) AsBigInt() (*big.Int, error) {
+	i, ok := v.value.(*big.Int)
+	if !ok {
+		return nil, ErrIncorrectType
+	}
+	return i, nil
 }
 
 func NewRDFEntry(key Path, value any) (RDFEntry, error) {
@@ -1058,6 +1073,10 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 		return nil, errors.New("@default graph not found in dataset")
 	}
 
+	if hasher == nil {
+		hasher = defaultHasher
+	}
+
 	rs, err := newRelationship(ds, hasher)
 	if err != nil {
 		return nil, err
@@ -1083,7 +1102,8 @@ func EntriesFromRDFWithHasher(ds *ld.RDFDataset,
 				if qo == nil {
 					return errors.New("object Literal is nil")
 				}
-				e.value, err = convertStringToXSDValue(qo.Datatype, qo.Value)
+				e.value, err = convertStringToXSDValue(qo.Datatype, qo.Value,
+					hasher.Prime())
 				if err != nil {
 					return err
 				}
@@ -1147,7 +1167,7 @@ func valueToHash(h Hasher, datatype string, value any) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	xsdValue, err := convertStringToXSDValue(datatype, v)
+	xsdValue, err := convertStringToXSDValue(datatype, v, h.Prime())
 	if err != nil {
 		return nil, err
 	}
@@ -1264,8 +1284,44 @@ func uintToXSDDoubleStr[T allUInts](v T) (string, error) {
 	return out, nil
 }
 
-func convertStringToXSDValue(datatype string,
-	value string) (resultValue interface{}, err error) {
+func intFromStr(s string) (*big.Int, error) {
+	var r = new(big.Rat)
+	_, ok := r.SetString(s)
+	if !ok {
+		return nil, fmt.Errorf("can't parse number: %v", s)
+	}
+
+	if !r.IsInt() {
+		return nil, fmt.Errorf("integer has fractional part: %v", s)
+	}
+
+	return r.Num(), nil
+}
+
+// return included minimum and included maximum values for integers by XSD type
+func minMaxByXSDType(xsdType string,
+	prime *big.Int) (*big.Int, *big.Int, error) {
+	switch xsdType {
+	case ld.XSDNS + "positiveInteger":
+		return big.NewInt(1), new(big.Int).Sub(prime, big.NewInt(1)), nil
+	case ld.XSDNS + "nonNegativeInteger":
+		return big.NewInt(0), new(big.Int).Sub(prime, big.NewInt(1)), nil
+	case ld.XSDInteger:
+		minVal, maxVal := minMaxFromPrime(prime)
+		return minVal, maxVal, nil
+	case ld.XSDNS + "negativeInteger":
+		minVal, _ := minMaxFromPrime(prime)
+		return minVal, big.NewInt(-1), nil
+	case ld.XSDNS + "nonPositiveInteger":
+		minVal, _ := minMaxFromPrime(prime)
+		return minVal, big.NewInt(0), nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported XSD type: %s", xsdType)
+	}
+}
+
+func convertStringToXSDValue(datatype string, value string,
+	maxFieldValue *big.Int) (resultValue interface{}, err error) {
 
 	switch datatype {
 	case ld.XSDBoolean:
@@ -1278,31 +1334,37 @@ func convertStringToXSDValue(datatype string,
 			err = errors.New("incorrect boolean value")
 		}
 
-	case ld.XSDInteger,
+	case ld.XSDNS + "positiveInteger",
 		ld.XSDNS + "nonNegativeInteger",
-		ld.XSDNS + "nonPositiveInteger",
+		ld.XSDInteger,
 		ld.XSDNS + "negativeInteger",
-		ld.XSDNS + "positiveInteger":
+		ld.XSDNS + "nonPositiveInteger":
 
-		var r = new(big.Rat)
-		_, ok := r.SetString(value)
-		if !ok {
-			err = fmt.Errorf("can't parse number: %v", value)
+		var i *big.Int
+		i, err = intFromStr(value)
+		if err != nil {
 			break
 		}
 
-		if !r.IsInt() {
-			err = fmt.Errorf("integer has fractional part: %v", value)
+		var minVal, maxVal *big.Int
+		minVal, maxVal, err = minMaxByXSDType(datatype, maxFieldValue)
+		if err != nil {
 			break
 		}
 
-		i := r.Num()
-		if !i.IsInt64() {
-			err = fmt.Errorf("integer is too big for int64: %v", i.String())
+		if i.Cmp(maxVal) > 0 {
+			err = fmt.Errorf("integer exceeds maximum value: %v",
+				i.String())
 			break
 		}
 
-		resultValue = i.Int64()
+		if i.Cmp(minVal) < 0 {
+			err = fmt.Errorf("integer is below minimum value: %v",
+				i.String())
+			break
+		}
+
+		resultValue = i
 
 	case ld.XSDNS + "dateTime":
 		if dateRE.MatchString(value) {
@@ -1771,6 +1833,8 @@ func mkValueMtEntry(h Hasher, v interface{}) (*big.Int, error) {
 		return mkValueString(h, et)
 	case time.Time:
 		return mkValueTime(h, et)
+	case *big.Int:
+		return mkValueBigInt(h, et)
 	default:
 		return nil, fmt.Errorf("unexpected value type: %T", v)
 	}
@@ -1807,6 +1871,24 @@ func mkValueTime(h Hasher, val time.Time) (*big.Int, error) {
 	x.Add(x, big.NewInt(int64(val.Nanosecond())))
 	x.Mod(x, h.Prime())
 	return x, nil
+}
+
+func mkValueBigInt(h Hasher, val *big.Int) (*big.Int, error) {
+	if val.Cmp(h.Prime()) >= 0 {
+		return nil, fmt.Errorf("value is too big: %v", val.String())
+	}
+	if val.Cmp(big.NewInt(0)) < 0 {
+		minValue, _ := minMaxFromPrime(h.Prime())
+
+		if val.Cmp(minValue) < 0 {
+			return nil, fmt.Errorf("value is too small: %v",
+				val.String())
+		}
+
+		return new(big.Int).Add(val, h.Prime()), nil
+	}
+
+	return val, nil
 }
 
 // assert consistency of dataset and validate that only
@@ -1855,4 +1937,12 @@ func newJSONLDOptions(safeMode bool, docLoader ld.DocumentLoader) *ld.JsonLdOpti
 	options.SafeMode = safeMode
 	options.DocumentLoader = docLoader
 	return options
+}
+
+func minMaxFromPrime(primeVal *big.Int) (*big.Int, *big.Int) {
+	maxValue := new(big.Int).Div(primeVal, big.NewInt(2))
+	minValue := new(big.Int).Add(
+		new(big.Int).Sub(maxValue, primeVal),
+		big.NewInt(1))
+	return minValue, maxValue
 }
