@@ -543,6 +543,9 @@ type Value interface {
 	IsInt64() bool
 	AsInt64() (int64, error)
 
+	IsBigInt() bool
+	AsBigInt() (*big.Int, error)
+
 	IsBool() bool
 	AsBool() (bool, error)
 }

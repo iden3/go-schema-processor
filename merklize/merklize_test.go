@@ -278,7 +278,9 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData",
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state",
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#blockTimestamp"),
-			value:    int64(123),
+
+			value: big.NewInt(123),
+
 			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 		{
@@ -290,7 +292,9 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
 				1,
 				"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday"),
-			value:    int64(19960424),
+
+			value: big.NewInt(19960424),
+
 			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 	}
@@ -479,8 +483,10 @@ func TestEntriesFromRDF(t *testing.T) {
 			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
-			key:      mkPath("http://schema.org/identifier"),
-			value:    int64(83627465),
+			key: mkPath("http://schema.org/identifier"),
+
+			value: big.NewInt(83627465),
+
 			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 		{
@@ -961,9 +967,9 @@ func TestExistenceProof(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, p.Existence)
-	i, err := v.AsInt64()
+	i, err := v.AsBigInt()
 	require.NoError(t, err)
-	require.Equal(t, int64(19960424), i)
+	require.Equal(t, 0, i.Cmp(big.NewInt(19960424)), i)
 }
 
 func TestExistenceProofIPFS(t *testing.T) {
@@ -983,9 +989,9 @@ func TestExistenceProofIPFS(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, p.Existence)
-	i, err := v.AsInt64()
+	i, err := v.AsBigInt()
 	require.NoError(t, err)
-	require.Equal(t, int64(1), i)
+	require.Equal(t, 0, big.NewInt(1).Cmp(i))
 }
 
 func findQuadByObject(t testing.TB, ds *ld.RDFDataset, value any) *ld.Quad {
