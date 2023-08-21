@@ -2,18 +2,20 @@ package processor
 
 import (
 	"context"
+	"encoding/json"
 
-	core "github.com/iden3/go-iden3-core"
-	"github.com/iden3/go-schema-processor/merklize"
-	"github.com/iden3/go-schema-processor/verifiable"
+	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-schema-processor/v2/merklize"
+	"github.com/iden3/go-schema-processor/v2/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/pkg/errors"
 )
 
 // Processor is set of tool for claim processing
 type Processor struct {
-	Validator    Validator
-	SchemaLoader SchemaLoader
-	Parser       Parser
+	Validator      Validator
+	DocumentLoader ld.DocumentLoader
+	Parser         Parser
 }
 
 // Validator is interface to validate data and documents
@@ -21,22 +23,11 @@ type Validator interface {
 	ValidateData(data, schema []byte) error
 }
 
-// SchemaLoader is interface to load schema
-type SchemaLoader interface {
-	Load(ctx context.Context) (schema []byte, extension string, err error)
-}
-
-// ParsedSlots is struct that represents iden3 claim specification
-type ParsedSlots struct {
-	IndexA, IndexB []byte
-	ValueA, ValueB []byte
-}
-
 // Parser is an interface to parse claim slots
 type Parser interface {
-	ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, jsonSchemaBytes []byte, options *CoreClaimOptions) (*core.Claim, error)
-	ParseSlots(credential verifiable.W3CCredential, schemaBytes []byte) (ParsedSlots, error)
-	GetFieldSlotIndex(field string, schema []byte) (int, error)
+	ParseClaim(ctx context.Context, credential verifiable.W3CCredential,
+		options *CoreClaimOptions) (*core.Claim, error)
+	GetFieldSlotIndex(field string, typeName string, schema []byte) (int, error)
 }
 
 // CoreClaimOptions is params for core claim parsing
@@ -53,8 +44,6 @@ var (
 	errParserNotDefined    = errors.New("parser is not defined")
 	errLoaderNotDefined    = errors.New("loader is not defined")
 	errValidatorNotDefined = errors.New("validator is not defined")
-	// ErrSlotsOverflow thrown on claim slot overflow
-	ErrSlotsOverflow = errors.New("slots overflow")
 )
 
 // Opt returns configuration options for processor suite
@@ -67,10 +56,10 @@ func WithValidator(s Validator) Opt {
 	}
 }
 
-// WithSchemaLoader return new options
-func WithSchemaLoader(s SchemaLoader) Opt {
+// WithDocumentLoader return new options
+func WithDocumentLoader(s ld.DocumentLoader) Opt {
 	return func(opts *Processor) {
-		opts.SchemaLoader = s
+		opts.DocumentLoader = s
 	}
 }
 
@@ -90,35 +79,36 @@ func InitProcessorOptions(processor *Processor, opts ...Opt) *Processor {
 }
 
 // Load will load a schema by given url.
-func (s *Processor) Load(ctx context.Context) (schema []byte, extension string, err error) {
-	if s.SchemaLoader == nil {
-		return nil, "", errLoaderNotDefined
+func (s *Processor) Load(ctx context.Context, url string) (schema []byte, err error) {
+	if s.DocumentLoader == nil {
+		return nil, errLoaderNotDefined
 	}
-	return s.SchemaLoader.Load(ctx)
-}
-
-// ParseSlots will serialize input data to index and value fields.
-func (s *Processor) ParseSlots(credential verifiable.W3CCredential, schema []byte) (ParsedSlots, error) {
-	if s.Parser == nil {
-		return ParsedSlots{}, errParserNotDefined
+	doc, err := s.DocumentLoader.LoadDocument(url)
+	if err != nil {
+		return nil, err
 	}
-	return s.Parser.ParseSlots(credential, schema)
+	return json.Marshal(doc.Document)
 }
 
 // ParseClaim will serialize input data to index and value fields.
-func (s *Processor) ParseClaim(ctx context.Context, credential verifiable.W3CCredential, credentialType string, jsonSchemaBytes []byte, opts *CoreClaimOptions) (*core.Claim, error) {
+func (s *Processor) ParseClaim(ctx context.Context,
+	credential verifiable.W3CCredential,
+	opts *CoreClaimOptions) (*core.Claim, error) {
+
 	if s.Parser == nil {
 		return nil, errParserNotDefined
 	}
-	return s.Parser.ParseClaim(ctx, credential, credentialType, jsonSchemaBytes, opts)
+	return s.Parser.ParseClaim(ctx, credential, opts)
 }
 
 // GetFieldSlotIndex returns index of slot for specified field according to schema
-func (s *Processor) GetFieldSlotIndex(field string, schema []byte) (int, error) {
+func (s *Processor) GetFieldSlotIndex(field string, typeName string,
+	schema []byte) (int, error) {
+
 	if s.Parser == nil {
 		return 0, errParserNotDefined
 	}
-	return s.Parser.GetFieldSlotIndex(field, schema)
+	return s.Parser.GetFieldSlotIndex(field, typeName, schema)
 }
 
 // ValidateData will validate a claim content by given schema.

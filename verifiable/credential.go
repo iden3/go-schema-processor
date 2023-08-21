@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"time"
 
-	core "github.com/iden3/go-iden3-core"
+	core "github.com/iden3/go-iden3-core/v2"
 	mt "github.com/iden3/go-merkletree-sql/v2"
-	"github.com/iden3/go-schema-processor/merklize"
+	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/pkg/errors"
 )
 
 // W3CCredential is struct that represents claim json-ld document
 type W3CCredential struct {
-	ID                string                 `json:"id"`
+	ID string `json:"id,omitempty"`
+
 	Context           []string               `json:"@context"`
 	Type              []string               `json:"type"`
 	Expiration        *time.Time             `json:"expirationDate,omitempty"`

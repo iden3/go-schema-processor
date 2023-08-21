@@ -16,16 +16,8 @@ Repository of claim schema vocabulary: https://github.com/iden3/claim-schema-voc
 
 The library includes three main components of any processor:
 
-1. Schema Loaders
-2. Data Validators
-3. Data Parsers
-
-**Schema loader's** purpose is to load schema (JSON / JSON-LD) from a given address.
-
-Implemented loaders:
-
-- [x]  HTTP loaders
-- [x]  IPFS  loader
+1. Data Validators
+2. Data Parsers
 
 **Schemas:**
 

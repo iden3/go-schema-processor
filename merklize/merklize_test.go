@@ -5,17 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"math"
 	"math/big"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -24,6 +19,8 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
+	"github.com/iden3/go-schema-processor/v2/loaders"
+	tst "github.com/iden3/go-schema-processor/v2/testing"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
@@ -249,37 +246,6 @@ func mkPath(parts ...interface{}) Path {
 	return p
 }
 
-//nolint:deadcode,unused // use for generation of wantEntries
-func printEntriesRepresentation(entries []RDFEntry) {
-	for _, e := range entries {
-		var pathParts []string
-		for _, p := range e.key.parts {
-			switch p2 := p.(type) {
-			case string:
-				pathParts = append(pathParts, `"`+p2+`"`)
-			case int:
-				pathParts = append(pathParts, strconv.Itoa(p2))
-			default:
-				panic(p)
-			}
-		}
-
-		var value string
-		switch v2 := e.value.(type) {
-		case string:
-			value = `"` + v2 + `"`
-		case int64:
-			value = `int64(` + strconv.FormatInt(v2, 10) + `)`
-		default:
-			panic(fmt.Sprintf("%[1]T -- %[1]v", e.value))
-		}
-		fmt.Println("{")
-		fmt.Printf("key: mkPath(%v),\n", strings.Join(pathParts, ","))
-		fmt.Printf("value: %v,\n", value)
-		fmt.Println("},")
-	}
-}
-
 func TestEntriesFromRDF_multigraph(t *testing.T) {
 	dataset := getDataset(t, multigraphDoc2)
 
@@ -312,7 +278,9 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#issuerData",
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#state",
 				"https://github.com/iden3/claim-schema-vocab/blob/main/proofs/Iden3SparseMerkleTreeProof-v2.md#blockTimestamp"),
-			value:    int64(123),
+
+			value: big.NewInt(123),
+
 			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 		{
@@ -324,7 +292,9 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 			key: mkPath("https://www.w3.org/2018/credentials#verifiableCredential",
 				1,
 				"https://github.com/iden3/claim-schema-vocab/blob/main/credentials/kyc.md#birthday"),
-			value:    int64(19960424),
+
+			value: big.NewInt(19960424),
+
 			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 	}
@@ -513,8 +483,10 @@ func TestEntriesFromRDF(t *testing.T) {
 			datatype: "http://www.w3.org/2001/XMLSchema#string",
 		},
 		{
-			key:      mkPath("http://schema.org/identifier"),
-			value:    int64(83627465),
+			key: mkPath("http://schema.org/identifier"),
+
+			value: big.NewInt(83627465),
+
 			datatype: "http://www.w3.org/2001/XMLSchema#integer",
 		},
 		{
@@ -780,13 +752,6 @@ func logDataset(in *ld.RDFDataset) {
 }
 
 //nolint:deadcode,unused //reason: used in debugging
-func logEntries(es []RDFEntry) {
-	for i, e := range es {
-		log.Printf("Entry %v: %v => %v", i, fmtPath(e.key), e.value)
-	}
-}
-
-//nolint:deadcode,unused //reason: used in debugging
 func fmtPath(p Path) string {
 	var parts []string
 	for _, pi := range p.parts {
@@ -1002,9 +967,9 @@ func TestExistenceProof(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, p.Existence)
-	i, err := v.AsInt64()
+	i, err := v.AsBigInt()
 	require.NoError(t, err)
-	require.Equal(t, int64(19960424), i)
+	require.Equal(t, 0, i.Cmp(big.NewInt(19960424)), i)
 }
 
 func TestExistenceProofIPFS(t *testing.T) {
@@ -1024,9 +989,9 @@ func TestExistenceProofIPFS(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, p.Existence)
-	i, err := v.AsInt64()
+	i, err := v.AsBigInt()
 	require.NoError(t, err)
-	require.Equal(t, int64(1), i)
+	require.Equal(t, 0, big.NewInt(1).Cmp(i))
 }
 
 func findQuadByObject(t testing.TB, ds *ld.RDFDataset, value any) *ld.Quad {
@@ -1298,12 +1263,17 @@ func TestHashValues_FromDocument(t *testing.T) {
 	ctxBytes, err := os.ReadFile("testdata/kyc_schema.json-ld")
 	require.NoError(t, err)
 
+	ctxBytes2, err := os.ReadFile("testdata/custom_schema.json")
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
+		ctxBytes    []byte
 		pathToField string
 		datatype    string
 		value       interface{}
 		wantHash    string
+		wantHashErr string
 	}{
 		{
 			name:        "xsd:integer",
@@ -1389,17 +1359,84 @@ func TestHashValues_FromDocument(t *testing.T) {
 			value:       float64(19960424),
 			wantHash:    "19960424",
 		},
+		{
+			name:        "max value for positive integer",
+			ctxBytes:    ctxBytes2,
+			pathToField: "TestType1.positiveNumber",
+			datatype:    "http://www.w3.org/2001/XMLSchema#positiveInteger",
+			value:       "21888242871839275222246405745257275088548364400416034343698204186575808495616",
+			wantHash:    "21888242871839275222246405745257275088548364400416034343698204186575808495616",
+		},
+		{
+			name:        "max value for positive integer - too large error",
+			ctxBytes:    ctxBytes2,
+			pathToField: "TestType1.positiveNumber",
+			datatype:    "http://www.w3.org/2001/XMLSchema#positiveInteger",
+			value:       "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+			wantHashErr: "integer exceeds maximum value: 21888242871839275222246405745257275088548364400416034343698204186575808495617",
+		},
+		{
+			name:        "max value for positive integer - negative error",
+			ctxBytes:    ctxBytes2,
+			pathToField: "TestType1.positiveNumber",
+			datatype:    "http://www.w3.org/2001/XMLSchema#positiveInteger",
+			value:       "-100500",
+			wantHashErr: "integer is below minimum value: -100500",
+		},
+		{
+			name:        "max value for integer",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "10944121435919637611123202872628637544274182200208017171849102093287904247808",
+			wantHash:    "10944121435919637611123202872628637544274182200208017171849102093287904247808",
+		},
+		{
+			name:        "max value for integer - too large error",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "10944121435919637611123202872628637544274182200208017171849102093287904247809",
+			wantHashErr: "integer exceeds maximum value: 10944121435919637611123202872628637544274182200208017171849102093287904247809",
+		},
+		{
+			name:        "max value for integer - -1",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "-1",
+			wantHash:    "21888242871839275222246405745257275088548364400416034343698204186575808495616",
+		},
+		{
+			name:        "max value for integer - minimum value",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "-10944121435919637611123202872628637544274182200208017171849102093287904247808",
+			wantHash:    "10944121435919637611123202872628637544274182200208017171849102093287904247809",
+		},
+		{
+			name:        "max value for integer - too small error",
+			pathToField: "KYCCountryOfResidenceCredential.countryCode",
+			datatype:    "http://www.w3.org/2001/XMLSchema#integer",
+			value:       "-10944121435919637611123202872628637544274182200208017171849102093287904247809",
+			wantHashErr: "integer is below minimum value: -10944121435919637611123202872628637544274182200208017171849102093287904247809",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualType, err := TypeFromContext(ctxBytes, tt.pathToField)
+			ldContext := ctxBytes
+			if tt.ctxBytes != nil {
+				ldContext = tt.ctxBytes
+			}
+			actualType, err := TypeFromContext(ldContext, tt.pathToField)
 			require.NoError(t, err)
 			require.Equal(t, tt.datatype, actualType)
 
 			actualHash, err := HashValue(tt.datatype, tt.value)
-			require.NoError(t, err)
-			require.Equal(t, tt.wantHash, actualHash.String())
+			if tt.wantHashErr == "" {
+				require.NoError(t, err)
+				require.Equal(t, tt.wantHash, actualHash.String())
+			} else {
+				require.EqualError(t, err, tt.wantHashErr)
+			}
 		})
 	}
 }
@@ -1846,9 +1883,9 @@ func TestIPFSContext(t *testing.T) {
 	t.Run("no ipfs client", func(t *testing.T) {
 		// ignoreUntouchedURLs is used because we can check IPFS schema
 		// before HTTP and do not touch a mocked request
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		}, ignoreUntouchedURLs())()
+		}, tst.IgnoreUntouchedURLs())()
 
 		_, err = MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
 		require.ErrorContains(t, err,
@@ -1856,7 +1893,7 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with ipfs client", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
@@ -1869,14 +1906,14 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with default ipfs client", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
 		oldDocLoader := defaultDocumentLoader
 		t.Cleanup(func() { SetDocumentLoader(oldDocLoader) })
 
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		SetDocumentLoader(docLoader)
 
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
@@ -1888,7 +1925,7 @@ func TestIPFSContext(t *testing.T) {
 
 	// If both IPFS client and gateway URL are provided, the client is used.
 	t.Run("with ipfs client and gateway URL", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
@@ -1903,7 +1940,7 @@ func TestIPFSContext(t *testing.T) {
 
 	t.Run("with ipfs gateway", func(t *testing.T) {
 		ipfsGW := "http://ipfs.io"
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1":                                           "testdata/httpresp/credentials-v1.jsonld",
 			ipfsGW + "/ipfs/QmdP4MZkESEabRVB322r2xWm7TCi7LueMNWMJawYmSy7hp":                    "testdata/ipfs/citizenship-v1.jsonld",
 			ipfsGW + "/ipfs/Qmbp4kwoHULnmK71abrxdksjPH5sAjxSAXU5PEp2XRMFNw/dir2/bbs-v2.jsonld": "testdata/ipfs/dir1/dir2/bbs-v2.jsonld",
@@ -1918,11 +1955,11 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with document loader", func(t *testing.T) {
-		defer mockHTTPClient(t, map[string]string{
+		defer tst.MockHTTPClient(t, map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 		})()
 
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithDocumentLoader(docLoader))
 		require.NoError(t, err2)
@@ -1937,7 +1974,7 @@ func TestIPFSContext(t *testing.T) {
 			SetDocumentLoader(oldDefaultDocumentLoader)
 		})
 
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		SetDocumentLoader(docLoader)
 
 		in := "credentialSubject.1.testNewTypeInt"
@@ -1954,7 +1991,7 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("NewPathFromDocument with document loader option", func(t *testing.T) {
-		docLoader := NewDocumentLoader(ipfsCli, "")
+		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		opts := Options{DocumentLoader: docLoader}
 
 		in := "credentialSubject.1.testNewTypeInt"
@@ -1970,99 +2007,4 @@ func TestIPFSContext(t *testing.T) {
 		require.Equal(t, want, result)
 	})
 
-}
-
-type mockedRouterTripper struct {
-	t         testing.TB
-	routes    map[string]string
-	seenURLsM sync.Mutex
-	seenURLs  map[string]struct{}
-}
-
-func (m *mockedRouterTripper) RoundTrip(
-	request *http.Request) (*http.Response, error) {
-
-	urlStr := request.URL.String()
-	routerKey := urlStr
-	rr := httptest.NewRecorder()
-	var postData []byte
-	if request.Method == http.MethodPost {
-		var err error
-		postData, err = io.ReadAll(request.Body)
-		if err != nil {
-			http.Error(rr, err.Error(), http.StatusInternalServerError)
-
-			httpResp := rr.Result()
-			httpResp.Request = request
-			return httpResp, nil
-		}
-		if len(postData) > 0 {
-			routerKey += "%%%" + string(postData)
-		}
-	}
-
-	respFile, ok := m.routes[routerKey]
-	if !ok {
-		var requestBodyStr = string(postData)
-		if requestBodyStr == "" {
-			m.t.Errorf("unexpected http request: %v", urlStr)
-		} else {
-			m.t.Errorf("unexpected http request: %v\nBody: %v",
-				urlStr, requestBodyStr)
-		}
-		rr2 := httptest.NewRecorder()
-		rr2.WriteHeader(http.StatusNotFound)
-		httpResp := rr2.Result()
-		httpResp.Request = request
-		return httpResp, nil
-	}
-
-	m.seenURLsM.Lock()
-	if m.seenURLs == nil {
-		m.seenURLs = make(map[string]struct{})
-	}
-	m.seenURLs[routerKey] = struct{}{}
-	m.seenURLsM.Unlock()
-
-	http.ServeFile(rr, request, respFile)
-
-	rr2 := rr.Result()
-	rr2.Request = request
-	return rr2, nil
-}
-
-type mockHTTPClientOptions struct {
-	ignoreUntouchedURLs bool
-}
-
-type mockHTTPClientOption func(*mockHTTPClientOptions)
-
-func ignoreUntouchedURLs() mockHTTPClientOption {
-	return func(opts *mockHTTPClientOptions) {
-		opts.ignoreUntouchedURLs = true
-	}
-}
-
-func mockHTTPClient(t testing.TB, routes map[string]string,
-	opts ...mockHTTPClientOption) func() {
-
-	var op mockHTTPClientOptions
-	for _, o := range opts {
-		o(&op)
-	}
-
-	oldRoundTripper := http.DefaultTransport
-	transport := &mockedRouterTripper{t: t, routes: routes}
-	http.DefaultTransport = transport
-	return func() {
-		http.DefaultTransport = oldRoundTripper
-
-		if !op.ignoreUntouchedURLs {
-			for u := range routes {
-				_, ok := transport.seenURLs[u]
-				assert.True(t, ok,
-					"found a URL in routes that we did not touch: %v", u)
-			}
-		}
-	}
 }

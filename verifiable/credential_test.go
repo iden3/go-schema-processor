@@ -1,11 +1,14 @@
 package verifiable
 
 import (
+	"context"
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
 	mt "github.com/iden3/go-merkletree-sql/v2"
+	tst "github.com/iden3/go-schema-processor/v2/testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -173,4 +176,53 @@ func TestW3CCredential_JSONUnmarshal(t *testing.T) {
 		},
 	}
 	require.Equal(t, want, vc)
+}
+
+func TestW3CCredential_MerklizationWithEmptyID(t *testing.T) {
+	defer tst.MockHTTPClient(t, map[string]string{
+		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
+		"https://example.com/schema-delivery-address.json-ld": "../json/testdata/schema-delivery-address.json-ld",
+	})()
+
+	vcData, err := os.ReadFile("../json/testdata/non-merklized-1.json-ld")
+	require.NoError(t, err)
+	var vc W3CCredential
+	err = json.Unmarshal(vcData, &vc)
+	require.NoError(t, err)
+
+	want := W3CCredential{
+		ID: "",
+		Context: []string{
+			"https://www.w3.org/2018/credentials/v1",
+			"https://example.com/schema-delivery-address.json-ld",
+		},
+		Type: []string{
+			"VerifiableCredential",
+			"DeliverAddressMultiTestForked",
+		},
+		CredentialSubject: map[string]any{
+			"type":             "DeliverAddressMultiTestForked",
+			"price":            "123.52",
+			"isPostalProvider": false,
+			"postalProviderInformation": map[string]any{
+				"insured": true,
+				"weight":  "1.3",
+			},
+		},
+		CredentialStatus: nil,
+		Issuer:           "",
+		CredentialSchema: CredentialSchema{
+			ID:   "",
+			Type: "",
+		},
+	}
+	require.Equal(t, want, vc)
+
+	ctx := context.Background()
+	mz, err := vc.Merklize(ctx)
+	require.NoError(t, err)
+	path, err := mz.ResolveDocPath("credentialSubject.price")
+	require.NoError(t, err)
+	_, err = mz.Entry(path)
+	require.NoError(t, err)
 }
