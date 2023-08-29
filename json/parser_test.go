@@ -41,7 +41,8 @@ func TestParser_parseSlots(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := Parser{}
-	slots, err := parser.parseSlots(mz, credential, credentialType)
+	slots, nonMerklized, err := parser.parseSlots(mz, credential, credentialType)
+	require.True(t, nonMerklized)
 	require.NoError(t, err)
 	require.NotEqual(t, nullSlot, slots.IndexA)
 	require.Equal(t, nullSlot, slots.IndexB)
