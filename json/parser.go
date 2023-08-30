@@ -59,12 +59,14 @@ func (s Parser) ParseClaim(ctx context.Context,
 
 	subjectID := credential.CredentialSubject["id"]
 
-	slots, err := s.parseSlots(mz, credential, credentialType)
+	slots, nonMerklized, err := s.parseSlots(mz, credential, credentialType)
 	if err != nil {
 		return nil, err
 	}
 
-	if slots.isZero() {
+	// if schema is for non merklized credential, root position must be set to none ('')
+	// otherwise default position for merklized position is index.
+	if !nonMerklized {
 		if opts.MerklizedRootPosition == verifiable.CredentialMerklizedRootPositionNone {
 			opts.MerklizedRootPosition = verifiable.CredentialMerklizedRootPositionIndex
 		}
@@ -81,13 +83,13 @@ func (s Parser) ParseClaim(ctx context.Context,
 		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
 		core.WithRevocationNonce(opts.RevNonce),
 		core.WithVersion(opts.Version))
-
-	if opts.Updatable {
-		claim.SetFlagUpdatable(opts.Updatable)
-	}
 	if err != nil {
 		return nil, err
 	}
+	if opts.Updatable {
+		claim.SetFlagUpdatable(opts.Updatable)
+	}
+
 	if credential.Expiration != nil {
 		claim.SetExpirationDate(*credential.Expiration)
 	}
@@ -322,24 +324,10 @@ type parsedSlots struct {
 	ValueA, ValueB []byte
 }
 
-func (s parsedSlots) isZero() bool {
-	return isZero(s.IndexA) && isZero(s.IndexB) &&
-		isZero(s.ValueA) && isZero(s.ValueB)
-}
-
-func isZero[T ~byte](in []T) bool {
-	for _, v := range in {
-		if v != 0 {
-			return false
-		}
-	}
-	return true
-}
-
 // parseSlots converts payload to claim slots using provided schema
 func (s Parser) parseSlots(mz *merklize.Merklizer,
 	credential verifiable.W3CCredential,
-	credentialType string) (parsedSlots, error) {
+	credentialType string) (parsedSlots, bool, error) {
 
 	slots := parsedSlots{
 		IndexA: make([]byte, 32),
@@ -352,40 +340,40 @@ func (s Parser) parseSlots(mz *merklize.Merklizer,
 	serAttr, err := getSerializationAttr(credential, jsonLDOpts,
 		credentialType)
 	if err != nil {
-		return slots, err
+		return slots, false, err
 	}
 
 	if serAttr == "" {
-		return slots, nil
+		return slots, false, nil
 	}
 
 	sPaths, err := parseSerializationAttr(serAttr)
 	if err != nil {
-		return slots, err
+		return slots, true, err
 	}
 
 	if sPaths.isEmpty() {
-		return slots, nil
+		return slots, true, nil
 	}
 
 	err = fillSlot(slots.IndexA, mz, sPaths.indexAPath)
 	if err != nil {
-		return slots, err
+		return slots, true, err
 	}
 	err = fillSlot(slots.IndexB, mz, sPaths.indexBPath)
 	if err != nil {
-		return slots, err
+		return slots, true, err
 	}
 	err = fillSlot(slots.ValueA, mz, sPaths.valueAPath)
 	if err != nil {
-		return slots, err
+		return slots, true, err
 	}
 	err = fillSlot(slots.ValueB, mz, sPaths.valueBPath)
 	if err != nil {
-		return slots, err
+		return slots, true, err
 	}
 
-	return slots, nil
+	return slots, true, nil
 }
 
 // convert from the slice of concrete type to the slice of interface{}
