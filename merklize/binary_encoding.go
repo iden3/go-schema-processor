@@ -38,7 +38,7 @@ func doEncode[T rdfEntryValueType](enc *gob.Encoder, d entryType, v T) error {
 	return nil
 }
 
-func doDecode[T rdfEntryValueType](dec *gob.Decoder, dst *any) (any, error) {
+func doDecode[T rdfEntryValueType](dec *gob.Decoder) (any, error) {
 	var x T
 	err := dec.Decode(&x)
 	if err != nil {
@@ -75,7 +75,7 @@ func (e *RDFEntry) MarshalBinary() ([]byte, error) {
 	case *big.Int:
 		err = doEncode(enc, entryTypeBigInt, v)
 	default:
-		err = fmt.Errorf("Unsupported entry type: %T", e)
+		err = fmt.Errorf("unsupported entry type: %T", e)
 	}
 	if err != nil {
 		return nil, err
@@ -119,15 +119,15 @@ func (e *RDFEntry) UnmarshalBinary(in []byte) error {
 	}
 	switch tp {
 	case entryTypeInt64:
-		e.value, err = doDecode[int64](dec, &e.value)
+		e.value, err = doDecode[int64](dec)
 	case entryTypeBool:
-		e.value, err = doDecode[bool](dec, &e.value)
+		e.value, err = doDecode[bool](dec)
 	case entryTypeString:
-		e.value, err = doDecode[string](dec, &e.value)
+		e.value, err = doDecode[string](dec)
 	case entryTypeTime:
-		e.value, err = doDecode[time.Time](dec, &e.value)
+		e.value, err = doDecode[time.Time](dec)
 	case entryTypeBigInt:
-		e.value, err = doDecode[*big.Int](dec, &e.value)
+		e.value, err = doDecode[*big.Int](dec)
 	default:
 		err = fmt.Errorf("unsupported entry type: %T", e)
 	}
@@ -194,6 +194,8 @@ func (mz *Merklizer) MarshalBinary() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		e := e // actually not needed, but lint complains
 		err = enc.Encode(&e)
 		if err != nil {
 			return nil, err
@@ -246,7 +248,8 @@ func (mz *Merklizer) UnmarshalBinary(in []byte) error {
 
 	// if merkletree is not set with options, initialize new in-memory MT.
 	if mz.mt == nil {
-		mt, err := merkletree.NewMerkleTree(context.Background(),
+		var mt *merkletree.MerkleTree
+		mt, err = merkletree.NewMerkleTree(context.Background(),
 			memory.NewMemoryStorage(), 40)
 		if err != nil {
 			return err
@@ -275,7 +278,8 @@ func (mz *Merklizer) UnmarshalBinary(in []byte) error {
 			return err
 		}
 
-		p, err := mz.Options().NewPath("")
+		var p Path
+		p, err = mz.Options().NewPath("")
 		if err != nil {
 			return err
 		}
@@ -316,7 +320,7 @@ const (
 	gobJTpOther gobJTp = 3
 )
 
-func gobJsonObjectEncode(enc *gob.Encoder, e any) error {
+func gobJSONObjectEncode(enc *gob.Encoder, e any) error {
 	var err error
 	switch v := e.(type) {
 	case nil:
@@ -334,7 +338,7 @@ func gobJsonObjectEncode(enc *gob.Encoder, e any) error {
 			return err
 		}
 		for _, e2 := range v {
-			err = gobJsonObjectEncode(enc, e2)
+			err = gobJSONObjectEncode(enc, e2)
 			if err != nil {
 				return err
 			}
@@ -344,7 +348,7 @@ func gobJsonObjectEncode(enc *gob.Encoder, e any) error {
 		if err != nil {
 			return err
 		}
-		err = gobJsonMapEncode(enc, v)
+		err = gobJSONMapEncode(enc, v)
 		if err != nil {
 			return err
 		}
@@ -361,7 +365,7 @@ func gobJsonObjectEncode(enc *gob.Encoder, e any) error {
 	return nil
 }
 
-func gobJsonMapEncode(enc *gob.Encoder, o map[string]any) error {
+func gobJSONMapEncode(enc *gob.Encoder, o map[string]any) error {
 	err := enc.Encode(len(o))
 	if err != nil {
 		return err
@@ -372,7 +376,7 @@ func gobJsonMapEncode(enc *gob.Encoder, o map[string]any) error {
 		if err != nil {
 			return err
 		}
-		err = gobJsonObjectEncode(enc, v)
+		err = gobJSONObjectEncode(enc, v)
 		if err != nil {
 			return err
 		}
@@ -381,7 +385,7 @@ func gobJsonMapEncode(enc *gob.Encoder, o map[string]any) error {
 	return nil
 }
 
-func gobJsonObjectDecode(dec *gob.Decoder) (any, error) {
+func gobJSONObjectDecode(dec *gob.Decoder) (any, error) {
 	var tp gobJTp
 	err := dec.Decode(&tp)
 	if err != nil {
@@ -392,9 +396,9 @@ func gobJsonObjectDecode(dec *gob.Decoder) (any, error) {
 	case gobJTpNull:
 		return nil, nil
 	case gobJTpMap:
-		return gobJsonMapDecode(dec)
+		return gobJSONMapDecode(dec)
 	case gobJTpList:
-		return gobJsonListDecode(dec)
+		return gobJSONListDecode(dec)
 	case gobJTpOther:
 		var e any
 		err = dec.Decode(&e)
@@ -407,7 +411,7 @@ func gobJsonObjectDecode(dec *gob.Decoder) (any, error) {
 	}
 }
 
-func gobJsonListDecode(dec *gob.Decoder) ([]any, error) {
+func gobJSONListDecode(dec *gob.Decoder) ([]any, error) {
 	var ln int
 	err := dec.Decode(&ln)
 	if err != nil {
@@ -415,7 +419,7 @@ func gobJsonListDecode(dec *gob.Decoder) ([]any, error) {
 	}
 	var l = make([]any, ln)
 	for i := 0; i < ln; i++ {
-		l[i], err = gobJsonObjectDecode(dec)
+		l[i], err = gobJSONObjectDecode(dec)
 		if err != nil {
 			return nil, err
 		}
@@ -423,7 +427,7 @@ func gobJsonListDecode(dec *gob.Decoder) ([]any, error) {
 	return l, nil
 }
 
-func gobJsonMapDecode(dec *gob.Decoder) (map[string]any, error) {
+func gobJSONMapDecode(dec *gob.Decoder) (map[string]any, error) {
 	var ln int
 	err := dec.Decode(&ln)
 	if err != nil {
@@ -437,7 +441,7 @@ func gobJsonMapDecode(dec *gob.Decoder) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		m[k], err = gobJsonObjectDecode(dec)
+		m[k], err = gobJSONObjectDecode(dec)
 		if err != nil {
 			return nil, err
 		}

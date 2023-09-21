@@ -182,20 +182,20 @@ func TestRDFEntry_BinaryMashaler_CustomHasher(t *testing.T) {
 	require.Zero(t, val.Cmp(val2))
 }
 
-func testMarshalCompactObj_customFunction(t testing.TB, obj map[string]any) {
+func testMarshalCompactObjCustomFunction(t testing.TB, obj map[string]any) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	err := gobJsonObjectEncode(enc, obj)
+	err := gobJSONObjectEncode(enc, obj)
 	require.NoError(t, err)
 	require.NotEmpty(t, buf.Bytes())
 
 	dec := gob.NewDecoder(bytes.NewReader(buf.Bytes()))
-	obj2, err := gobJsonObjectDecode(dec)
+	obj2, err := gobJSONObjectDecode(dec)
 	require.NoError(t, err)
 	require.Equal(t, obj, obj2)
 }
 
-func testMarshalCompactObj_gob(t testing.TB, obj map[string]any) {
+func testMarshalCompactObjGob(t testing.TB, obj map[string]any) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(obj)
@@ -210,7 +210,7 @@ func testMarshalCompactObj_gob(t testing.TB, obj map[string]any) {
 	require.Equal(t, obj, obj2)
 }
 
-func testMarshalCompactObj_jsonMarshal(t testing.TB, obj map[string]any) {
+func testMarshalCompactObjJSONMarshal(t testing.TB, obj map[string]any) {
 	var buf2 bytes.Buffer
 	buf2.Grow(1000)
 	bs, err := json.Marshal(obj)
@@ -285,7 +285,7 @@ func TestMerklizer_BinaryMashaler_3(t *testing.T) {
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument), WithMerkleTree(mzMT))
 	require.NoError(t, err)
 
-	testMarshalCompactObj_customFunction(t, mz.compacted)
+	testMarshalCompactObjCustomFunction(t, mz.compacted)
 }
 
 func BenchmarkMerkalizerSerializationTrims(b *testing.B) {
@@ -307,19 +307,19 @@ func BenchmarkMerkalizerSerializationTrims(b *testing.B) {
 
 	b.Run("custom function", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testMarshalCompactObj_customFunction(b, mz.compacted)
+			testMarshalCompactObjCustomFunction(b, mz.compacted)
 		}
 	})
 
 	b.Run("gob", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testMarshalCompactObj_gob(b, mz.compacted)
+			testMarshalCompactObjGob(b, mz.compacted)
 		}
 	})
 
-	b.Run("through json marshalling", func(b *testing.B) {
+	b.Run("through json marshaling", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			testMarshalCompactObj_jsonMarshal(b, mz.compacted)
+			testMarshalCompactObjJSONMarshal(b, mz.compacted)
 		}
 	})
 }
@@ -365,7 +365,6 @@ func TestName(t *testing.T) {
 	var b bytes.Buffer
 	err := gob.NewEncoder(&b).Encode(i)
 	require.NoError(t, err)
-	//t.Log(b.String())
 
 	var i2 map[string]interface{}
 	err = gob.NewDecoder(&b).Decode(&i2)

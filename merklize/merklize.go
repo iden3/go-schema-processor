@@ -1398,7 +1398,6 @@ func AddEntriesToMerkleTree(ctx context.Context, mt mtAppender,
 	return nil
 }
 
-
 // Hasher is an interface to hash data
 type Hasher interface {
 	Hash(inpBI []*big.Int) (*big.Int, error)

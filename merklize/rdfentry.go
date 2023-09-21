@@ -2,7 +2,6 @@ package merklize
 
 import (
 	"math/big"
-	"sync"
 	"time"
 )
 
@@ -23,8 +22,6 @@ type RDFEntry struct {
 	value    any
 	datatype string
 	hasher   Hasher
-
-	m *sync.RWMutex
 }
 
 func NewRDFEntry(key Path, value any) (RDFEntry, error) {
