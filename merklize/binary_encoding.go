@@ -146,7 +146,10 @@ func (e *RDFEntry) UnmarshalBinary(in []byte) error {
 const mzEncodingVersion = 1
 
 func MerklizerFromBytes(in []byte, opts ...MerklizeOption) (*Merklizer, error) {
-	mz := &Merklizer{safeMode: true}
+	mz := &Merklizer{
+		safeMode: true,
+		hasher:   defaultHasher,
+	}
 	for _, o := range opts {
 		o(mz)
 	}
@@ -245,6 +248,10 @@ func (mz *Merklizer) UnmarshalBinary(in []byte) error {
 	}
 
 	addToMT := false
+
+	if mz.hasher == nil {
+		mz.hasher = defaultHasher
+	}
 
 	// if merkletree is not set with options, initialize new in-memory MT.
 	if mz.mt == nil {
