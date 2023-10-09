@@ -3,11 +3,13 @@ package json
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
 
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/iden3/go-schema-processor/v2/processor"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
@@ -17,6 +19,7 @@ import (
 )
 
 func TestParser_parseSlots(t *testing.T) {
+	fmt.Println(merkletree.HashZero.Hex())
 	defer tst.MockHTTPClient(t,
 		map[string]string{
 			"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",

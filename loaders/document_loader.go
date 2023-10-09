@@ -13,6 +13,8 @@ type documentLoader struct {
 	httpLoader *ld.RFC7324CachingDocumentLoader
 	ipfsCli    *shell.Shell
 	ipfsGW     string
+
+	localCacheFn func(url string) (io.Reader, error)
 }
 
 // NewDocumentLoader creates a new document loader with a cache for http.
@@ -28,6 +30,25 @@ func NewDocumentLoader(ipfsCli *shell.Shell, ipfsGW string) ld.DocumentLoader {
 func (d *documentLoader) LoadDocument(
 	u string) (doc *ld.RemoteDocument, err error) {
 
+	if d.localCacheFn != nil {
+		var r io.Reader
+		r, err = d.localCacheFn(u)
+		if err != nil {
+			return nil, err
+		}
+		if r != nil {
+			var docFromReader interface{}
+			docFromReader, err = ld.DocumentFromReader(r)
+			if err == nil {
+				return nil, err
+			}
+			return &ld.RemoteDocument{
+				DocumentURL: u,
+				Document:    docFromReader,
+				ContextURL:  u,
+			}, nil
+		}
+	}
 	const ipfsPrefix = "ipfs://"
 
 	switch {
@@ -63,6 +84,11 @@ func (d *documentLoader) LoadDocument(
 		err = errors.New("unsupported URL schema")
 		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
 	}
+}
+
+func (d *documentLoader) SetLocalReader(
+	f func(url string) (io.Reader, error)) {
+	d.localCacheFn = f
 }
 
 func (d *documentLoader) loadDocumentFromIPFSNode(
