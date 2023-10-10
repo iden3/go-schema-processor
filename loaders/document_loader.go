@@ -52,7 +52,7 @@ func WithCacheEngine(cacheEngine CacheEngine) DocumentLoaderOption {
 	}
 }
 
-func WithHttpClient(httpClient *http.Client) DocumentLoaderOption {
+func WithHTTPClient(httpClient *http.Client) DocumentLoaderOption {
 	return func(loader *documentLoader) {
 		loader.httpClient = httpClient
 	}
