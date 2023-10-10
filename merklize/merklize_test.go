@@ -73,6 +73,12 @@ const nestedFieldDocument = `{
   }
 }`
 
+var testDocumentURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+	"https://w3id.org/citizenship/v1":        "testdata/httpresp/citizenship-v1.json-ld",
+	"https://w3id.org/security/bbs/v1":       "testdata/httpresp/bbs-v1.json-ld",
+}
+
 const testDocument = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
@@ -247,6 +253,7 @@ func mkPath(parts ...interface{}) Path {
 }
 
 func TestEntriesFromRDF_multigraph(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps)()
 	dataset := getDataset(t, multigraphDoc2)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -920,6 +927,12 @@ func TestValue(t *testing.T) {
 	require.ErrorIs(t, err, ErrIncorrectType)
 }
 
+var doc1URLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
+}
+
 // multiple types within another type
 var doc1 = `
 {
@@ -1018,6 +1031,12 @@ func findQuadByIdx(t testing.TB, ds *ld.RDFDataset, idx datasetIdx) *ld.Quad {
 	return quads[idx.idx]
 }
 
+var multigraphDoc2URLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                                                                     "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
+}
+
 const multigraphDoc2 = `{
   "@context":[
     "https://www.w3.org/2018/credentials/v1",
@@ -1045,6 +1064,7 @@ const multigraphDoc2 = `{
 }`
 
 func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps)()
 	ds := getDataset(t, multigraphDoc2)
 	q := findQuadByObject(t, ds, &ld.Literal{
 		Value:    "123",
@@ -1083,6 +1103,7 @@ func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
 }
 
 func Test_findParent(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps)()
 	ds := getDataset(t, multigraphDoc2)
 	q := findQuadByObject(t, ds, &ld.Literal{
 		Value:    "123",
@@ -1143,6 +1164,11 @@ func TestMerklizer_RawValue(t *testing.T) {
 	val, err := mz.RawValue(path)
 	require.NoError(t, err)
 	require.Equal(t, float64(19960425), val)
+}
+
+var vcURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                                                           "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v101.json-ld": "testdata/httpresp/kyc-v101.json-ld",
 }
 
 var vc = `
@@ -1747,6 +1773,10 @@ var docWithFloat = `{
 }`
 
 func TestRoots(t *testing.T) {
+	defer tst.MockHTTPClient(t,
+		mergeMaps(multigraphDoc2URLMaps, testDocumentURLMaps, doc1URLMaps,
+			vcURLMaps))()
+
 	testcases := []struct {
 		name     string
 		doc      string
@@ -2007,4 +2037,15 @@ func TestIPFSContext(t *testing.T) {
 		require.Equal(t, want, result)
 	})
 
+}
+
+func mergeMaps(ms ...map[string]string) map[string]string {
+	res := make(map[string]string)
+	for _, m := range ms {
+		for k, v := range m {
+			res[k] = v
+		}
+	}
+
+	return res
 }
