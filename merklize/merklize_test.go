@@ -125,6 +125,17 @@ const testDocument = `{
   ]
 }`
 
+var testDocumentIPFSURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                              "testdata/httpresp/credentials-v1.jsonld",
+	"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld":              "testdata/httpresp/iden3proofs.json-ld",
+	"https://ipfs.io/ipfs/QmeMevwUeD7o6hjfmdaeFD1q4L84hSDiRjeXZLi1bZK1My": "testdata/ipfs/testNewType.jsonld",
+}
+
+var testDocumentIPFSWithoutIPFSURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                 "testdata/httpresp/credentials-v1.jsonld",
+	"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld": "testdata/httpresp/iden3proofs.json-ld",
+}
+
 const testDocumentIPFS = `{
   "id": "https://dev.polygonid.me/api/v1/identities/did:polygonid:polygon:mumbai:2qLPqvayNQz9TA2r5VPxUugoF18teGU583zJ859wfy/claims/eca334b0-0e7d-11ee-889c-0242ac1d0006",
   "@context": [
@@ -992,8 +1003,10 @@ func TestExistenceProof(t *testing.T) {
 }
 
 func TestExistenceProofIPFS(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentIPFSURLMaps)()
 	ctx := context.Background()
-	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocumentIPFS), WithIPFSGateway("https://ipfs.io"))
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocumentIPFS),
+		WithIPFSGateway("https://ipfs.io"))
 	require.NoError(t, err)
 	path, err := mz.ResolveDocPath("credentialSubject.testNewTypeInt")
 	require.NoError(t, err)
@@ -1892,6 +1905,8 @@ func TestIPFSContext(t *testing.T) {
 	if ipfsURL == "" {
 		t.Skip("IPFS_URL is not set")
 	}
+
+	defer tst.MockHTTPClient(t, testDocumentIPFSWithoutIPFSURLMaps)()
 
 	ipfsCli := shell.NewShell(ipfsURL)
 
