@@ -36,6 +36,7 @@ type documentLoader struct {
 	ipfsGW      string
 	cacheEngine CacheEngine
 	noCache     bool
+	httpClient  *http.Client
 }
 
 type DocumentLoaderOption func(*documentLoader)
@@ -48,6 +49,12 @@ func WithCacheEngine(cacheEngine CacheEngine) DocumentLoaderOption {
 		}
 
 		loader.cacheEngine = cacheEngine
+	}
+}
+
+func WithHttpClient(httpClient *http.Client) DocumentLoaderOption {
+	return func(loader *documentLoader) {
+		loader.httpClient = httpClient
 	}
 }
 
@@ -186,7 +193,12 @@ func (d *documentLoader) loadDocumentFromHTTP(
 	// or whatever is available
 	req.Header.Add("Accept", acceptHeader)
 
-	res, err := http.DefaultClient.Do(req)
+	httpClient := d.httpClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
+	res, err := httpClient.Do(req)
 	if err != nil {
 		return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
 	}
