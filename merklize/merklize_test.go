@@ -1153,6 +1153,43 @@ func Test_findParent(t *testing.T) {
 	require.ErrorIs(t, err, errParentNotFound)
 }
 
+func TestEmbeddedSchemas(t *testing.T) {
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+			// These docs should be gotten from the cache
+			//"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
+			//"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
+		},
+		tst.IgnoreUntouchedURLs())()
+
+	kycBytes, err := os.ReadFile("testdata/httpresp/kyc-v3.json-ld")
+	require.NoError(t, err)
+
+	iden3CredentialBytes, err := os.ReadFile("testdata/httpresp/iden3credential-v2.json-ld")
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	cacheEng, err := loaders.NewMemoryCacheEngine(
+		loaders.WithEmbeddedDocumentBytes(
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld",
+			kycBytes),
+		loaders.WithEmbeddedDocumentBytes(
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld",
+			iden3CredentialBytes))
+	require.NoError(t, err)
+
+	docLoader := loaders.NewDocumentLoader(nil, "",
+		loaders.WithCacheEngine(cacheEng))
+
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(multigraphDoc2),
+		WithDocumentLoader(docLoader))
+	require.NoError(t, err)
+	require.Equal(t,
+		"11252837464697009054213269776498742372491493851016505396927630745348533726396",
+		mz.Root().BigInt().String())
+}
+
 const multigraphDoc = `{
   "@context":[
     "https://www.w3.org/2018/credentials/v1",
