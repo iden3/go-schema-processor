@@ -1210,7 +1210,8 @@ const multigraphDoc = `{
 }`
 
 func TestMerklizer_RawValue(t *testing.T) {
-	defer tst.MockHTTPClient(t, multigraphDocURLMaps)()
+	defer tst.MockHTTPClient(t, multigraphDocURLMaps,
+		tst.IgnoreUntouchedURLs())()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(multigraphDoc))
 	require.NoError(t, err)
