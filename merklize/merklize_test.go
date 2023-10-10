@@ -131,11 +131,6 @@ var testDocumentIPFSURLMaps = map[string]string{
 	"https://ipfs.io/ipfs/QmeMevwUeD7o6hjfmdaeFD1q4L84hSDiRjeXZLi1bZK1My": "testdata/ipfs/testNewType.jsonld",
 }
 
-var testDocumentIPFSWithoutIPFSURLMaps = map[string]string{
-	"https://www.w3.org/2018/credentials/v1":                 "testdata/httpresp/credentials-v1.jsonld",
-	"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld": "testdata/httpresp/iden3proofs.json-ld",
-}
-
 const testDocumentIPFS = `{
   "id": "https://dev.polygonid.me/api/v1/identities/did:polygonid:polygon:mumbai:2qLPqvayNQz9TA2r5VPxUugoF18teGU583zJ859wfy/claims/eca334b0-0e7d-11ee-889c-0242ac1d0006",
   "@context": [
@@ -264,7 +259,8 @@ func mkPath(parts ...interface{}) Path {
 }
 
 func TestEntriesFromRDF_multigraph(t *testing.T) {
-	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps)()
+	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps,
+		tst.IgnoreUntouchedURLs())()
 	dataset := getDataset(t, multigraphDoc2)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -1213,7 +1209,7 @@ var vc = `
 }`
 
 func TestFloatNormalization(t *testing.T) {
-	defer tst.MockHTTPClient(t, vcURLMaps)()
+	defer tst.MockHTTPClient(t, vcURLMaps, tst.IgnoreUntouchedURLs())()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(vc))
 	require.NoError(t, err)
@@ -1754,7 +1750,8 @@ func TestWithHasherWorkflow(t *testing.T) {
 }
 
 func TestMerklizer_JSONLDType(t *testing.T) {
-	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
+	defer tst.MockHTTPClient(t, testDocumentURLMaps,
+		tst.IgnoreUntouchedURLs())()
 
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
@@ -1797,7 +1794,8 @@ var docWithFloat = `{
 func TestRoots(t *testing.T) {
 	defer tst.MockHTTPClient(t,
 		mergeMaps(multigraphDoc2URLMaps, testDocumentURLMaps, doc1URLMaps,
-			vcURLMaps))()
+			vcURLMaps),
+		tst.IgnoreUntouchedURLs())()
 
 	testcases := []struct {
 		name     string
@@ -1906,7 +1904,8 @@ func TestIPFSContext(t *testing.T) {
 		t.Skip("IPFS_URL is not set")
 	}
 
-	defer tst.MockHTTPClient(t, testDocumentIPFSWithoutIPFSURLMaps)()
+	defer tst.MockHTTPClient(t, testDocumentIPFSURLMaps,
+		tst.IgnoreUntouchedURLs())()
 
 	ipfsCli := shell.NewShell(ipfsURL)
 
@@ -1935,22 +1934,12 @@ func TestIPFSContext(t *testing.T) {
 	defer cancel()
 
 	t.Run("no ipfs client", func(t *testing.T) {
-		// ignoreUntouchedURLs is used because we can check IPFS schema
-		// before HTTP and do not touch a mocked request
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		}, tst.IgnoreUntouchedURLs())()
-
 		_, err = MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
 		require.ErrorContains(t, err,
 			"loading document failed: ipfs is not configured")
 	})
 
 	t.Run("with ipfs client", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithIPFSClient(ipfsCli))
 		require.NoError(t, err2)
@@ -1960,10 +1949,6 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with default ipfs client", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		oldDocLoader := defaultDocumentLoader
 		t.Cleanup(func() { SetDocumentLoader(oldDocLoader) })
 
@@ -1979,10 +1964,6 @@ func TestIPFSContext(t *testing.T) {
 
 	// If both IPFS client and gateway URL are provided, the client is used.
 	t.Run("with ipfs client and gateway URL", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithIPFSClient(ipfsCli),
 			WithIPFSGateway("http://ipfs.io"))
@@ -2009,10 +1990,6 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with document loader", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithDocumentLoader(docLoader))
