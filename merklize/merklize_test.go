@@ -1190,6 +1190,11 @@ func TestEmbeddedSchemas(t *testing.T) {
 		mz.Root().BigInt().String())
 }
 
+var multigraphDocURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                                                         "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld": "testdata/httpresp/kyc-v3.json-ld",
+}
+
 const multigraphDoc = `{
   "@context":[
     "https://www.w3.org/2018/credentials/v1",
@@ -1205,6 +1210,7 @@ const multigraphDoc = `{
 }`
 
 func TestMerklizer_RawValue(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDocURLMaps)()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(multigraphDoc))
 	require.NoError(t, err)
