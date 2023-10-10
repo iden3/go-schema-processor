@@ -1158,8 +1158,8 @@ func TestEmbeddedSchemas(t *testing.T) {
 		map[string]string{
 			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
 			// These docs should be gotten from the cache
-			//"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
-			//"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
+			// "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
+			// "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
 		},
 		tst.IgnoreUntouchedURLs())()
 
