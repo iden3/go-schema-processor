@@ -310,6 +310,8 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 }
 
 func TestEntriesFromRDF(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
+
 	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -547,6 +549,7 @@ func TestEntriesFromRDF(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
 	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -581,6 +584,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestProofInteger(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
 	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -611,6 +615,7 @@ func TestProofInteger(t *testing.T) {
 }
 
 func TestMerklizer_Proof(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
 	require.NoError(t, err)
@@ -964,6 +969,7 @@ var doc1 = `
 }`
 
 func TestExistenceProof(t *testing.T) {
+	defer tst.MockHTTPClient(t, doc1URLMaps)()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(doc1), WithIPFSGateway("https://ipfs.io"))
 	require.NoError(t, err)
@@ -1194,6 +1200,7 @@ var vc = `
 }`
 
 func TestFloatNormalization(t *testing.T) {
+	defer tst.MockHTTPClient(t, vcURLMaps)()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(vc))
 	require.NoError(t, err)
@@ -1734,6 +1741,8 @@ func TestWithHasherWorkflow(t *testing.T) {
 }
 
 func TestMerklizer_JSONLDType(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
+
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
 	require.NoError(t, err)
