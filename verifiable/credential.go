@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// RefreshService is struct that represents refresh service json-ld document
 type RefreshService struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
