@@ -10,6 +10,6 @@ const (
 
 // RefreshService is struct that represents refresh service json-ld document
 type RefreshService struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
+	ID   string             `json:"id"`
+	Type RefreshServiceType `json:"type"`
 }
