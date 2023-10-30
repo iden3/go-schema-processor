@@ -73,6 +73,12 @@ const nestedFieldDocument = `{
   }
 }`
 
+var testDocumentURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+	"https://w3id.org/citizenship/v1":        "testdata/httpresp/citizenship-v1.json-ld",
+	"https://w3id.org/security/bbs/v1":       "testdata/httpresp/bbs-v1.json-ld",
+}
+
 const testDocument = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
@@ -118,6 +124,12 @@ const testDocument = `{
     }
   ]
 }`
+
+var testDocumentIPFSURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                              "testdata/httpresp/credentials-v1.jsonld",
+	"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld":              "testdata/httpresp/iden3proofs.json-ld",
+	"https://ipfs.io/ipfs/QmeMevwUeD7o6hjfmdaeFD1q4L84hSDiRjeXZLi1bZK1My": "testdata/ipfs/testNewType.jsonld",
+}
 
 const testDocumentIPFS = `{
   "id": "https://dev.polygonid.me/api/v1/identities/did:polygonid:polygon:mumbai:2qLPqvayNQz9TA2r5VPxUugoF18teGU583zJ859wfy/claims/eca334b0-0e7d-11ee-889c-0242ac1d0006",
@@ -247,6 +259,8 @@ func mkPath(parts ...interface{}) Path {
 }
 
 func TestEntriesFromRDF_multigraph(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps,
+		tst.IgnoreUntouchedURLs())()
 	dataset := getDataset(t, multigraphDoc2)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -303,6 +317,8 @@ func TestEntriesFromRDF_multigraph(t *testing.T) {
 }
 
 func TestEntriesFromRDF(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
+
 	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -540,6 +556,7 @@ func TestEntriesFromRDF(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
 	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -574,6 +591,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestProofInteger(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
 	dataset := getDataset(t, testDocument)
 
 	entries, err := EntriesFromRDF(dataset)
@@ -604,6 +622,7 @@ func TestProofInteger(t *testing.T) {
 }
 
 func TestMerklizer_Proof(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
 	require.NoError(t, err)
@@ -920,6 +939,12 @@ func TestValue(t *testing.T) {
 	require.ErrorIs(t, err, ErrIncorrectType)
 }
 
+var doc1URLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
+}
+
 // multiple types within another type
 var doc1 = `
 {
@@ -951,6 +976,7 @@ var doc1 = `
 }`
 
 func TestExistenceProof(t *testing.T) {
+	defer tst.MockHTTPClient(t, doc1URLMaps)()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(doc1), WithIPFSGateway("https://ipfs.io"))
 	require.NoError(t, err)
@@ -973,8 +999,10 @@ func TestExistenceProof(t *testing.T) {
 }
 
 func TestExistenceProofIPFS(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentIPFSURLMaps)()
 	ctx := context.Background()
-	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocumentIPFS), WithIPFSGateway("https://ipfs.io"))
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocumentIPFS),
+		WithIPFSGateway("https://ipfs.io"))
 	require.NoError(t, err)
 	path, err := mz.ResolveDocPath("credentialSubject.testNewTypeInt")
 	require.NoError(t, err)
@@ -1018,6 +1046,12 @@ func findQuadByIdx(t testing.TB, ds *ld.RDFDataset, idx datasetIdx) *ld.Quad {
 	return quads[idx.idx]
 }
 
+var multigraphDoc2URLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                                                                     "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
+}
+
 const multigraphDoc2 = `{
   "@context":[
     "https://www.w3.org/2018/credentials/v1",
@@ -1045,6 +1079,7 @@ const multigraphDoc2 = `{
 }`
 
 func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps)()
 	ds := getDataset(t, multigraphDoc2)
 	q := findQuadByObject(t, ds, &ld.Literal{
 		Value:    "123",
@@ -1083,6 +1118,7 @@ func Test_findParentInsideGraph_And_findGraphParent(t *testing.T) {
 }
 
 func Test_findParent(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDoc2URLMaps)()
 	ds := getDataset(t, multigraphDoc2)
 	q := findQuadByObject(t, ds, &ld.Literal{
 		Value:    "123",
@@ -1117,6 +1153,48 @@ func Test_findParent(t *testing.T) {
 	require.ErrorIs(t, err, errParentNotFound)
 }
 
+func TestEmbeddedSchemas(t *testing.T) {
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
+			// These docs should be gotten from the cache
+			// "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "testdata/httpresp/kyc-v3.json-ld",
+			// "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "testdata/httpresp/iden3credential-v2.json-ld",
+		},
+		tst.IgnoreUntouchedURLs())()
+
+	kycBytes, err := os.ReadFile("testdata/httpresp/kyc-v3.json-ld")
+	require.NoError(t, err)
+
+	iden3CredentialBytes, err := os.ReadFile("testdata/httpresp/iden3credential-v2.json-ld")
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	cacheEng, err := loaders.NewMemoryCacheEngine(
+		loaders.WithEmbeddedDocumentBytes(
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld",
+			kycBytes),
+		loaders.WithEmbeddedDocumentBytes(
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld",
+			iden3CredentialBytes))
+	require.NoError(t, err)
+
+	docLoader := loaders.NewDocumentLoader(nil, "",
+		loaders.WithCacheEngine(cacheEng))
+
+	mz, err := MerklizeJSONLD(ctx, strings.NewReader(multigraphDoc2),
+		WithDocumentLoader(docLoader))
+	require.NoError(t, err)
+	require.Equal(t,
+		"11252837464697009054213269776498742372491493851016505396927630745348533726396",
+		mz.Root().BigInt().String())
+}
+
+var multigraphDocURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                                                         "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld": "testdata/httpresp/kyc-v3.json-ld",
+}
+
 const multigraphDoc = `{
   "@context":[
     "https://www.w3.org/2018/credentials/v1",
@@ -1132,6 +1210,8 @@ const multigraphDoc = `{
 }`
 
 func TestMerklizer_RawValue(t *testing.T) {
+	defer tst.MockHTTPClient(t, multigraphDocURLMaps,
+		tst.IgnoreUntouchedURLs())()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(multigraphDoc))
 	require.NoError(t, err)
@@ -1143,6 +1223,11 @@ func TestMerklizer_RawValue(t *testing.T) {
 	val, err := mz.RawValue(path)
 	require.NoError(t, err)
 	require.Equal(t, float64(19960425), val)
+}
+
+var vcURLMaps = map[string]string{
+	"https://www.w3.org/2018/credentials/v1":                                                           "testdata/httpresp/credentials-v1.jsonld",
+	"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v101.json-ld": "testdata/httpresp/kyc-v101.json-ld",
 }
 
 var vc = `
@@ -1168,6 +1253,7 @@ var vc = `
 }`
 
 func TestFloatNormalization(t *testing.T) {
+	defer tst.MockHTTPClient(t, vcURLMaps, tst.IgnoreUntouchedURLs())()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(vc))
 	require.NoError(t, err)
@@ -1708,6 +1794,9 @@ func TestWithHasherWorkflow(t *testing.T) {
 }
 
 func TestMerklizer_JSONLDType(t *testing.T) {
+	defer tst.MockHTTPClient(t, testDocumentURLMaps,
+		tst.IgnoreUntouchedURLs())()
+
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
 	require.NoError(t, err)
@@ -1747,6 +1836,11 @@ var docWithFloat = `{
 }`
 
 func TestRoots(t *testing.T) {
+	defer tst.MockHTTPClient(t,
+		mergeMaps(multigraphDoc2URLMaps, testDocumentURLMaps, doc1URLMaps,
+			vcURLMaps),
+		tst.IgnoreUntouchedURLs())()
+
 	testcases := []struct {
 		name     string
 		doc      string
@@ -1854,6 +1948,9 @@ func TestIPFSContext(t *testing.T) {
 		t.Skip("IPFS_URL is not set")
 	}
 
+	defer tst.MockHTTPClient(t, testDocumentIPFSURLMaps,
+		tst.IgnoreUntouchedURLs())()
+
 	ipfsCli := shell.NewShell(ipfsURL)
 
 	// Context inside some directory
@@ -1881,22 +1978,12 @@ func TestIPFSContext(t *testing.T) {
 	defer cancel()
 
 	t.Run("no ipfs client", func(t *testing.T) {
-		// ignoreUntouchedURLs is used because we can check IPFS schema
-		// before HTTP and do not touch a mocked request
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		}, tst.IgnoreUntouchedURLs())()
-
 		_, err = MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()))
 		require.ErrorContains(t, err,
 			"loading document failed: ipfs is not configured")
 	})
 
 	t.Run("with ipfs client", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithIPFSClient(ipfsCli))
 		require.NoError(t, err2)
@@ -1906,10 +1993,6 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with default ipfs client", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		oldDocLoader := defaultDocumentLoader
 		t.Cleanup(func() { SetDocumentLoader(oldDocLoader) })
 
@@ -1925,10 +2008,6 @@ func TestIPFSContext(t *testing.T) {
 
 	// If both IPFS client and gateway URL are provided, the client is used.
 	t.Run("with ipfs client and gateway URL", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithIPFSClient(ipfsCli),
 			WithIPFSGateway("http://ipfs.io"))
@@ -1955,10 +2034,6 @@ func TestIPFSContext(t *testing.T) {
 	})
 
 	t.Run("with document loader", func(t *testing.T) {
-		defer tst.MockHTTPClient(t, map[string]string{
-			"https://www.w3.org/2018/credentials/v1": "testdata/httpresp/credentials-v1.jsonld",
-		})()
-
 		docLoader := loaders.NewDocumentLoader(ipfsCli, "")
 		mz, err2 := MerklizeJSONLD(ctx, bytes.NewReader(b.Bytes()),
 			WithDocumentLoader(docLoader))
@@ -2007,4 +2082,15 @@ func TestIPFSContext(t *testing.T) {
 		require.Equal(t, want, result)
 	})
 
+}
+
+func mergeMaps(ms ...map[string]string) map[string]string {
+	res := make(map[string]string)
+	for _, m := range ms {
+		for k, v := range m {
+			res[k] = v
+		}
+	}
+
+	return res
 }

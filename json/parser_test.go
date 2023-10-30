@@ -41,7 +41,8 @@ func TestParser_parseSlots(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := Parser{}
-	slots, err := parser.parseSlots(mz, credential, credentialType)
+	slots, nonMerklized, err := parser.parseSlots(mz, credential, credentialType)
+	require.True(t, nonMerklized)
 	require.NoError(t, err)
 	require.NotEqual(t, nullSlot, slots.IndexA)
 	require.Equal(t, nullSlot, slots.IndexB)
@@ -136,6 +137,14 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 }
 
 func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"https://www.w3.org/2018/credentials/v1": "../merklize/testdata/httpresp/credentials-v1.jsonld",
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/iden3credential-v2.json-ld": "../merklize/testdata/httpresp/iden3credential-v2.json-ld",
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld":             "../merklize/testdata/httpresp/kyc-v3.json-ld",
+		},
+		tst.IgnoreUntouchedURLs())()
+
 	credentialBytes, err := os.ReadFile("testdata/credential-merklized.json")
 	require.NoError(t, err)
 
