@@ -1949,3 +1949,5 @@ func minMaxFromPrime(primeVal *big.Int) (*big.Int, *big.Int) {
 		big.NewInt(1))
 	return minValue, maxValue
 }
+
+// empty comment
