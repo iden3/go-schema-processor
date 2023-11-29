@@ -14,6 +14,8 @@
     "postalProviderInformation": {
       "insured": true,
       "weight": "1.3"
-    }
+    },
+    "items1": ["item1", "item2", "item3"],
+    "items": ["item1", "item2", "item3"]
   }
 }

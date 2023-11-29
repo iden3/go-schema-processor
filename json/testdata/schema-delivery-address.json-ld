@@ -32,6 +32,12 @@
             "@id": "polygon-vocab:isPostalProvider",
             "@type": "xsd:boolean"
           },
+          "items1": {
+            "@id": "polygon-vocab:items1",
+            "@type": "xsd:string",
+            "@container": "@list"
+          },
+          "items": {"@id": "polygon-vocab:items", "@type": "xsd:string"},
           "postalProviderInformation": {
             "@context": {
               "insured": {

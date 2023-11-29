@@ -27,8 +27,9 @@ func TestW3CCredential_JSONUnmarshal(t *testing.T) {
     "expirationDate": "2361-03-21T19:14:48Z",
     "issuanceDate": "2022-12-16T08:40:41.515927692Z",
     "credentialSubject": {
-      "birthday": 19960424,
+      "birthday": 19960424, 
       "documentType": 2,
+	  "countries": ["1", "2", "3", "5"],
       "id": "did:iden3:polygon:mumbai:x3YTKSK1fWBbQAmMhArxvFBcG8tL7m2ZMFh5LSyjH",
       "type": "KYCAgeCredential"
     },
@@ -113,6 +114,7 @@ func TestW3CCredential_JSONUnmarshal(t *testing.T) {
 		CredentialSubject: map[string]any{
 			"birthday":     float64(19960424),
 			"documentType": float64(2),
+			"countries":    []interface{}{"1", "2", "3", "5"},
 			"id":           "did:iden3:polygon:mumbai:x3YTKSK1fWBbQAmMhArxvFBcG8tL7m2ZMFh5LSyjH",
 			"type":         "KYCAgeCredential",
 		},
@@ -208,6 +210,8 @@ func TestW3CCredential_MerklizationWithEmptyID(t *testing.T) {
 				"insured": true,
 				"weight":  "1.3",
 			},
+			"items":  []interface{}{"item1", "item2", "item3"},
+			"items1": []interface{}{"item1", "item2", "item3"},
 		},
 		CredentialStatus: nil,
 		Issuer:           "",
@@ -223,6 +227,11 @@ func TestW3CCredential_MerklizationWithEmptyID(t *testing.T) {
 	require.NoError(t, err)
 	path, err := mz.ResolveDocPath("credentialSubject.price")
 	require.NoError(t, err)
-	_, err = mz.Entry(path)
+	price, err := mz.Entry(path)
+	require.NoError(t, err)
+	require.NotEqual(t, "", price)
+
+	path2, err := mz.ResolveDocPath("credentialSubject.items.1")
+	_, err = mz.Entry(path2)
 	require.NoError(t, err)
 }
