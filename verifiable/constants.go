@@ -72,4 +72,7 @@ const (
 
 	// Iden3OnсhainSparseMerkleTreeProof2023 is a proof type for MTP proofs with iden3 metadata from blockchain
 	Iden3OnchainSparseMerkleTreeProof2023 CredentialStatusType = "Iden3OnchainSparseMerkleTreeProof2023"
+
+	// Iden3RefreshService2023 is the type of refresh service
+	Iden3RefreshService2023 RefreshServiceType = "Iden3RefreshService2023"
 )
