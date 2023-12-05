@@ -622,7 +622,7 @@ func TestProofInteger(t *testing.T) {
 }
 
 func TestMerklizer_Proof(t *testing.T) {
-	defer tst.MockHTTPClient(t, testDocumentURLMaps)()
+	defer tst.MockHTTPClient(t, testDocumentURLMaps, tst.IgnoreUntouchedURLs())()
 	ctx := context.Background()
 	mz, err := MerklizeJSONLD(ctx, strings.NewReader(testDocument))
 	require.NoError(t, err)
