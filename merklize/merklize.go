@@ -126,6 +126,8 @@ func (o Options) NewRDFEntry(key Path, value interface{}) (RDFEntry, error) {
 		e.value = int64(v)
 	case int64, string, bool, time.Time:
 		e.value = value
+	case *big.Int:
+		e.value = new(big.Int).Set(v)
 	default:
 		return e, fmt.Errorf("incorrect value type: %T", value)
 	}
@@ -512,25 +514,6 @@ func (p *Path) Prepend(parts ...interface{}) error {
 	return nil
 }
 
-// type RDFEntryValueType interface {
-// 	int | int32 | int64 | uint | uint32 | uint64 | string | bool | time.Time
-// }
-
-// type RDFEntry[T RDFEntryValueType] struct {
-// 	key Path
-// 	// valid types are: int64, string, bool, time.Time
-// 	value  T
-// 	hasher Hasher
-// }
-
-type RDFEntry struct {
-	key Path
-	// valid types are: int64, string, bool, time.Time, *big.Int
-	value    any
-	datatype string
-	hasher   Hasher
-}
-
 type Value interface {
 	MtEntry() (*big.Int, error)
 
@@ -646,34 +629,6 @@ func (v *value) AsBigInt() (*big.Int, error) {
 		return nil, ErrIncorrectType
 	}
 	return i, nil
-}
-
-func NewRDFEntry(key Path, value any) (RDFEntry, error) {
-	return Options{}.NewRDFEntry(key, value)
-}
-
-func (e RDFEntry) KeyMtEntry() (*big.Int, error) {
-	return e.key.MtEntry()
-}
-
-func (e RDFEntry) ValueMtEntry() (*big.Int, error) {
-	return mkValueMtEntry(e.getHasher(), e.value)
-}
-
-func (e RDFEntry) KeyValueMtEntries() (
-	keyMtEntry *big.Int, valueMtEntry *big.Int, err error) {
-
-	keyMtEntry, err = e.KeyMtEntry()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	valueMtEntry, err = e.ValueMtEntry()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return keyMtEntry, valueMtEntry, nil
 }
 
 type nodeType uint8
@@ -1443,14 +1398,6 @@ func AddEntriesToMerkleTree(ctx context.Context, mt mtAppender,
 	return nil
 }
 
-func (e RDFEntry) getHasher() Hasher {
-	h := e.hasher
-	if h == nil {
-		h = defaultHasher
-	}
-	return h
-}
-
 // Hasher is an interface to hash data
 type Hasher interface {
 	Hash(inpBI []*big.Int) (*big.Int, error)
@@ -1650,12 +1597,12 @@ func MerklizeJSONLD(ctx context.Context, in io.Reader,
 	return mz, err
 }
 
-func (m *Merklizer) Entry(path Path) (RDFEntry, error) {
+func (mz *Merklizer) Entry(path Path) (RDFEntry, error) {
 	key, err := path.MtEntry()
 	if err != nil {
 		return RDFEntry{}, err
 	}
-	e, ok := m.entries[key.String()]
+	e, ok := mz.entries[key.String()]
 	if !ok {
 		return RDFEntry{}, ErrorEntryNotFound
 	}
@@ -1663,14 +1610,14 @@ func (m *Merklizer) Entry(path Path) (RDFEntry, error) {
 	return e, nil
 }
 
-func (m *Merklizer) getDocumentLoader() ld.DocumentLoader {
-	if m.documentLoader != nil {
-		return m.documentLoader
+func (mz *Merklizer) getDocumentLoader() ld.DocumentLoader {
+	if mz.documentLoader != nil {
+		return mz.documentLoader
 	}
-	if m.ipfsCli == nil && m.ipfsGW == "" {
+	if mz.ipfsCli == nil && mz.ipfsGW == "" {
 		return defaultDocumentLoader
 	}
-	return loaders.NewDocumentLoader(m.ipfsCli, m.ipfsGW)
+	return loaders.NewDocumentLoader(mz.ipfsCli, mz.ipfsGW)
 }
 
 func rvExtractObjField(obj any, field string) (any, error) {
@@ -1707,9 +1654,9 @@ func rvExtractArrayIdx(obj any, idx int) (any, error) {
 	return objArr[idx], nil
 }
 
-func (m *Merklizer) RawValue(path Path) (any, error) {
+func (mz *Merklizer) RawValue(path Path) (any, error) {
 	parts := path.Parts()
-	var obj any = m.compacted
+	var obj any = mz.compacted
 	var err error
 	var traversedParts []string
 	currentPath := func() string { return strings.Join(traversedParts, " / ") }
@@ -1742,40 +1689,40 @@ func (m *Merklizer) RawValue(path Path) (any, error) {
 
 // JSONLDType returns the JSON-LD type of the given path. If there is no literal
 // by this path, it returns an error.
-func (m *Merklizer) JSONLDType(path Path) (string, error) {
-	entry, err := m.Entry(path)
+func (mz *Merklizer) JSONLDType(path Path) (string, error) {
+	entry, err := mz.Entry(path)
 	if err != nil {
 		return "", err
 	}
 	return entry.datatype, nil
 }
 
-func (m *Merklizer) ResolveDocPath(path string) (Path, error) {
+func (mz *Merklizer) ResolveDocPath(path string) (Path, error) {
 	opts := Options{
-		Hasher:         m.hasher,
-		DocumentLoader: m.getDocumentLoader(),
+		Hasher:         mz.hasher,
+		DocumentLoader: mz.getDocumentLoader(),
 	}
 	if opts.Hasher == nil {
 		opts.Hasher = defaultHasher
 	}
 
-	realPath, err := opts.NewPathFromDocument(m.srcDoc, path)
+	realPath, err := opts.NewPathFromDocument(mz.srcDoc, path)
 	if err != nil {
 		return Path{}, err
 	}
 	return realPath, nil
 }
 
-func (m *Merklizer) Options() Options {
+func (mz *Merklizer) Options() Options {
 	return Options{
-		Hasher:         m.hasher,
-		DocumentLoader: m.getDocumentLoader(),
+		Hasher:         mz.hasher,
+		DocumentLoader: mz.getDocumentLoader(),
 	}
 }
 
 // Proof generate and return Proof and Value by the given Path.
 // If the path is not found, it returns nil as value interface.
-func (m *Merklizer) Proof(ctx context.Context,
+func (mz *Merklizer) Proof(ctx context.Context,
 	path Path) (*merkletree.Proof, Value, error) {
 
 	keyHash, err := path.MtEntry()
@@ -1783,19 +1730,19 @@ func (m *Merklizer) Proof(ctx context.Context,
 		return nil, nil, err
 	}
 
-	proof, err := m.mt.GenerateProof(ctx, keyHash)
+	proof, err := mz.mt.GenerateProof(ctx, keyHash)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var value Value
 	if proof.Existence {
-		entry, ok := m.entries[keyHash.String()]
+		entry, ok := mz.entries[keyHash.String()]
 		if !ok {
 			return nil, nil, errors.New(
 				"[assertion] no Entry found while existence is true")
 		}
-		value, err = NewValue(m.hasher, entry.value)
+		value, err = NewValue(mz.hasher, entry.value)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1804,16 +1751,16 @@ func (m *Merklizer) Proof(ctx context.Context,
 	return proof, value, err
 }
 
-func (m *Merklizer) MkValue(val any) (Value, error) {
-	return NewValue(m.hasher, val)
+func (mz *Merklizer) MkValue(val any) (Value, error) {
+	return NewValue(mz.hasher, val)
 }
 
-func (m *Merklizer) Root() *merkletree.Hash {
-	return m.mt.Root()
+func (mz *Merklizer) Root() *merkletree.Hash {
+	return mz.mt.Root()
 }
 
-func (m *Merklizer) Hasher() Hasher {
-	return m.hasher
+func (mz *Merklizer) Hasher() Hasher {
+	return mz.hasher
 }
 
 func mkValueMtEntry(h Hasher, v interface{}) (*big.Int, error) {
