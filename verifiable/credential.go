@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	core "github.com/iden3/go-iden3-core/v2"
@@ -26,6 +29,112 @@ type W3CCredential struct {
 	CredentialSchema  CredentialSchema       `json:"credentialSchema"`
 	Proof             CredentialProofs       `json:"proof,omitempty"`
 	RefreshService    *RefreshService        `json:"refreshService,omitempty"`
+}
+
+// ValidateProof validate credential proof
+func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType) (bool, error) {
+	var credProof CredentialProof
+	for _, p := range vc.Proof {
+		if p.ProofType() == proofType {
+			credProof = p
+		}
+	}
+	if credProof == nil {
+		return false, ErrProofNotFound
+	}
+
+	switch ProofType(proofType) {
+	case BJJSignatureProofType:
+		var proof BJJSignatureProof2021
+		credProofJ, err := json.Marshal(credProof)
+		if err != nil {
+			return false, err
+		}
+		err = json.Unmarshal(credProofJ, &proof)
+		if err != nil {
+			return false, err
+		}
+		return validateBJJSignatureProof(proof)
+	case Iden3SparseMerkleTreeProofType:
+		var proof Iden3SparseMerkleTreeProof
+		credProofJ, err := json.Marshal(credProof)
+		if err != nil {
+			return false, err
+		}
+		err = json.Unmarshal(credProofJ, &proof)
+		if err != nil {
+			return false, err
+		}
+		return validateIden3SparseMerkleTreeProof(proof)
+	default:
+		return false, ErrProofNotFound
+	}
+}
+
+func validateBJJSignatureProof(proof BJJSignatureProof2021) (bool, error) {
+	// issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	// if err != nil {
+	// 	return false, err
+	// }
+
+	// id, err := core.IDFromDID(*issuerDID)
+	// if err != nil {
+	// 	return false, err
+	// }
+
+	// 1.Retrieve the issuer's DID document and locate the Iden3StateInfo2023 object
+	// containing the state root and other relevant information.
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, "http://127.0.0.1:8080/1.0/identifiers")
+	if err != nil {
+		return false, err
+	}
+	//2. Verify that the issuer's public key, which signed the document, has a valid
+	// authentication path from the state root specified in the Iden3StateInfo2023
+	// object within the DID document.
+
+	return vm == nil, nil
+}
+
+func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof) (bool, error) {
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, "http://127.0.0.1:8080/1.0/identifiers")
+	if err != nil {
+		return false, err
+	}
+	return vm == nil, nil
+}
+
+func resolveDIDDocumentAuth(DID string, resolverURL string) (*CommonVerificationMethod, error) {
+	type didResolutionResult struct {
+		DIDDocument DIDDocument `json:"didDocument"`
+	}
+	res := &didResolutionResult{}
+
+	resp, err := http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), DID))
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		resp.Body.Close()
+	}()
+
+	err = json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		return nil, err
+	}
+
+	var iden3StateInfo2023 *CommonVerificationMethod
+	for _, a := range res.DIDDocument.Authentication {
+		if a.Type == "Iden3StateInfo2023" {
+			iden3StateInfo2023 = &a.CommonVerificationMethod
+		}
+	}
+	if iden3StateInfo2023 == nil {
+		return nil, errors.New("Issuer Iden3StateInfo2023 auth info not found")
+	}
+
+	return iden3StateInfo2023, nil
 }
 
 // Merklize merklizes verifiable credential
