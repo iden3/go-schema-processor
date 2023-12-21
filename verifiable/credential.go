@@ -3,13 +3,17 @@ package verifiable
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strings"
 	"time"
 
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-iden3-crypto/babyjub"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/pkg/errors"
@@ -34,6 +38,7 @@ type W3CCredential struct {
 // ValidateProof validate credential proof
 func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType) (bool, error) {
 	var credProof CredentialProof
+	var coreClaim *core.Claim
 	for _, p := range vc.Proof {
 		if p.ProofType() == proofType {
 			credProof = p
@@ -43,6 +48,10 @@ func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType)
 		return false, ErrProofNotFound
 	}
 
+	coreClaim, err := credProof.GetCoreClaim()
+	if err != nil {
+		return false, errors.New("can't get core claim")
+	}
 	switch ProofType(proofType) {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
@@ -54,7 +63,7 @@ func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType)
 		if err != nil {
 			return false, err
 		}
-		return validateBJJSignatureProof(proof)
+		return validateBJJSignatureProof(proof, coreClaim)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -65,22 +74,46 @@ func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType)
 		if err != nil {
 			return false, err
 		}
-		return validateIden3SparseMerkleTreeProof(proof)
+		return validateIden3SparseMerkleTreeProof(proof, coreClaim)
 	default:
 		return false, ErrProofNotFound
 	}
 }
 
-func validateBJJSignatureProof(proof BJJSignatureProof2021) (bool, error) {
-	// issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
-	// if err != nil {
-	// 	return false, err
-	// }
+func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim) (bool, error) {
+	// issuer claim
+	authClaim := &core.Claim{}
+	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
+	if err != nil {
+		return false, err
+	}
 
-	// id, err := core.IDFromDID(*issuerDID)
-	// if err != nil {
-	// 	return false, err
-	// }
+	rawSlotInts := authClaim.RawSlotsAsInts()
+	var publicKey babyjub.PublicKey
+	publicKey.X = rawSlotInts[2] // Ax <== claim[2]; // Ax should be in indexSlotA
+	publicKey.Y = rawSlotInts[3] // Ay <== claim[3]; // Ay should be in indexSlotB
+
+	sig, err := bjjSignatureFromHexString(proof.Signature)
+	if err != nil || sig == nil {
+		return false, err
+	}
+
+	// core claim hash
+	hi, hv, err := coreClaim.HiHv()
+	if err != nil {
+		return false, err
+	}
+
+	claimHash, err := poseidon.Hash([]*big.Int{hi, hv})
+	if err != nil {
+		return false, err
+	}
+
+	valid := publicKey.VerifyPoseidon(claimHash, sig)
+
+	if !valid {
+		return false, err
+	}
 
 	// 1.Retrieve the issuer's DID document and locate the Iden3StateInfo2023 object
 	// containing the state root and other relevant information.
@@ -95,7 +128,18 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021) (bool, error) {
 	return vm == nil, nil
 }
 
-func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof) (bool, error) {
+func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
+	signatureBytes, err := hex.DecodeString(sigHex)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	var sig [64]byte
+	copy(sig[:], signatureBytes)
+	bjjSig, err := new(babyjub.Signature).Decompress(sig)
+	return bjjSig, errors.WithStack(err)
+}
+
+func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim) (bool, error) {
 	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, "http://127.0.0.1:8080/1.0/identifiers")
 	if err != nil {
 		return false, err
