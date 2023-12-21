@@ -117,15 +117,19 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Clai
 
 	// 1.Retrieve the issuer's DID document and locate the Iden3StateInfo2023 object
 	// containing the state root and other relevant information.
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, "http://127.0.0.1:8080/1.0/identifiers")
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, *proof.IssuerData.State.Value, "http://127.0.0.1:8080/1.0/identifiers")
 	if err != nil {
 		return false, err
 	}
 	//2. Verify that the issuer's public key, which signed the document, has a valid
 	// authentication path from the state root specified in the Iden3StateInfo2023
 	// object within the DID document.
+	if *vm.IdentityState.Published == true &&
+		(vm.IdentityState.Info == nil || vm.IdentityState.Info.State != *proof.IssuerData.State.Value) {
+		return false, errors.New("invalid issuer state")
+	}
 
-	return vm == nil, nil
+	return true, nil
 }
 
 func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
@@ -140,20 +144,22 @@ func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
 }
 
 func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim) (bool, error) {
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, "http://127.0.0.1:8080/1.0/identifiers")
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, *proof.IssuerData.State.Value, "http://127.0.0.1:8080/1.0/identifiers")
 	if err != nil {
 		return false, err
 	}
 	return vm == nil, nil
 }
 
-func resolveDIDDocumentAuth(DID string, resolverURL string) (*CommonVerificationMethod, error) {
+func resolveDIDDocumentAuth(DID, state, resolverURL string) (*CommonVerificationMethod, error) {
+	// 29305636064099160210536948077705157048478988844998217946273455478812643842 id
+	// 13775363136890502301451533555347371270112423815787188169255936824892600278521 state hex bigint
 	type didResolutionResult struct {
 		DIDDocument DIDDocument `json:"didDocument"`
 	}
 	res := &didResolutionResult{}
 
-	resp, err := http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), DID))
+	resp, err := http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), DID, state))
 
 	if err != nil {
 		return nil, err
