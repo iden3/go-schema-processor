@@ -142,16 +142,37 @@ func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreCl
 	if err != nil {
 		return false, err
 	}
-	//2. Verify that the issuer's public key, which signed the document, has a valid
-	// authentication path from the state root specified in the Iden3StateInfo2023
-	// object within the DID document.
-	// gene
 
-	// 3. root from proof (go merkle tree) == issuerData.state.value
-	if *vm.IdentityState.Published == true &&
-		(vm.IdentityState.Info == nil || vm.IdentityState.Info.State != *proof.IssuerData.State.Value) {
-		return false, errors.New("invalid issuer state")
+	// Published or genesis
+	if *vm.IdentityState.Published == false {
+		isGenesis, err := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		if err != nil {
+			return false, err
+		}
+		if !isGenesis {
+			return false, errors.New("issuer state not published and not genesis")
+		}
 	}
+
+	// 3. root from proof == issuerData.state.value
+	hi, hv, err := coreClaim.HiHv()
+	if err != nil {
+		return false, err
+	}
+
+	rootFromProof, err := merkletree.RootFromProof(proof.MTP, hi, hv)
+	if err != nil {
+		return false, err
+	}
+	issuerShateHash, err := merkletree.NewHashFromHex(*proof.IssuerData.State.ClaimsTreeRoot)
+	if err != nil {
+		return false, fmt.Errorf("invalid state formant: %v", err)
+	}
+
+	if rootFromProof.BigInt().Cmp(issuerShateHash.BigInt()) != 0 {
+		return false, errors.New("mtp proof not valid")
+	}
+
 	return false, errors.New("not implemented cred status validation")
 }
 
