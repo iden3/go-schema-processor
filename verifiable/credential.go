@@ -12,8 +12,10 @@ import (
 	"time"
 
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/iden3/go-merkletree-sql/v2"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/pkg/errors"
@@ -90,8 +92,8 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Clai
 
 	rawSlotInts := authClaim.RawSlotsAsInts()
 	var publicKey babyjub.PublicKey
-	publicKey.X = rawSlotInts[2] // Ax <== claim[2]; // Ax should be in indexSlotA
-	publicKey.Y = rawSlotInts[3] // Ay <== claim[3]; // Ay should be in indexSlotB
+	publicKey.X = rawSlotInts[2] // Ax should be in indexSlotA
+	publicKey.Y = rawSlotInts[3] // Ay should be in indexSlotB
 
 	sig, err := bjjSignatureFromHexString(proof.Signature)
 	if err != nil || sig == nil {
@@ -115,8 +117,27 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Clai
 		return false, err
 	}
 
-	// 1.Retrieve the issuer's DID document and locate the Iden3StateInfo2023 object
-	// containing the state root and other relevant information.
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
+	if err != nil {
+		return false, err
+	}
+
+	// Published or genesis
+	if *vm.IdentityState.Published == false {
+		isGenesis, err := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		if err != nil {
+			return false, err
+		}
+		if !isGenesis {
+			return false, errors.New("issuer state not published and not genesis")
+		}
+	}
+
+	// 3.TODO: Validate credential status
+	return false, errors.New("not implemented cred status validation")
+}
+
+func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
 	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
 	if err != nil {
 		return false, err
@@ -124,21 +145,14 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Clai
 	//2. Verify that the issuer's public key, which signed the document, has a valid
 	// authentication path from the state root specified in the Iden3StateInfo2023
 	// object within the DID document.
+	// gene
+
+	// 3. root from proof (go merkle tree) == issuerData.state.value
 	if *vm.IdentityState.Published == true &&
 		(vm.IdentityState.Info == nil || vm.IdentityState.Info.State != *proof.IssuerData.State.Value) {
 		return false, errors.New("invalid issuer state")
 	}
-
-	//3. Validate revocation status
-	latestState, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, nil)
-	if err != nil {
-		return false, err
-	}
-	// TODO check revocation status
-	if *latestState.IdentityState.Published == true {
-		return false, errors.New("revoked")
-	}
-	return true, nil
+	return false, errors.New("not implemented cred status validation")
 }
 
 func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
@@ -152,24 +166,37 @@ func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
 	return bjjSig, errors.WithStack(err)
 }
 
-func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
+func isGenesis(id, state string) (bool, error) {
+	issuerDID, err := w3c.ParseDID(id)
 	if err != nil {
 		return false, err
 	}
-	//2. Verify that the issuer's public key, which signed the document, has a valid
-	// authentication path from the state root specified in the Iden3StateInfo2023
-	// object within the DID document.
-	if *vm.IdentityState.Published == true &&
-		(vm.IdentityState.Info == nil || vm.IdentityState.Info.State != *proof.IssuerData.State.Value) {
-		return false, errors.New("invalid issuer state")
+	issuerID, err := core.IDFromDID(*issuerDID)
+	if err != nil {
+		return false, err
 	}
-	return true, nil
+	stateHash, err := merkletree.NewHashFromHex(state)
+	if err != nil {
+		return false, fmt.Errorf("invalid state formant: %v", err)
+	}
+
+	method, err := core.MethodFromID(issuerID)
+	blockchain, err := core.BlockchainFromID(issuerID)
+	networkID, err := core.NetworkIDFromID(issuerID)
+
+	didType, err := core.BuildDIDType(method, blockchain, networkID)
+	if err != nil {
+		return false, err
+	}
+	identifier, err := core.NewIDFromIdenState(didType, stateHash.BigInt())
+	if err != nil {
+		return false, err
+	}
+
+	return issuerID.BigInt().Cmp(identifier.BigInt()) == 0, nil
 }
 
 func resolveDIDDocumentAuth(DID, resolverURL string, state *string) (*CommonVerificationMethod, error) {
-	// 29305636064099160210536948077705157048478988844998217946273455478812643842 id
-	// 13775363136890502301451533555347371270112423815787188169255936824892600278521 state hex bigint
 	type didResolutionResult struct {
 		DIDDocument DIDDocument `json:"didDocument"`
 	}

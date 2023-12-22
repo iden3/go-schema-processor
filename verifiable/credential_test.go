@@ -81,8 +81,81 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 
 	isValid, err := vc.ValidateProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers")
-	require.NoError(t, err)
-	require.True(t, isValid)
+	require.Error(t, err, "not implemented cred status validation")
+	require.False(t, isValid)
+}
+
+func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
+	in := `{
+    "id": "urn:uuid:b7a1e232-a0d3-11ee-bc8a-a27b3ddbdc29",
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
+        "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld"
+    ],
+    "type": [
+        "VerifiableCredential",
+        "KYCAgeCredential"
+    ],
+    "expirationDate": "2361-03-21T21:14:48+02:00",
+    "issuanceDate": "2023-12-22T16:09:27.444712+02:00",
+    "credentialSubject": {
+        "birthday": 19960424,
+        "documentType": 2,
+        "id": "did:polygonid:polygon:mumbai:2qJm6vBXtHWMqm9A9f5zihRNVGptHAHcK8oVxGUTg8",
+        "type": "KYCAgeCredential"
+    },
+    "credentialStatus": {
+        "id": "https://rhs-staging.polygonid.me/node?state=da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817",
+        "revocationNonce": 1102174849,
+        "statusIssuer": {
+            "id": "https://ad40-91-210-251-7.ngrok-free.app/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks/claims/revocation/status/1102174849",
+            "revocationNonce": 1102174849,
+            "type": "SparseMerkleTreeProof"
+        },
+        "type": "Iden3ReverseSparseMerkleTreeProof"
+    },
+    "issuer": "did:polygonid:polygon:mumbai:2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks",
+    "credentialSchema": {
+        "id": "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json/KYCAgeCredential-v3.json",
+        "type": "JsonSchema2023"
+    },
+    "proof": [
+        {
+            "type": "BJJSignature2021",
+            "issuerData": {
+                "id": "did:polygonid:polygon:mumbai:2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks",
+                "state": {
+                    "claimsTreeRoot": "aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e",
+                    "value": "da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817"
+                },
+                "authCoreClaim": "cca3371a6cb1b715004407e325bd993c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c08ac5cc7c5aa3e8190e188cf8d1737c92d16188541b582ef676c55b3a842c06c4985e9d4771ee6d033c2021a3d177f7dfa51859d99a9a476c2a910e887dc8240000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                "mtp": {
+                    "existence": true,
+                    "siblings": []
+                },
+                "credentialStatus": {
+                    "id": "https://rhs-staging.polygonid.me/node?state=da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817",
+                    "revocationNonce": 0,
+                    "statusIssuer": {
+                        "id": "https://ad40-91-210-251-7.ngrok-free.app/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks/claims/revocation/status/0",
+                        "revocationNonce": 0,
+                        "type": "SparseMerkleTreeProof"
+                    },
+                    "type": "Iden3ReverseSparseMerkleTreeProof"
+                }
+            },
+            "coreClaim": "c9b2370371b7fa8b3dab2a5ba81b68382a00000000000000000000000000000002128aa2ae20d4f8f7b9d673e06498fa410f3c5a790194f3b9284a2018f30d0037d1e542f1b72c9d5ca4b46d93710fbfa23a7c9c36eb3ca0eb0f9548ad9c140c000000000000000000000000000000000000000000000000000000000000000081dab14100000000281cdcdf0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "signature": "2a2e4d79f3aa440154643252d1b9074f9651fffcd653fb2fcadc07f55cd1f9a20a812dd7df8ba8775653984cfb7120f999751f9c25473fd634c7f2d88419c102"
+        }
+    ]
+}`
+	var vc W3CCredential
+	err := json.Unmarshal([]byte(in), &vc)
+
+	isValid, err := vc.ValidateProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers")
+	require.Error(t, err, "not implemented cred status validation")
+	require.False(t, isValid)
 }
 
 func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
@@ -177,8 +250,8 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 
 	isValid, err := vc.ValidateProof(context.Background(), Iden3SparseMerkleTreeProofType, "http://127.0.0.1:8080/1.0/identifiers")
-	require.NoError(t, err)
-	require.True(t, isValid)
+	require.Error(t, err, "not implemented cred status validation")
+	require.False(t, isValid)
 }
 
 func TestW3CCredential_JSONUnmarshal(t *testing.T) {
