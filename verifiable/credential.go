@@ -36,7 +36,7 @@ type W3CCredential struct {
 }
 
 // ValidateProof validate credential proof
-func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType) (bool, error) {
+func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType, resolverURL string) (bool, error) {
 	var credProof CredentialProof
 	var coreClaim *core.Claim
 	for _, p := range vc.Proof {
@@ -63,7 +63,7 @@ func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType)
 		if err != nil {
 			return false, err
 		}
-		return validateBJJSignatureProof(proof, coreClaim)
+		return validateBJJSignatureProof(proof, coreClaim, resolverURL)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -74,13 +74,13 @@ func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType)
 		if err != nil {
 			return false, err
 		}
-		return validateIden3SparseMerkleTreeProof(proof, coreClaim)
+		return validateIden3SparseMerkleTreeProof(proof, coreClaim, resolverURL)
 	default:
 		return false, ErrProofNotFound
 	}
 }
 
-func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim) (bool, error) {
+func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string) (bool, error) {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -117,7 +117,7 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Clai
 
 	// 1.Retrieve the issuer's DID document and locate the Iden3StateInfo2023 object
 	// containing the state root and other relevant information.
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, *proof.IssuerData.State.Value, "http://127.0.0.1:8080/1.0/identifiers")
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
 	if err != nil {
 		return false, err
 	}
@@ -129,6 +129,15 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Clai
 		return false, errors.New("invalid issuer state")
 	}
 
+	//3. Validate revocation status
+	latestState, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, nil)
+	if err != nil {
+		return false, err
+	}
+	// TODO check revocation status
+	if *latestState.IdentityState.Published == true {
+		return false, errors.New("revoked")
+	}
 	return true, nil
 }
 
@@ -143,15 +152,22 @@ func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
 	return bjjSig, errors.WithStack(err)
 }
 
-func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim) (bool, error) {
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, *proof.IssuerData.State.Value, "http://127.0.0.1:8080/1.0/identifiers")
+func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
 	if err != nil {
 		return false, err
 	}
-	return vm == nil, nil
+	//2. Verify that the issuer's public key, which signed the document, has a valid
+	// authentication path from the state root specified in the Iden3StateInfo2023
+	// object within the DID document.
+	if *vm.IdentityState.Published == true &&
+		(vm.IdentityState.Info == nil || vm.IdentityState.Info.State != *proof.IssuerData.State.Value) {
+		return false, errors.New("invalid issuer state")
+	}
+	return true, nil
 }
 
-func resolveDIDDocumentAuth(DID, state, resolverURL string) (*CommonVerificationMethod, error) {
+func resolveDIDDocumentAuth(DID, resolverURL string, state *string) (*CommonVerificationMethod, error) {
 	// 29305636064099160210536948077705157048478988844998217946273455478812643842 id
 	// 13775363136890502301451533555347371270112423815787188169255936824892600278521 state hex bigint
 	type didResolutionResult struct {
@@ -159,7 +175,13 @@ func resolveDIDDocumentAuth(DID, state, resolverURL string) (*CommonVerification
 	}
 	res := &didResolutionResult{}
 
-	resp, err := http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), DID, state))
+	var resp *http.Response
+	var err error
+	if state != nil {
+		resp, err = http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), DID, *state))
+	} else {
+		resp, err = http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), DID))
+	}
 
 	if err != nil {
 		return nil, err

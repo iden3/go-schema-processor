@@ -80,7 +80,7 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	var vc W3CCredential
 	err := json.Unmarshal([]byte(in), &vc)
 
-	isValid, err := vc.ValidateProof(context.Background(), BJJSignatureProofType)
+	isValid, err := vc.ValidateProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers")
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -176,7 +176,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	var vc W3CCredential
 	err := json.Unmarshal([]byte(in), &vc)
 
-	isValid, err := vc.ValidateProof(context.Background(), Iden3SparseMerkleTreeProofType)
+	isValid, err := vc.ValidateProof(context.Background(), Iden3SparseMerkleTreeProofType, "http://127.0.0.1:8080/1.0/identifiers")
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
