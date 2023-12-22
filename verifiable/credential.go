@@ -154,7 +154,7 @@ func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreCl
 		}
 	}
 
-	// 3. root from proof == issuerData.state.value
+	// 3. root from proof == issuerData.state.сlaimsTreeRoot
 	hi, hv, err := coreClaim.HiHv()
 	if err != nil {
 		return false, err
