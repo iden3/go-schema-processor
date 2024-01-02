@@ -69,4 +69,6 @@ issues:
       linters:
         - gosec
         - dupl
+    - text: 'shadow: declaration of "(err|ctx)" shadows declaration at'
+      linters: [ govet ]
   exclude-use-default: false
