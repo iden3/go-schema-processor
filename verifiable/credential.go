@@ -37,8 +37,8 @@ type W3CCredential struct {
 	RefreshService    *RefreshService        `json:"refreshService,omitempty"`
 }
 
-// ValidateProof validate credential proof
-func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType, resolverURL string) (bool, error) {
+// VerifyProof verify credential proof
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string) (bool, error) {
 	var credProof CredentialProof
 	var coreClaim *core.Claim
 	for _, p := range vc.Proof {
@@ -65,7 +65,7 @@ func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType,
 		if err != nil {
 			return false, err
 		}
-		return validateBJJSignatureProof(proof, coreClaim, resolverURL)
+		return verifyBJJSignatureProof(proof, coreClaim, resolverURL)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -76,13 +76,13 @@ func (vc *W3CCredential) ValidateProof(ctx context.Context, proofType ProofType,
 		if err != nil {
 			return false, err
 		}
-		return validateIden3SparseMerkleTreeProof(proof, coreClaim, resolverURL)
+		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, resolverURL)
 	default:
 		return false, ErrProofNotFound
 	}
 }
 
-func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string) (bool, error) {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string) (bool, error) {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -137,7 +137,7 @@ func validateBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Clai
 	return false, errors.New("not implemented cred status validation")
 }
 
-func validateIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
+func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
 	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
 	if err != nil {
 		return false, err
