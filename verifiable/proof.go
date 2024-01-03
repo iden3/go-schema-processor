@@ -15,11 +15,11 @@ type ProofType string
 
 // IssuerData is the data that is used to create a proof
 type IssuerData struct {
-	ID               string      `json:"id,omitempty"`
-	State            State       `json:"state,omitempty"`
-	AuthCoreClaim    string      `json:"authCoreClaim,omitempty"`
-	MTP              *mt.Proof   `json:"mtp,omitempty"`
-	CredentialStatus interface{} `json:"credentialStatus,omitempty"`
+	ID               string    `json:"id,omitempty"`
+	State            State     `json:"state,omitempty"`
+	AuthCoreClaim    string    `json:"authCoreClaim,omitempty"`
+	MTP              *mt.Proof `json:"mtp,omitempty"`
+	CredentialStatus jsonObj   `json:"credentialStatus,omitempty"`
 }
 
 // State represents the state of the issuer

@@ -29,7 +29,7 @@ type W3CCredential struct {
 	Expiration        *time.Time             `json:"expirationDate,omitempty"`
 	IssuanceDate      *time.Time             `json:"issuanceDate,omitempty"`
 	CredentialSubject map[string]interface{} `json:"credentialSubject"`
-	CredentialStatus  interface{}            `json:"credentialStatus,omitempty"`
+	CredentialStatus  jsonObj                `json:"credentialStatus,omitempty"`
 	Issuer            string                 `json:"issuer"`
 	CredentialSchema  CredentialSchema       `json:"credentialSchema"`
 	Proof             CredentialProofs       `json:"proof,omitempty"`
@@ -37,7 +37,7 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string) (bool, error) {
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string, envConfig EnvConfig) (bool, error) {
 	var credProof CredentialProof
 	var coreClaim *core.Claim
 	for _, p := range vc.Proof {
@@ -64,7 +64,8 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 		if err != nil {
 			return false, err
 		}
-		return verifyBJJSignatureProof(proof, coreClaim, resolverURL)
+
+		return verifyBJJSignatureProof(proof, coreClaim, resolverURL, envConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -81,7 +82,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string) (bool, error) {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string, envConfig EnvConfig) (bool, error) {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -132,8 +133,24 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		}
 	}
 
-	// 3.TODO: Validate credential status
-	return false, errors.New("not implemented cred status validation")
+	// validate credential status
+	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	if err != nil {
+		return false, err
+	}
+
+	issuerID, err := core.IDFromDID(*issuerDID)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = BuildAndValidateCredentialStatus(context.Background(), envConfig, proof.IssuerData.CredentialStatus, &issuerID, false)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
@@ -173,7 +190,7 @@ func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClai
 		return false, errors.New("mtp proof not valid")
 	}
 
-	return false, errors.New("not implemented cred status validation")
+	return true, nil
 }
 
 func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {

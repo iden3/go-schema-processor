@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
 	"github.com/stretchr/testify/require"
@@ -81,9 +82,18 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
 
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers")
-	require.Error(t, err, "not implemented cred status validation")
-	require.False(t, isValid)
+	envConf := EnvConfig{
+		ChainConfigs: map[ChainID]ChainConfig{
+			80001: {
+				RPCUrl:            "https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ",
+				StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
+			},
+		},
+	}
+
+	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers", envConf)
+	require.NoError(t, err)
+	require.True(t, isValid)
 }
 
 func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
@@ -154,10 +164,17 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	var vc W3CCredential
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
-
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers")
-	require.Error(t, err, "not implemented cred status validation")
-	require.False(t, isValid)
+	envConf := EnvConfig{
+		ChainConfigs: map[ChainID]ChainConfig{
+			80001: {
+				RPCUrl:            "https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ",
+				StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
+			},
+		},
+	}
+	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers", envConf)
+	require.NoError(t, err)
+	require.True(t, isValid)
 }
 
 func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
@@ -252,9 +269,9 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
 
-	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, "http://127.0.0.1:8080/1.0/identifiers")
-	require.Error(t, err, "not implemented cred status validation")
-	require.False(t, isValid)
+	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, "http://127.0.0.1:8080/1.0/identifiers", EnvConfig{})
+	require.NoError(t, err)
+	require.True(t, isValid)
 }
 
 func TestW3CCredential_JSONUnmarshal(t *testing.T) {
