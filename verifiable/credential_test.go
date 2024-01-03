@@ -79,6 +79,7 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 }`
 	var vc W3CCredential
 	err := json.Unmarshal([]byte(in), &vc)
+	require.NoError(t, err)
 
 	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers")
 	require.Error(t, err, "not implemented cred status validation")
@@ -152,6 +153,7 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 }`
 	var vc W3CCredential
 	err := json.Unmarshal([]byte(in), &vc)
+	require.NoError(t, err)
 
 	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers")
 	require.Error(t, err, "not implemented cred status validation")
@@ -248,6 +250,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 }`
 	var vc W3CCredential
 	err := json.Unmarshal([]byte(in), &vc)
+	require.NoError(t, err)
 
 	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, "http://127.0.0.1:8080/1.0/identifiers")
 	require.Error(t, err, "not implemented cred status validation")

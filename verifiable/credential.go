@@ -16,7 +16,6 @@ import (
 	"github.com/iden3/go-iden3-crypto/babyjub"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
-	mt "github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/pkg/errors"
 )
@@ -54,7 +53,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 	if err != nil {
 		return false, errors.New("can't get core claim")
 	}
-	switch ProofType(proofType) {
+	switch proofType {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
 		credProofJ, err := json.Marshal(credProof)
@@ -123,7 +122,7 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 	}
 
 	// Published or genesis
-	if *vm.IdentityState.Published == false {
+	if !*vm.IdentityState.Published {
 		isGenesis, err := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
 		if err != nil {
 			return false, err
@@ -138,16 +137,17 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 }
 
 func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
+	var err error
 	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
 	if err != nil {
 		return false, err
 	}
 
 	// Published or genesis
-	if *vm.IdentityState.Published == false {
-		isGenesis, err := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
-		if err != nil {
-			return false, err
+	if !*vm.IdentityState.Published {
+		isGenesis, err2 := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		if err2 != nil {
+			return false, err2
 		}
 		if !isGenesis {
 			return false, errors.New("issuer state not published and not genesis")
@@ -202,8 +202,17 @@ func isGenesis(id, state string) (bool, error) {
 	}
 
 	method, err := core.MethodFromID(issuerID)
+	if err != nil {
+		return false, err
+	}
 	blockchain, err := core.BlockchainFromID(issuerID)
+	if err != nil {
+		return false, err
+	}
 	networkID, err := core.NetworkIDFromID(issuerID)
+	if err != nil {
+		return false, err
+	}
 
 	didType, err := core.BuildDIDType(method, blockchain, networkID)
 	if err != nil {
@@ -217,7 +226,7 @@ func isGenesis(id, state string) (bool, error) {
 	return issuerID.BigInt().Cmp(identifier.BigInt()) == 0, nil
 }
 
-func resolveDIDDocumentAuth(DID, resolverURL string, state *string) (*CommonVerificationMethod, error) {
+func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVerificationMethod, error) {
 	type didResolutionResult struct {
 		DIDDocument DIDDocument `json:"didDocument"`
 	}
@@ -226,9 +235,9 @@ func resolveDIDDocumentAuth(DID, resolverURL string, state *string) (*CommonVeri
 	var resp *http.Response
 	var err error
 	if state != nil {
-		resp, err = http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), DID, *state))
+		resp, err = http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), did, *state))
 	} else {
-		resp, err = http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), DID))
+		resp, err = http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), did))
 	}
 
 	if err != nil {
@@ -236,7 +245,10 @@ func resolveDIDDocumentAuth(DID, resolverURL string, state *string) (*CommonVeri
 	}
 
 	defer func() {
-		resp.Body.Close()
+		err2 := resp.Body.Close()
+		if err != nil {
+			err = errors.WithStack(err2)
+		}
 	}()
 
 	err = json.NewDecoder(resp.Body).Decode(&res)
@@ -247,7 +259,8 @@ func resolveDIDDocumentAuth(DID, resolverURL string, state *string) (*CommonVeri
 	var iden3StateInfo2023 *CommonVerificationMethod
 	for _, a := range res.DIDDocument.Authentication {
 		if a.Type == "Iden3StateInfo2023" {
-			iden3StateInfo2023 = &a.CommonVerificationMethod
+			a2 := a
+			iden3StateInfo2023 = &a2.CommonVerificationMethod
 		}
 	}
 	if iden3StateInfo2023 == nil {
@@ -334,5 +347,5 @@ type RevocationStatus struct {
 		ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
 		RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
 	} `json:"issuer"`
-	MTP mt.Proof `json:"mtp"`
+	MTP merkletree.Proof `json:"mtp"`
 }
