@@ -270,6 +270,8 @@ func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVeri
 	var resp *http.Response
 	var err error
 	if state != nil {
+		// encapsulate did if any query params
+		did = strings.ReplaceAll(did, ":", "%3A")
 		resp, err = http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), did, *state))
 	} else {
 		resp, err = http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), did))

@@ -92,7 +92,7 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	defer client.Close()
 
 	verifyConfig := VerifyConfig{
-		resolverURL:    "http://127.0.0.1:8080/1.0/identifiers",
+		resolverURL:    "https://universal-resolver.polygonid.me/1.0/identifiers",
 		credStatusConf: credStatusConfig,
 	}
 
@@ -179,7 +179,7 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	defer client.Close()
 
 	verifyConfig := VerifyConfig{
-		resolverURL:    "http://127.0.0.1:8080/1.0/identifiers",
+		resolverURL:    "https://universal-resolver.polygonid.me/1.0/identifiers",
 		credStatusConf: credStatusConfig,
 	}
 
@@ -281,7 +281,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	require.NoError(t, err)
 
 	verifyConfig := VerifyConfig{
-		resolverURL: "http://127.0.0.1:8080/1.0/identifiers",
+		resolverURL: "https://universal-resolver.polygonid.me/1.0/identifiers",
 	}
 
 	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, verifyConfig)
