@@ -84,11 +84,11 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	require.NoError(t, err)
 
 	client, err := ethclient.Dial("https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ")
+	require.NoError(t, err)
 	credStatusConfig := CredStatusConfig{
 		EthClient:         client,
 		StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
 	}
-	require.NoError(t, err)
 	defer client.Close()
 
 	verifyConfig := VerifyConfig{
@@ -171,11 +171,11 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	require.NoError(t, err)
 
 	client, err := ethclient.Dial("https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ")
+	require.NoError(t, err)
 	credStatusConfig := CredStatusConfig{
 		EthClient:         client,
 		StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
 	}
-	require.NoError(t, err)
 	defer client.Close()
 
 	verifyConfig := VerifyConfig{

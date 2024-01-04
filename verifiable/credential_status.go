@@ -34,7 +34,7 @@ type hexHash merkletree.Hash
 
 type ChainID uint64
 
-type onchainRevStatus struct {
+type OnChainRevStatus struct {
 	chainID         ChainID
 	contractAddress common.Address
 	revNonce        uint64
@@ -339,7 +339,7 @@ func newRhsCli(rhsURL string) (*mp.HTTPReverseHashCli, error) {
 	}, nil
 }
 
-// marshal/unmarshal object from one type to ther
+// marshal/unmarshal object from one type to other
 func remarshalObj(dst, src any) error {
 	objBytes, err := json.Marshal(src)
 	if err != nil {
@@ -554,8 +554,8 @@ func resolverOnChainRevocationStatus(ctx context.Context, cfg CredStatusConfig,
 	return toMerkleTreeProof(resp)
 }
 
-func newOnchainRevStatusFromURI(stateID string) (onchainRevStatus, error) {
-	var s onchainRevStatus
+func newOnchainRevStatusFromURI(stateID string) (OnChainRevStatus, error) {
+	var s OnChainRevStatus
 
 	uri, err := url.Parse(stateID)
 	if err != nil {
@@ -664,7 +664,6 @@ func toMerkleTreeProof(status onchainABI.IOnchainCredentialStatusResolverCredent
 		}
 	}
 
-	//allSiblings := make([]*merkletree.Hash, len(status.Mtp.Siblings))
 	depth := calculateDepth(status.Mtp.Siblings)
 	allSiblings := make([]*merkletree.Hash, depth)
 	for i := 0; i < depth; i++ {
