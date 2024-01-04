@@ -1,6 +1,6 @@
 module github.com/iden3/go-schema-processor/v2
 
-go 1.18
+go 1.19
 
 require (
 	github.com/iden3/contracts-abi/onchain-credential-status-resolver/go/abi v0.0.0-20230911113809-c58b7e7a69b0
@@ -16,8 +16,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
-	github.com/stretchr/testify v1.8.4
-	golang.org/x/crypto v0.17.0
+	github.com/stretchr/testify v1.8.2
+	golang.org/x/crypto v0.10.0
 )
 
 require (
