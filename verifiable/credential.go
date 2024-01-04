@@ -292,10 +292,9 @@ func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVeri
 	}
 
 	var iden3StateInfo2023 *CommonVerificationMethod
-	for _, a := range res.DIDDocument.Authentication {
+	for _, a := range res.DIDDocument.VerificationMethod {
 		if a.Type == "Iden3StateInfo2023" {
-			a2 := a
-			iden3StateInfo2023 = &a2.CommonVerificationMethod
+			iden3StateInfo2023 = &a
 		}
 	}
 	if iden3StateInfo2023 == nil {
