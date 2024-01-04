@@ -1,6 +1,6 @@
 module github.com/iden3/go-schema-processor/v2
 
-go 1.21
+go 1.18
 
 require (
 	github.com/iden3/contracts-abi/onchain-credential-status-resolver/go/abi v0.0.0-20230911113809-c58b7e7a69b0
