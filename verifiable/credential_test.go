@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
 	"github.com/stretchr/testify/require"
@@ -82,16 +83,20 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
 
-	envConf := EnvConfig{
-		ChainConfigs: map[ChainID]ChainConfig{
-			80001: {
-				RPCUrl:            "https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ",
-				StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
-			},
-		},
+	client, err := ethclient.Dial("https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ")
+	credStatusConfig := CredStatusConfig{
+		EthClient:         client,
+		StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
+	}
+	require.NoError(t, err)
+	defer client.Close()
+
+	verifyConfig := VerifyConfig{
+		resolverURL:    "http://127.0.0.1:8080/1.0/identifiers",
+		credStatusConf: credStatusConfig,
 	}
 
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers", envConf)
+	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, verifyConfig)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -164,15 +169,21 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	var vc W3CCredential
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
-	envConf := EnvConfig{
-		ChainConfigs: map[ChainID]ChainConfig{
-			80001: {
-				RPCUrl:            "https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ",
-				StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
-			},
-		},
+
+	client, err := ethclient.Dial("https://polygon-mumbai.g.alchemy.com/v2/6S0RiH55rrmlnrkMiEm0IL2Zy4O-VrnQ")
+	credStatusConfig := CredStatusConfig{
+		EthClient:         client,
+		StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
 	}
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, "http://127.0.0.1:8080/1.0/identifiers", envConf)
+	require.NoError(t, err)
+	defer client.Close()
+
+	verifyConfig := VerifyConfig{
+		resolverURL:    "http://127.0.0.1:8080/1.0/identifiers",
+		credStatusConf: credStatusConfig,
+	}
+
+	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, verifyConfig)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -269,7 +280,11 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
 
-	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, "http://127.0.0.1:8080/1.0/identifiers", EnvConfig{})
+	verifyConfig := VerifyConfig{
+		resolverURL: "http://127.0.0.1:8080/1.0/identifiers",
+	}
+
+	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, verifyConfig)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }

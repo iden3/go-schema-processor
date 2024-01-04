@@ -46,72 +46,10 @@ type stateContractIDKey struct {
 	id           core.ID
 }
 
-type ChainConfig struct {
-	RPCUrl            string
+type CredStatusConfig struct {
+	EthClient         *ethclient.Client
 	StateContractAddr common.Address
 }
-
-type EnvConfig struct {
-	ChainConfigs          PerChainConfig
-	EthereumURL           string         // Deprecated: Use ChainConfigs instead
-	StateContractAddr     common.Address // Deprecated: Use ChainConfigs instead
-	ReverseHashServiceUrl string         // Deprecated
-	IPFSNodeURL           string
-}
-
-type chainIDKey struct {
-	blockchain core.Blockchain
-	networkID  core.NetworkID
-}
-
-var knownChainIDs = map[chainIDKey]ChainID{
-	{core.Ethereum, core.Main}:    1,
-	{core.Ethereum, core.Goerli}:  5,
-	{core.Polygon, core.Main}:     137,
-	{core.ZkEVM, core.Main}:       1101,
-	{core.ZkEVM, core.Test}:       1442,
-	{core.Polygon, core.Mumbai}:   80001,
-	{core.Ethereum, core.Sepolia}: 11155111,
-}
-
-func (cfg EnvConfig) networkCfgByID(id *core.ID) (ChainConfig, error) {
-	chainID, err := chainIDFromID(id)
-	if err != nil {
-		return ChainConfig{}, err
-	}
-
-	return cfg.networkCfgByChainID(chainID)
-}
-
-func (cfg EnvConfig) networkCfgByChainID(chainID ChainID) (ChainConfig, error) {
-	chainCfg, ok := cfg.ChainConfigs[chainID]
-	if !ok {
-		chainCfg = cfg.defaultChainCfg()
-	}
-
-	return chainCfg, chainCfg.validate()
-}
-
-func (cfg EnvConfig) defaultChainCfg() ChainConfig {
-	return ChainConfig{
-		RPCUrl:            cfg.EthereumURL,
-		StateContractAddr: cfg.StateContractAddr,
-	}
-}
-
-func (cc ChainConfig) validate() error {
-	if cc.RPCUrl == "" {
-		return errors.New("ethereum url is empty")
-	}
-
-	if cc.StateContractAddr == (common.Address{}) {
-		return errors.New("contract address is empty")
-	}
-
-	return nil
-}
-
-type PerChainConfig map[ChainID]ChainConfig
 
 var idsInStateContract = map[stateContractIDKey]bool{}
 var idsInStateContractLock sync.RWMutex
@@ -150,7 +88,7 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func BuildAndValidateCredentialStatus(ctx context.Context, cfg EnvConfig,
+func BuildAndValidateCredentialStatus(ctx context.Context, cfg CredStatusConfig,
 	credStatus jsonObj, issuerID *core.ID,
 	skipClaimRevocationCheck bool) (circuits.MTProof, error) {
 
@@ -192,7 +130,7 @@ func BuildAndValidateCredentialStatus(ctx context.Context, cfg EnvConfig,
 	return proof, nil
 }
 
-func resolveRevStatus(ctx context.Context, cfg EnvConfig,
+func resolveRevStatus(ctx context.Context, cfg CredStatusConfig,
 	credStatus interface{}, issuerID *core.ID) (circuits.MTProof, error) {
 
 	switch status := credStatus.(type) {
@@ -236,7 +174,7 @@ func resolveRevStatus(ctx context.Context, cfg EnvConfig,
 	}
 }
 
-func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, cfg EnvConfig,
+func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, cfg CredStatusConfig,
 	issuerID *core.ID, revNonce *big.Int) (circuits.MTProof, error) {
 
 	var p circuits.MTProof
@@ -306,7 +244,7 @@ func rhsBaseURL(rhsURL string) (string, *merkletree.Hash, error) {
 	return u.String(), state, nil
 }
 
-func identityStateForRHS(ctx context.Context, cfg EnvConfig, issuerID *core.ID,
+func identityStateForRHS(ctx context.Context, cfg CredStatusConfig, issuerID *core.ID,
 	genesisState *merkletree.Hash) (*merkletree.Hash, error) {
 
 	state, err := lastStateFromContract(ctx, cfg, issuerID)
@@ -341,38 +279,13 @@ func genesisStateMatch(state *merkletree.Hash, id core.ID) (bool, error) {
 	return bytes.Equal(otherID[:], id[:]), nil
 }
 
-// Currently, our library does not have a Close function. As a result, we
-// create and destroy an Ethereum client for each usage of this function.
-// Although this approach may be inefficient, it is acceptable if the function
-// is rarely called. If this becomes an issue in the future, or if a Close
-// function is implemented, we will need to refactor this function to use a
-// global Ethereum client.
-func lastStateFromContract(ctx context.Context, cfg EnvConfig,
+func lastStateFromContract(ctx context.Context, cfg CredStatusConfig,
 	id *core.ID) (*merkletree.Hash, error) {
-
-	networkCfg, err := cfg.networkCfgByID(id)
-	if err != nil {
-		return nil, err
-	}
-
 	var zeroID core.ID
 	if id == nil || *id == zeroID {
 		return nil, errors.New("ID is empty")
 	}
-
-	client, err := ethclient.Dial(networkCfg.RPCUrl)
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-
-	return lastStateFromContractWithClient(ctx, networkCfg, id, client)
-}
-
-func lastStateFromContractWithClient(ctx context.Context, cfg ChainConfig,
-	id *core.ID, cli bind.ContractCaller) (*merkletree.Hash, error) {
-
-	contractCaller, err := abi.NewStateCaller(cfg.StateContractAddr, cli)
+	contractCaller, err := abi.NewStateCaller(cfg.StateContractAddr, cfg.EthClient)
 	if err != nil {
 		return nil, err
 	}
@@ -576,13 +489,7 @@ func getByPath(obj jsonObj, path string) (any, error) {
 	return nil, errors.New("should not happen")
 }
 
-// Currently, our library does not have a Close function. As a result, we
-// create and destroy an Ethereum client for each usage of this function.
-// Although this approach may be inefficient, it is acceptable if the function
-// is rarely called. If this becomes an issue in the future, or if a Close
-// function is implemented, we will need to refactor this function to use a
-// global Ethereum client.
-func resolverOnChainRevocationStatus(ctx context.Context, cfg EnvConfig,
+func resolverOnChainRevocationStatus(ctx context.Context, cfg CredStatusConfig,
 	id *core.ID,
 	status *CredentialStatus) (circuits.MTProof, error) {
 
@@ -603,24 +510,13 @@ func resolverOnChainRevocationStatus(ctx context.Context, cfg EnvConfig,
 			onchainRevStatus.revNonce, status.RevocationNonce)
 	}
 
-	networkCfg, err := cfg.networkCfgByChainID(onchainRevStatus.chainID)
-	if err != nil {
-		return circuits.MTProof{}, err
-	}
-
-	client, err := ethclient.Dial(networkCfg.RPCUrl)
-	if err != nil {
-		return circuits.MTProof{}, err
-	}
-	defer client.Close()
-
 	contractCaller, err := onchainABI.NewOnchainCredentialStatusResolverCaller(
-		onchainRevStatus.contractAddress, client)
+		onchainRevStatus.contractAddress, cfg.EthClient)
 	if err != nil {
 		return circuits.MTProof{}, err
 	}
 
-	isStateContractHasID, err := stateContractHasID(ctx, id, networkCfg, client)
+	isStateContractHasID, err := stateContractHasID(ctx, id, cfg)
 	if err != nil {
 		return circuits.MTProof{}, err
 	}
@@ -824,8 +720,7 @@ func calculateDepth(siblings []*big.Int) int {
 	return 0
 }
 
-func stateContractHasID(ctx context.Context, id *core.ID, cfg ChainConfig,
-	cli bind.ContractCaller) (bool, error) {
+func stateContractHasID(ctx context.Context, id *core.ID, cfg CredStatusConfig) (bool, error) {
 	key := stateContractIDKey{
 		contractAddr: cfg.StateContractAddr,
 		id:           *id,
@@ -846,7 +741,7 @@ func stateContractHasID(ctx context.Context, id *core.ID, cfg ChainConfig,
 		return ok, nil
 	}
 
-	_, err := lastStateFromContractWithClient(ctx, cfg, id, cli)
+	_, err := lastStateFromContract(ctx, cfg, id)
 	if errors.Is(err, errIdentityDoesNotExist) {
 		return false, nil
 	} else if err != nil {
@@ -855,24 +750,4 @@ func stateContractHasID(ctx context.Context, id *core.ID, cfg ChainConfig,
 
 	idsInStateContract[key] = true
 	return true, err
-}
-
-func chainIDFromID(id *core.ID) (ChainID, error) {
-	blockchain, err := core.BlockchainFromID(*id)
-	if err != nil {
-		return 0, err
-	}
-
-	networkID, err := core.NetworkIDFromID(*id)
-	if err != nil {
-		return 0, err
-	}
-
-	key := chainIDKey{blockchain, networkID}
-	chainID, ok := knownChainIDs[key]
-	if !ok {
-		return 0, fmt.Errorf("unknown chain: %s", id.String())
-	}
-
-	return chainID, nil
 }
