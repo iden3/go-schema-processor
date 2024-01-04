@@ -142,9 +142,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 
 	// Published or genesis
 	if !*vm.IdentityState.Published {
-		isGenesis, err := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
-		if err != nil {
-			return false, err
+		isGenesis, err2 := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		if err2 != nil {
+			return false, err2
 		}
 		if !isGenesis {
 			return false, errors.New("issuer state not published and not genesis")
