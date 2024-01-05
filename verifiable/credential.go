@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/babyjub"
@@ -37,14 +36,9 @@ type W3CCredential struct {
 	RefreshService    *RefreshService        `json:"refreshService,omitempty"`
 }
 
-type VerifyConfig struct {
-	resolverURL    string
-	credStatusConf CredStatusConfig
-}
-
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, verifyConfig VerifyConfig) (bool, error) {
-	if verifyConfig.resolverURL == "" {
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string, credentialStatusResolver CredStatusResolver) (bool, error) {
+	if resolverURL == "" {
 		return false, errors.New("resolver URL is empty")
 	}
 
@@ -75,15 +69,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, v
 			return false, err
 		}
 
-		if verifyConfig.credStatusConf.EthClient == nil {
-			return false, errors.New("ethereum client is not initialized")
-		}
-
-		if verifyConfig.credStatusConf.StateContractAddr == (common.Address{}) {
-			return false, errors.New("state contract address is empty")
-		}
-
-		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig.resolverURL, verifyConfig.credStatusConf)
+		return verifyBJJSignatureProof(proof, coreClaim, resolverURL, credentialStatusResolver)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -94,13 +80,13 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, v
 		if err != nil {
 			return false, err
 		}
-		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig.resolverURL)
+		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, resolverURL)
 	default:
 		return false, ErrProofNotFound
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string, credStatusConfig CredStatusConfig) (bool, error) {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string, credStatusResolver CredStatusResolver) (bool, error) {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -162,7 +148,7 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		return false, err
 	}
 
-	_, err = BuildAndValidateCredentialStatus(context.Background(), credStatusConfig, proof.IssuerData.CredentialStatus, &issuerID, false)
+	_, err = BuildAndValidateCredentialStatus(context.Background(), credStatusResolver, proof.IssuerData.CredentialStatus, &issuerID, false)
 
 	if err != nil {
 		return false, err

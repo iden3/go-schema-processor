@@ -15,9 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	onchainABI "github.com/iden3/contracts-abi/onchain-credential-status-resolver/go/abi"
 	"github.com/iden3/contracts-abi/state/go/abi"
@@ -41,17 +39,13 @@ type OnChainRevStatus struct {
 	genesisState    *big.Int
 }
 
-type stateContractIDKey struct {
-	contractAddr common.Address
-	id           core.ID
+type CredStatusResolver interface {
+	GetStateInfoById(id *big.Int) (abi.IStateStateInfo, error)
+	GetRevocationStatus(id *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error)
+	GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error)
 }
 
-type CredStatusConfig struct {
-	EthClient         *ethclient.Client
-	StateContractAddr common.Address
-}
-
-var idsInStateContract = map[stateContractIDKey]bool{}
+var idsInStateContract = map[core.ID]bool{}
 var idsInStateContractLock sync.RWMutex
 
 var supportedCredentialStatusTypes = map[CredentialStatusType]bool{
@@ -88,11 +82,11 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func BuildAndValidateCredentialStatus(ctx context.Context, cfg CredStatusConfig,
+func BuildAndValidateCredentialStatus(ctx context.Context, resolver CredStatusResolver,
 	credStatus interface{}, issuerID *core.ID,
 	skipClaimRevocationCheck bool) (circuits.MTProof, error) {
 
-	proof, err := resolveRevStatus(ctx, cfg, credStatus, issuerID)
+	proof, err := resolveRevStatus(ctx, resolver, credStatus, issuerID)
 	if err != nil {
 		return proof, err
 	}
@@ -133,23 +127,23 @@ func BuildAndValidateCredentialStatus(ctx context.Context, cfg CredStatusConfig,
 	return proof, nil
 }
 
-func resolveRevStatus(ctx context.Context, cfg CredStatusConfig,
+func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
 	credStatus interface{}, issuerID *core.ID) (circuits.MTProof, error) {
 
 	switch status := credStatus.(type) {
 	case *CredentialStatus:
 		if status.Type == Iden3ReverseSparseMerkleTreeProof {
 			revNonce := new(big.Int).SetUint64(status.RevocationNonce)
-			return resolveRevStatusFromRHS(ctx, status.ID, cfg, issuerID,
+			return resolveRevStatusFromRHS(ctx, status.ID, resolver, issuerID,
 				revNonce)
 		}
 		if status.Type == Iden3OnchainSparseMerkleTreeProof2023 {
-			return resolverOnChainRevocationStatus(ctx, cfg, issuerID, status)
+			return resolverOnChainRevocationStatus(ctx, resolver, issuerID, status)
 		}
 		return resolveRevocationStatusFromIssuerService(ctx, status.ID)
 
 	case CredentialStatus:
-		return resolveRevStatus(ctx, cfg, &status, issuerID)
+		return resolveRevStatus(ctx, resolver, &status, issuerID)
 
 	case jsonObj:
 		credStatusType, ok := status["type"].(string)
@@ -169,7 +163,7 @@ func resolveRevStatus(ctx context.Context, cfg CredStatusConfig,
 		if err != nil {
 			return circuits.MTProof{}, err
 		}
-		return resolveRevStatus(ctx, cfg, &typedCredentialStatus, issuerID)
+		return resolveRevStatus(ctx, resolver, &typedCredentialStatus, issuerID)
 
 	default:
 		return circuits.MTProof{},
@@ -177,7 +171,7 @@ func resolveRevStatus(ctx context.Context, cfg CredStatusConfig,
 	}
 }
 
-func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, cfg CredStatusConfig,
+func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, resolver CredStatusResolver,
 	issuerID *core.ID, revNonce *big.Int) (circuits.MTProof, error) {
 
 	var p circuits.MTProof
@@ -187,7 +181,7 @@ func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, cfg CredStatusC
 		return p, err
 	}
 
-	state, err := identityStateForRHS(ctx, cfg, issuerID, genesisState)
+	state, err := identityStateForRHS(ctx, resolver, issuerID, genesisState)
 	if err != nil {
 		return p, err
 	}
@@ -247,10 +241,10 @@ func rhsBaseURL(rhsURL string) (string, *merkletree.Hash, error) {
 	return u.String(), state, nil
 }
 
-func identityStateForRHS(ctx context.Context, cfg CredStatusConfig, issuerID *core.ID,
+func identityStateForRHS(ctx context.Context, resolver CredStatusResolver, issuerID *core.ID,
 	genesisState *merkletree.Hash) (*merkletree.Hash, error) {
 
-	state, err := lastStateFromContract(ctx, cfg, issuerID)
+	state, err := lastStateFromContract(ctx, resolver, issuerID)
 	if !errors.Is(err, errIdentityDoesNotExist) {
 		return state, err
 	}
@@ -282,19 +276,16 @@ func genesisStateMatch(state *merkletree.Hash, id core.ID) (bool, error) {
 	return bytes.Equal(otherID[:], id[:]), nil
 }
 
-func lastStateFromContract(ctx context.Context, cfg CredStatusConfig,
+func lastStateFromContract(ctx context.Context, resolver CredStatusResolver,
 	id *core.ID) (*merkletree.Hash, error) {
 	var zeroID core.ID
 	if id == nil || *id == zeroID {
 		return nil, errors.New("ID is empty")
 	}
-	contractCaller, err := abi.NewStateCaller(cfg.StateContractAddr, cfg.EthClient)
-	if err != nil {
-		return nil, err
-	}
 
-	opts := &bind.CallOpts{Context: ctx}
-	resp, err := contractCaller.GetStateInfoById(opts, id.BigInt())
+	fmt.Println(id.BigInt().String())
+	resp, err := resolver.GetStateInfoById(id.BigInt())
+	fmt.Println(resp.State.String())
 	if isErrIdentityDoesNotExist(err) {
 		return nil, errIdentityDoesNotExist
 	} else if err != nil {
@@ -492,7 +483,7 @@ func getByPath(obj jsonObj, path string) (any, error) {
 	return nil, errors.New("should not happen")
 }
 
-func resolverOnChainRevocationStatus(ctx context.Context, cfg CredStatusConfig,
+func resolverOnChainRevocationStatus(ctx context.Context, resolver CredStatusResolver,
 	id *core.ID,
 	status *CredentialStatus) (circuits.MTProof, error) {
 
@@ -513,22 +504,15 @@ func resolverOnChainRevocationStatus(ctx context.Context, cfg CredStatusConfig,
 			onchainRevStatus.revNonce, status.RevocationNonce)
 	}
 
-	contractCaller, err := onchainABI.NewOnchainCredentialStatusResolverCaller(
-		onchainRevStatus.contractAddress, cfg.EthClient)
+	isStateContractHasID, err := stateContractHasID(ctx, id, resolver)
 	if err != nil {
 		return circuits.MTProof{}, err
 	}
 
-	isStateContractHasID, err := stateContractHasID(ctx, id, cfg)
-	if err != nil {
-		return circuits.MTProof{}, err
-	}
-
-	opts := &bind.CallOpts{Context: ctx}
 	var resp onchainABI.IOnchainCredentialStatusResolverCredentialStatus
 	if isStateContractHasID {
 		// TODO: it is not finial version of contract GetRevocationProof must accept issuer id as parameter
-		resp, err = contractCaller.GetRevocationStatus(opts, id.BigInt(),
+		resp, err = resolver.GetRevocationStatus(id.BigInt(),
 			onchainRevStatus.revNonce)
 		if err != nil {
 			msg := err.Error()
@@ -544,7 +528,7 @@ func resolverOnChainRevocationStatus(ctx context.Context, cfg CredStatusConfig,
 			return circuits.MTProof{}, errors.New(
 				"genesis state is not specified in OnChainCredentialStatus ID")
 		}
-		resp, err = contractCaller.GetRevocationStatusByIdAndState(opts,
+		resp, err = resolver.GetRevocationStatusByIdAndState(
 			id.BigInt(), onchainRevStatus.genesisState,
 			onchainRevStatus.revNonce)
 		if err != nil {
@@ -722,14 +706,10 @@ func calculateDepth(siblings []*big.Int) int {
 	return 0
 }
 
-func stateContractHasID(ctx context.Context, id *core.ID, cfg CredStatusConfig) (bool, error) {
-	key := stateContractIDKey{
-		contractAddr: cfg.StateContractAddr,
-		id:           *id,
-	}
+func stateContractHasID(ctx context.Context, id *core.ID, resolver CredStatusResolver) (bool, error) {
 
 	idsInStateContractLock.RLock()
-	ok := idsInStateContract[key]
+	ok := idsInStateContract[*id]
 	idsInStateContractLock.RUnlock()
 	if ok {
 		return ok, nil
@@ -738,18 +718,18 @@ func stateContractHasID(ctx context.Context, id *core.ID, cfg CredStatusConfig) 
 	idsInStateContractLock.Lock()
 	defer idsInStateContractLock.Unlock()
 
-	ok = idsInStateContract[key]
+	ok = idsInStateContract[*id]
 	if ok {
 		return ok, nil
 	}
 
-	_, err := lastStateFromContract(ctx, cfg, id)
+	_, err := lastStateFromContract(ctx, resolver, id)
 	if errors.Is(err, errIdentityDoesNotExist) {
 		return false, nil
 	} else if err != nil {
 		return false, err
 	}
 
-	idsInStateContract[key] = true
+	idsInStateContract[*id] = true
 	return true, err
 }

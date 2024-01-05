@@ -3,17 +3,91 @@ package verifiable
 import (
 	"context"
 	"encoding/json"
+	"math/big"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	onchainABI "github.com/iden3/contracts-abi/onchain-credential-status-resolver/go/abi"
+	"github.com/iden3/contracts-abi/state/go/abi"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/require"
 )
+
+type credStatusResolverMock struct {
+}
+
+type mockNoStateError struct {
+}
+
+func (m mockNoStateError) Error() string {
+	return "execution reverted: Identity does not exist"
+}
+
+func (m mockNoStateError) ErrorCode() int {
+	return 3
+}
+
+func (m credStatusResolverMock) GetStateInfoById(id *big.Int) (abi.IStateStateInfo, error) {
+	if id.String() == "29305636064099160210536948077705157048478988844998217946273455478812643842" {
+		state, _ := new(big.Int).SetString("4191494968776819400863455954888115392137551122958477943242938172592557294132", 10)
+		return abi.IStateStateInfo{
+			State: state,
+		}, nil
+	}
+
+	if id.String() == "25116094451735045024912155729979573740232593171393457835171656777831420418" {
+		return abi.IStateStateInfo{}, mockNoStateError{}
+	}
+	return abi.IStateStateInfo{}, nil
+}
+
+func (m credStatusResolverMock) GetRevocationStatus(id *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
+	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
+}
+
+func (m credStatusResolverMock) GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
+	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
+}
+
+type CredStatusResolverEthClient struct {
+}
+
+func (r CredStatusResolverEthClient) GetStateInfoById(id *big.Int) (abi.IStateStateInfo, error) {
+	client, err := ethclient.Dial("http://my-rpc/v2/1111")
+	if err != nil {
+		return abi.IStateStateInfo{}, err
+	}
+	defer client.Close()
+
+	stateAddr := common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4")
+
+	contractCaller, err := abi.NewStateCaller(stateAddr, client)
+	if err != nil {
+		return abi.IStateStateInfo{}, err
+	}
+
+	opts := &bind.CallOpts{Context: context.Background()}
+	resp, err := contractCaller.GetStateInfoById(opts, id)
+	if err != nil {
+		return abi.IStateStateInfo{}, err
+	}
+
+	return resp, nil
+}
+
+func (m CredStatusResolverEthClient) GetRevocationStatus(id *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
+	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
+}
+
+func (m CredStatusResolverEthClient) GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
+	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
+}
 
 func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	in := `{
@@ -84,18 +158,7 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
 
-	client, err := ethclient.Dial("http://my-rpc/v2/1111")
-	require.NoError(t, err)
-	credStatusConfig := CredStatusConfig{
-		EthClient:         client,
-		StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
-	}
-	defer client.Close()
-
-	verifyConfig := VerifyConfig{
-		resolverURL:    "http://my-universal-resolver/1.0/identifiers",
-		credStatusConf: credStatusConfig,
-	}
+	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -103,14 +166,14 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=f9dd6aa4e1abef52b6c94ab7eb92faf1a283b371d263e25ac835c9c04894741e",
 		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":true,"info":{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","replacedByState":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1703174663","replacedAtTimestamp":"0","createdAtBlock":"43840767","replacedAtBlock":"0"},"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T08:05:13.413770024Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":429,"did":{"didString":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","methodSpecificId":"polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","method":"polygonid"}},"didDocumentMetadata":{}}`))
 
-	httpmock.RegisterMatcherResponder("POST", "http://my-rpc/v2/1111",
-		httpmock.BodyContainsString(`{"jsonrpc":"2.0","id":1,"method":"eth_call","params":[{"data":"0xb4bdea550010961e749448c0c935c85ae263d271b383a2f1fa92ebb74ac9b652efab1202","from":"0x0000000000000000000000000000000000000000","to":"0x134b1be34911e39a8397ec6289782989729807a4"},"latest"]}`),
-		httpmock.NewStringResponder(200, `{"jsonrpc":"2.0","id":1,"result":"0x0010961e749448c0c935c85ae263d271b383a2f1fa92ebb74ac9b652efab120209444d55300819a07594d731c0bf7d3713f5e9324e0435f926c3ef1d8e4a823400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065846207000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000029cf4ff0000000000000000000000000000000000000000000000000000000000000000"}`))
+	// httpmock.RegisterMatcherResponder("POST", "http://my-rpc/v2/1111",
+	// 	httpmock.BodyContainsString(`{"jsonrpc":"2.0","id":1,"method":"eth_call","params":[{"data":"0xb4bdea550010961e749448c0c935c85ae263d271b383a2f1fa92ebb74ac9b652efab1202","from":"0x0000000000000000000000000000000000000000","to":"0x134b1be34911e39a8397ec6289782989729807a4"},"latest"]}`),
+	// 	httpmock.NewStringResponder(200, `{"jsonrpc":"2.0","id":1,"result":"0x0010961e749448c0c935c85ae263d271b383a2f1fa92ebb74ac9b652efab120209444d55300819a07594d731c0bf7d3713f5e9324e0435f926c3ef1d8e4a823400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000065846207000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000029cf4ff0000000000000000000000000000000000000000000000000000000000000000"}`))
 
 	httpmock.RegisterResponder("GET", "https://rhs-staging.polygonid.me/node/34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
 		httpmock.NewStringResponder(200, `{"node":{"hash":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","children":["4436ea12d352ddb84d2ac7a27bbf7c9f1bfc7d3ff69f3e6cf4348f424317fd0b","0000000000000000000000000000000000000000000000000000000000000000","37eabc712cdaa64793561b16b8143f56f149ad1b0c35297a1b125c765d1c071e"]},"status":"OK"}`))
 
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, verifyConfig)
+	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, credStatusResolverMock{})
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -184,18 +247,7 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
 
-	client, err := ethclient.Dial("http://my-rpc/v2/1111")
-	require.NoError(t, err)
-	credStatusConfig := CredStatusConfig{
-		EthClient:         client,
-		StateContractAddr: common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4"),
-	}
-	defer client.Close()
-
-	verifyConfig := VerifyConfig{
-		resolverURL:    "http://my-universal-resolver/1.0/identifiers",
-		credStatusConf: credStatusConfig,
-	}
+	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -209,7 +261,8 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 
 	httpmock.RegisterResponder("GET", "https://rhs-staging.polygonid.me/node/da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817",
 		httpmock.NewStringResponder(200, `{"node":{"hash":"da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817","children":["aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e","0000000000000000000000000000000000000000000000000000000000000000","0000000000000000000000000000000000000000000000000000000000000000"]},"status":"OK"}`))
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, verifyConfig)
+
+	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, credStatusResolverMock{})
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -306,9 +359,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	err := json.Unmarshal([]byte(in), &vc)
 	require.NoError(t, err)
 
-	verifyConfig := VerifyConfig{
-		resolverURL: "http://my-universal-resolver/1.0/identifiers",
-	}
+	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -316,7 +367,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
 		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":true,"info":{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","replacedByState":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1703174663","replacedAtTimestamp":"0","createdAtBlock":"43840767","replacedAtBlock":"0"},"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T07:53:42.67771172Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":442,"did":{"didString":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","methodSpecificId":"polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","method":"polygonid"}},"didDocumentMetadata":{}}`))
 
-	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, verifyConfig)
+	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, resolverURL, nil)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
