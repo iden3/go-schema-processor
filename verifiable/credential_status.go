@@ -89,7 +89,7 @@ func (e errPathNotFound) Error() string {
 }
 
 func BuildAndValidateCredentialStatus(ctx context.Context, cfg CredStatusConfig,
-	credStatus jsonObj, issuerID *core.ID,
+	credStatus interface{}, issuerID *core.ID,
 	skipClaimRevocationCheck bool) (circuits.MTProof, error) {
 
 	proof, err := resolveRevStatus(ctx, cfg, credStatus, issuerID)
@@ -111,8 +111,11 @@ func BuildAndValidateCredentialStatus(ctx context.Context, cfg CredStatusConfig,
 
 	// revocationNonce is float64, but if we meet valid string representation
 	// of Int, we will use it.
-	// circuits.MTProof
-	revNonce, err := bigIntByPath(credStatus, "revocationNonce", true)
+	credStatusObj, ok := credStatus.(jsonObj)
+	if !ok {
+		return proof, fmt.Errorf("invali credential status")
+	}
+	revNonce, err := bigIntByPath(credStatusObj, "revocationNonce", true)
 	if err != nil {
 		return proof, err
 	}

@@ -30,7 +30,7 @@ type W3CCredential struct {
 	Expiration        *time.Time             `json:"expirationDate,omitempty"`
 	IssuanceDate      *time.Time             `json:"issuanceDate,omitempty"`
 	CredentialSubject map[string]interface{} `json:"credentialSubject"`
-	CredentialStatus  jsonObj                `json:"credentialStatus,omitempty"`
+	CredentialStatus  interface{}            `json:"credentialStatus,omitempty"`
 	Issuer            string                 `json:"issuer"`
 	CredentialSchema  CredentialSchema       `json:"credentialSchema"`
 	Proof             CredentialProofs       `json:"proof,omitempty"`
