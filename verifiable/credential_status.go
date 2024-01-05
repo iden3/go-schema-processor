@@ -30,11 +30,9 @@ import (
 
 type hexHash merkletree.Hash
 
-type ChainID uint64
-
 type OnChainRevStatus struct {
-	chainID         ChainID
-	contractAddress common.Address
+	chainID         core.ChainID
+	contractAddress string
 	revNonce        uint64
 	genesisState    *big.Int
 }
@@ -569,7 +567,7 @@ func newOnchainRevStatusFromURI(stateID string) (OnChainRevStatus, error) {
 		return s, errors.New(
 			"OnChainCredentialStatus incorrect contract address")
 	}
-	s.contractAddress = common.HexToAddress(contractParts[1])
+	s.contractAddress = contractParts[1]
 
 	revocationNonce := uri.Query().Get("revocationNonce")
 	if revocationNonce == "" {
@@ -611,7 +609,7 @@ func newIntFromBytesLE(bs []byte) *big.Int {
 	return new(big.Int).SetBytes(utils.SwapEndianness(bs))
 }
 
-func newChainIDFromString(in string) (ChainID, error) {
+func newChainIDFromString(in string) (core.ChainID, error) {
 	var chainID uint64
 	var err error
 	if strings.HasPrefix(in, "0x") ||
@@ -626,7 +624,7 @@ func newChainIDFromString(in string) (ChainID, error) {
 			return 0, err
 		}
 	}
-	return ChainID(chainID), nil
+	return core.ChainID(chainID), nil
 }
 
 func toMerkleTreeProof(status onchainABI.IOnchainCredentialStatusResolverCredentialStatus) (circuits.MTProof, error) {

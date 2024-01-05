@@ -62,6 +62,8 @@ github.com/iden3/go-circuits/v2 v2.0.0 h1:Bw0mpsqeip06d6I2ktgfhTVB7Jk9mSHi8myHZW
 github.com/iden3/go-circuits/v2 v2.0.0/go.mod h1:VIFIp51+IH0hOzjnKhb84bCeyq7hq76zX/C14ua6zh4=
 github.com/iden3/go-iden3-core/v2 v2.0.0 h1:sQEuuq3RLfyYSY8qPiqxQ6YBpGbiAwepHJD/vjf1adA=
 github.com/iden3/go-iden3-core/v2 v2.0.0/go.mod h1:L9PxhWPvoS9qTb3inEkZBm1RpjHBt+VTwvxssdzbAdw=
+github.com/iden3/go-iden3-core/v2 v2.0.3 h1:ce9Jbw10zDsinWXFc05SiK2Hof/wu4zV4/ai5gQy29k=
+github.com/iden3/go-iden3-core/v2 v2.0.3/go.mod h1:L9PxhWPvoS9qTb3inEkZBm1RpjHBt+VTwvxssdzbAdw=
 github.com/iden3/go-iden3-crypto v0.0.15 h1:4MJYlrot1l31Fzlo2sF56u7EVFeHHJkxGXXZCtESgK4=
 github.com/iden3/go-iden3-crypto v0.0.15/go.mod h1:dLpM4vEPJ3nDHzhWFXDjzkn1qHoBeOT/3UEhXsEsP3E=
 github.com/iden3/go-merkletree-sql/v2 v2.0.4 h1:Dp089P3YNX1BE8+T1tKQHWTtnk84Y/Kr7ZAGTqwscoY=
