@@ -8,11 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
-	onchainABI "github.com/iden3/contracts-abi/onchain-credential-status-resolver/go/abi"
-	"github.com/iden3/contracts-abi/state/go/abi"
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
 	"github.com/jarcoal/httpmock"
@@ -33,60 +28,25 @@ func (m mockNoStateError) ErrorCode() int {
 	return 3
 }
 
-func (m credStatusResolverMock) GetStateInfoById(id *big.Int) (abi.IStateStateInfo, error) {
+func (m credStatusResolverMock) GetStateInfoById(id *big.Int) (StateInfo, error) {
 	if id.String() == "29305636064099160210536948077705157048478988844998217946273455478812643842" {
-		state, _ := new(big.Int).SetString("4191494968776819400863455954888115392137551122958477943242938172592557294132", 10)
-		return abi.IStateStateInfo{
-			State: state,
+		return StateInfo{
+			State: "4191494968776819400863455954888115392137551122958477943242938172592557294132",
 		}, nil
 	}
 
 	if id.String() == "25116094451735045024912155729979573740232593171393457835171656777831420418" {
-		return abi.IStateStateInfo{}, mockNoStateError{}
+		return StateInfo{}, mockNoStateError{}
 	}
-	return abi.IStateStateInfo{}, nil
+	return StateInfo{}, nil
 }
 
-func (m credStatusResolverMock) GetRevocationStatus(id *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
-	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
+func (m credStatusResolverMock) GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error) {
+	return RevocationStatus{}, nil
 }
 
-func (m credStatusResolverMock) GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
-	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
-}
-
-type CredStatusResolverEthClient struct {
-}
-
-func (r CredStatusResolverEthClient) GetStateInfoById(id *big.Int) (abi.IStateStateInfo, error) {
-	client, err := ethclient.Dial("http://my-rpc/v2/1111")
-	if err != nil {
-		return abi.IStateStateInfo{}, err
-	}
-	defer client.Close()
-
-	stateAddr := common.HexToAddress("0x134B1BE34911E39A8397ec6289782989729807a4")
-
-	contractCaller, err := abi.NewStateCaller(stateAddr, client)
-	if err != nil {
-		return abi.IStateStateInfo{}, err
-	}
-
-	opts := &bind.CallOpts{Context: context.Background()}
-	resp, err := contractCaller.GetStateInfoById(opts, id)
-	if err != nil {
-		return abi.IStateStateInfo{}, err
-	}
-
-	return resp, nil
-}
-
-func (m CredStatusResolverEthClient) GetRevocationStatus(id *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
-	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
-}
-
-func (m CredStatusResolverEthClient) GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error) {
-	return onchainABI.IOnchainCredentialStatusResolverCredentialStatus{}, nil
+func (m credStatusResolverMock) GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error) {
+	return RevocationStatus{}, nil
 }
 
 func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {

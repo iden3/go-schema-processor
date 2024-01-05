@@ -20,9 +20,6 @@ require (
 )
 
 require (
-	github.com/ethereum/go-ethereum v1.12.0
-	github.com/iden3/contracts-abi/onchain-credential-status-resolver/go/abi v0.0.0-20230911113809-c58b7e7a69b0
-	github.com/iden3/contracts-abi/state/go/abi v1.0.1
 	github.com/iden3/go-circuits/v2 v2.0.0
 	github.com/iden3/merkletree-proof v0.0.3
 	github.com/jarcoal/httpmock v1.3.1

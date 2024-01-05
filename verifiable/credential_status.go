@@ -15,10 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rpc"
-	onchainABI "github.com/iden3/contracts-abi/onchain-credential-status-resolver/go/abi"
-	"github.com/iden3/contracts-abi/state/go/abi"
 	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -38,9 +34,9 @@ type OnChainRevStatus struct {
 }
 
 type CredStatusResolver interface {
-	GetStateInfoById(id *big.Int) (abi.IStateStateInfo, error)
-	GetRevocationStatus(id *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error)
-	GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (onchainABI.IOnchainCredentialStatusResolverCredentialStatus, error)
+	GetStateInfoById(id *big.Int) (StateInfo, error)
+	GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error)
+	GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
 }
 
 var idsInStateContract = map[core.ID]bool{}
@@ -55,21 +51,17 @@ var supportedCredentialStatusTypes = map[CredentialStatusType]bool{
 var errIdentityDoesNotExist = errors.New("identity does not exist")
 
 func isErrIdentityDoesNotExist(err error) bool {
-	rpcErr, isRPCErr := err.(rpc.Error)
-	if !isRPCErr {
+	if err == nil {
 		return false
 	}
-	return rpcErr.ErrorCode() == 3 &&
-		rpcErr.Error() == "execution reverted: Identity does not exist"
+	return err.Error() == "execution reverted: Identity does not exist"
 }
 
 func isErrInvalidRootsLength(err error) bool {
-	rpcErr, isRPCErr := err.(rpc.Error)
-	if !isRPCErr {
+	if err == nil {
 		return false
 	}
-	return rpcErr.ErrorCode() == 3 &&
-		rpcErr.Error() == "execution reverted: Invalid roots length"
+	return err.Error() == "execution reverted: Invalid roots length"
 }
 
 type errPathNotFound struct {
@@ -281,20 +273,18 @@ func lastStateFromContract(ctx context.Context, resolver CredStatusResolver,
 		return nil, errors.New("ID is empty")
 	}
 
-	fmt.Println(id.BigInt().String())
 	resp, err := resolver.GetStateInfoById(id.BigInt())
-	fmt.Println(resp.State.String())
 	if isErrIdentityDoesNotExist(err) {
 		return nil, errIdentityDoesNotExist
 	} else if err != nil {
 		return nil, err
 	}
 
-	if resp.State == nil {
-		return nil, errors.New("got nil state from contract")
+	if resp.State == "" {
+		return nil, errors.New("got empty state")
 	}
 
-	return merkletree.NewHashFromBigInt(resp.State)
+	return merkletree.NewHashFromString(resp.State)
 }
 
 func treeStateFromRHS(ctx context.Context, rhsCli *mp.HTTPReverseHashCli,
@@ -507,7 +497,7 @@ func resolverOnChainRevocationStatus(ctx context.Context, resolver CredStatusRes
 		return circuits.MTProof{}, err
 	}
 
-	var resp onchainABI.IOnchainCredentialStatusResolverCredentialStatus
+	var resp RevocationStatus
 	if isStateContractHasID {
 		// TODO: it is not finial version of contract GetRevocationProof must accept issuer id as parameter
 		resp, err = resolver.GetRevocationStatus(id.BigInt(),
@@ -561,11 +551,6 @@ func newOnchainRevStatusFromURI(stateID string) (OnChainRevStatus, error) {
 	s.chainID, err = newChainIDFromString(contractParts[0])
 	if err != nil {
 		return s, err
-	}
-
-	if !common.IsHexAddress(contractParts[1]) {
-		return s, errors.New(
-			"OnChainCredentialStatus incorrect contract address")
 	}
 	s.contractAddress = contractParts[1]
 
@@ -627,59 +612,28 @@ func newChainIDFromString(in string) (core.ChainID, error) {
 	return core.ChainID(chainID), nil
 }
 
-func toMerkleTreeProof(status onchainABI.IOnchainCredentialStatusResolverCredentialStatus) (circuits.MTProof, error) {
-	var existence bool
-	var nodeAux *merkletree.NodeAux
-	var err error
-
-	if status.Mtp.Existence {
-		existence = true
-	} else {
-		existence = false
-		if status.Mtp.AuxExistence {
-			nodeAux = &merkletree.NodeAux{}
-			nodeAux.Key, err = merkletree.NewHashFromBigInt(status.Mtp.AuxIndex)
-			if err != nil {
-				return circuits.MTProof{}, errors.New("aux index is not a number")
-			}
-			nodeAux.Value, err = merkletree.NewHashFromBigInt(status.Mtp.AuxValue)
-			if err != nil {
-				return circuits.MTProof{}, errors.New("aux value is not a number")
-			}
-		}
-	}
-
-	depth := calculateDepth(status.Mtp.Siblings)
-	allSiblings := make([]*merkletree.Hash, depth)
-	for i := 0; i < depth; i++ {
-		sh, err2 := merkletree.NewHashFromBigInt(status.Mtp.Siblings[i])
-		if err2 != nil {
-			return circuits.MTProof{}, errors.New("sibling is not a number")
-		}
-		allSiblings[i] = sh
-	}
-
-	proof, err := merkletree.NewProofFromData(existence, allSiblings, nodeAux)
+func toMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {
+	proof, err := merkletree.NewProofFromData(status.MTP.Existence, status.MTP.AllSiblings(), status.MTP.NodeAux)
 	if err != nil {
 		return circuits.MTProof{}, errors.New("failed to create proof")
 	}
 
-	state, err := merkletree.NewHashFromBigInt(status.Issuer.State)
+	state, err := merkletree.NewHashFromString(*status.Issuer.State)
 	if err != nil {
 		return circuits.MTProof{}, errors.New("state is not a number")
 	}
 
-	claimsRoot, err := merkletree.NewHashFromBigInt(status.Issuer.ClaimsTreeRoot)
+	claimsRoot, err := merkletree.NewHashFromString(*status.Issuer.ClaimsTreeRoot)
 	if err != nil {
 		return circuits.MTProof{}, errors.New("state is not a number")
 	}
 
-	revocationRoot, err := merkletree.NewHashFromBigInt(status.Issuer.RevocationTreeRoot)
+	revocationRoot, err := merkletree.NewHashFromString(*status.Issuer.RevocationTreeRoot)
 	if err != nil {
 		return circuits.MTProof{}, errors.New("state is not a number")
 	}
 
-	rootOfRoots, err := merkletree.NewHashFromBigInt(status.Issuer.RootOfRoots)
+	rootOfRoots, err := merkletree.NewHashFromString(*status.Issuer.RootOfRoots)
 	if err != nil {
 		return circuits.MTProof{}, errors.New("state is not a number")
 	}
