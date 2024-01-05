@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -18,32 +19,30 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
-type Parser struct {
+type Convertor struct {
 	marklizeInstance merklize.Options
 
-	regenerateID bool
+	id string
 }
 
-type Option func(*Parser)
+type ConvertorOption func(*Convertor)
 
-// WithRegenerateID sets the regenerateID flag to the given value.
-func WithRegenerateID(regenerateID bool) Option {
-	return func(p *Parser) {
-		p.regenerateID = regenerateID
+// WithID sets custom id for the credential.
+func WithID(id string) ConvertorOption {
+	return func(p *Convertor) {
+		p.id = id
 	}
 }
 
-// WithMerklizer sets the merklizer instance.
-func WithMerklizer(m merklize.Options) Option {
-	return func(p *Parser) {
+// WithMerklizerOptions sets options for merklizer.
+func WithMerklizerOptions(m merklize.Options) ConvertorOption {
+	return func(p *Convertor) {
 		p.marklizeInstance = m
 	}
 }
 
-func NewParser(opts ...Option) *Parser {
-	p := &Parser{
-		regenerateID: false,
-	}
+func NewParser(opts ...ConvertorOption) *Convertor {
+	p := &Convertor{}
 
 	for _, opt := range opts {
 		opt(p)
@@ -55,20 +54,21 @@ func NewParser(opts ...Option) *Parser {
 // ConvertVerifiableCredential converts an onchain verifiable credential to a W3C verifiable credential.
 // The w3c credential id will be regenerated.
 func ConvertVerifiableCredential(credential *Credential) (*verifiable.W3CCredential, error) {
-	return (&Parser{regenerateID: true}).ConvertVerifiableCredential(credential)
+	id := fmt.Sprintf("urn:uuid:%s", uuid.NewString())
+	return (&Convertor{id: id}).ConvertVerifiableCredential(credential)
 }
 
 // ConvertVerifiableCredential converts an onchain verifiable credential to a W3C verifiable credential.
-func (p *Parser) ConvertVerifiableCredential(onchainCredential *Credential) (*verifiable.W3CCredential, error) {
+func (p *Convertor) ConvertVerifiableCredential(onchainCredential *Credential) (*verifiable.W3CCredential, error) {
 	timestampExp, err := strconv.ParseInt(onchainCredential.Expiration, 10, 64)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to parse Expiration '%s': %v", onchainCredential.Expiration, err)
+			fmt.Errorf("failed to parse Expiration '%s': %w", onchainCredential.Expiration, err)
 	}
 	timestampIssuance, err := strconv.ParseInt(onchainCredential.IssuanceDate, 10, 64)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to parse IssuanceDate '%s': %v", onchainCredential.IssuanceDate, err)
+			fmt.Errorf("failed to parse IssuanceDate '%s': %w", onchainCredential.IssuanceDate, err)
 	}
 	expirationTime := time.Unix(timestampExp, 0).UTC()
 	issuanceTime := time.Unix(timestampIssuance, 0).UTC()
@@ -77,12 +77,12 @@ func (p *Parser) ConvertVerifiableCredential(onchainCredential *Credential) (*ve
 	issuerBI, ok := big.NewInt(0).SetString(onchainCredential.Issuer, 10)
 	if !ok {
 		return nil,
-			fmt.Errorf("failed to convert issuer '%s' to BigInt: %v", onchainCredential.Issuer, err)
+			fmt.Errorf("failed to convert issuer '%s' to BigInt: %w", onchainCredential.Issuer, err)
 	}
 	issuerDID, err := bigIntToDID(issuerBI)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to extract issuer DID: %v", err)
+			fmt.Errorf("failed to extract issuer DID: %w", err)
 	}
 
 	credentialStatus, err := p.convertCredentialStatus(
@@ -90,24 +90,25 @@ func (p *Parser) ConvertVerifiableCredential(onchainCredential *Credential) (*ve
 		onchainCredential.CredentialStatus,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert CredentialStatus: %v", err)
+		return nil, fmt.Errorf("failed to convert CredentialStatus: %w", err)
 	}
 
-	credentialSubject, err := p.convertCredentialSubject(
-		onchainCredential.Context,
-		onchainCredential.CredentialSubject,
-	)
+	credentialSubject, err := p.convertCredentialSubject(onchainCredential)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert CredentialSubject: %v", err)
+		return nil, fmt.Errorf("failed to convert CredentialSubject: %w", err)
 	}
 
 	mtpProof, err := p.convertMtpProof(issuerDID, onchainCredential.Proof[0])
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert MTPProof: %v", err)
+		return nil, fmt.Errorf("failed to convert MTPProof: %w", err)
 	}
 
+	id, err := p.convertCredentialID(onchainCredential.ID)
+	if err != nil {
+		return nil, err
+	}
 	return &verifiable.W3CCredential{
-		ID:      p.convertCredentialID(onchainCredential.ID),
+		ID:      id,
 		Context: onchainCredential.Context,
 		Type:    onchainCredential.Type,
 		CredentialSchema: verifiable.CredentialSchema{
@@ -123,14 +124,18 @@ func (p *Parser) ConvertVerifiableCredential(onchainCredential *Credential) (*ve
 	}, nil
 }
 
-func (p *Parser) convertCredentialID(id string) string {
-	if p.regenerateID {
-		return fmt.Sprintf("urn:uuid:%s", uuid.New().String())
+func (p *Convertor) convertCredentialID(id string) (string, error) {
+	if p.id != "" {
+		id = p.id
 	}
-	return id
+	_, err := url.ParseRequestURI(id)
+	if err != nil {
+		return "", fmt.Errorf("id '%s' should be valid URI: %w", id, err)
+	}
+	return id, nil
 }
 
-func (p *Parser) convertCredentialStatus(
+func (p *Convertor) convertCredentialStatus(
 	issuerDID *w3c.DID,
 	credentialStatus CredentialStatus,
 ) (*verifiable.CredentialStatus, error) {
@@ -139,23 +144,23 @@ func (p *Parser) convertCredentialStatus(
 		nonce, err := strconv.ParseUint(credentialStatus.RevocationNonce, 10, 64)
 		if err != nil {
 			return nil,
-				fmt.Errorf("invalid revocationNonce '%s': %v", credentialStatus.RevocationNonce, err)
+				fmt.Errorf("invalid revocationNonce '%s': %w", credentialStatus.RevocationNonce, err)
 		}
 
 		chainID, err := core.ChainIDfromDID(*issuerDID)
 		if err != nil {
 			return nil,
-				fmt.Errorf("failed to extract chainID from DID: %v", err)
+				fmt.Errorf("failed to extract chainID from DID: %w", err)
 		}
 		issuerID, err := core.IDFromDID(*issuerDID)
 		if err != nil {
 			return nil,
-				fmt.Errorf("failed to extract ID from DID: %v", err)
+				fmt.Errorf("failed to extract ID from DID: %w", err)
 		}
 		contractAddress, err := core.EthAddressFromID(issuerID)
 		if err != nil {
 			return nil,
-				fmt.Errorf("failed to extract contract address from ID: %v", err)
+				fmt.Errorf("failed to extract contract address from ID: %w", err)
 		}
 		contractID := fmt.Sprintf("%d:0x%s", chainID, hex.EncodeToString(contractAddress[:]))
 
@@ -177,28 +182,43 @@ func (p *Parser) convertCredentialStatus(
 
 }
 
-func (p *Parser) convertCredentialSubject(
-	credentialContext []string,
-	fields []CredentialSubjectField,
-) (map[string]any, error) {
+func extractCredentialType(types []string) (string, error) {
+	if len(types) != 2 {
+		return "", fmt.Errorf("credential should have exactly two types")
+	}
+
+	switch {
+	case types[0] == verifiableCredentialType:
+		return types[1], nil
+	case types[1] == verifiableCredentialType:
+		return types[0], nil
+	default:
+		return "", fmt.Errorf("credential type is invalid")
+	}
+}
+
+func (p *Convertor) convertCredentialSubject(onchainCredential *Credential) (map[string]any, error) {
 	var (
-		idIsSet   bool
-		typeIsSet bool
+		idIsSet bool
 
 		credentialSubject = make(map[string]any)
 	)
 
 	contextbytes, err := json.Marshal(map[string][]string{
-		"@context": credentialContext,
+		"@context": onchainCredential.Context,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal context: %v", err)
+		return nil, fmt.Errorf("failed to marshal context: %w", err)
 	}
 
-	// process required fields in credential subject
-	for _, f := range fields {
+	credentialType, err := extractCredentialType(onchainCredential.Type)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract credential type: %w", err)
+	}
+
+	for _, f := range onchainCredential.CredentialSubject {
 		switch f.Key {
-		case "id":
+		case reservedCredentialSubjectKeyID:
 			idIsSet = true
 			ownderID, ok := big.NewInt(0).SetString(f.Value, 10)
 			if !ok {
@@ -208,44 +228,34 @@ func (p *Parser) convertCredentialSubject(
 			ownerDID, err := bigIntToDID(ownderID)
 			if err != nil {
 				return nil,
-					fmt.Errorf("failed to convert ownerID '%s' to DID: %v", f.Value, err)
+					fmt.Errorf("failed to convert ownerID '%s' to DID: %w", f.Value, err)
 			}
 			credentialSubject["id"] = ownerDID.String()
-		case "type":
-			typeIsSet = true
+			continue
+		case reservedCredentialSubjectKeyType:
 			hexBytes, err := hex.DecodeString(hexWithoutPrefix(f.RawValue))
 			if err != nil {
 				return nil,
-					fmt.Errorf("failed to decode hex '%s' from CredentialSubject: %v", f.RawValue, err)
+					fmt.Errorf("failed to decode hex '%s' from CredentialSubject: %w", f.RawValue, err)
 			}
 			credentialSubject["type"] = string(hexBytes)
-		}
-	}
-
-	if !idIsSet || !typeIsSet {
-		return nil, fmt.Errorf("CredentialSubject does not have required fields: id, type")
-	}
-
-	for _, f := range fields {
-		// skip already processed fields
-		if f.Key == "id" || f.Key == "type" {
 			continue
 		}
 
 		datatype, err := p.marklizeInstance.TypeFromContext(
 			contextbytes,
-			fmt.Sprintf("%s.%s", credentialSubject["type"], f.Key),
+			fmt.Sprintf("%s.%s", credentialType, f.Key),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract type for field '%s': %v", f.Key, err)
+			return nil, fmt.Errorf("failed to extract type for field '%s': %w", f.Key, err)
 		}
 
 		switch datatype {
 		case ld.XSDBoolean:
 			switch f.Value {
-			case BooleanHashTrue:
+			case booleanHashTrue:
 				credentialSubject[f.Key] = true
-			case BooleanHashFalse:
+			case booleanHashFalse:
 				credentialSubject[f.Key] = false
 			default:
 				return nil, fmt.Errorf("unsupported boolean value: %s", f.Value)
@@ -261,17 +271,17 @@ func (p *Parser) convertCredentialSubject(
 			}
 			credentialSubject[f.Key] = bi.String()
 		case ld.XSDInteger:
-			bi, ok := new(big.Int).SetString(f.Value, 10)
-			if !ok {
+			v, err := strconv.ParseInt(f.Value, 10, 64)
+			if err != nil {
 				return nil,
-					fmt.Errorf("failed to convert string '%s' to BigInt", f.Value)
+					fmt.Errorf("failed to convert string '%s' to int: %w", f.Value, err)
 			}
-			credentialSubject[f.Key] = bi.Int64()
+			credentialSubject[f.Key] = v
 		case ld.XSDString:
 			strBytes, err := hex.DecodeString(hexWithoutPrefix(f.RawValue))
 			if err != nil {
 				return nil,
-					fmt.Errorf("failed to decode hex '%s' from CredentialSubject: %v", f.RawValue, err)
+					fmt.Errorf("failed to decode hex '%s' from CredentialSubject: %w", f.RawValue, err)
 			}
 			source := string(strBytes)
 			if err := validateSourceValue(datatype, f.Value, source); err != nil {
@@ -308,10 +318,14 @@ func (p *Parser) convertCredentialSubject(
 		}
 	}
 
+	if !idIsSet {
+		return nil, fmt.Errorf("CredentialSubject does not have required fields: '%s", reservedCredentialSubjectKeyID)
+	}
+
 	return credentialSubject, nil
 }
 
-func (p *Parser) convertMtpProof(
+func (p *Convertor) convertMtpProof(
 	issuerDID *w3c.DID,
 	issuanceProof Proof,
 ) (*verifiable.Iden3SparseMerkleTreeProof, error) {
@@ -326,44 +340,38 @@ func (p *Parser) convertMtpProof(
 	}
 	coreClaim, err := core.NewClaimFromBigInts(biCoreClaim)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create core claim: %v", err)
+		return nil, fmt.Errorf("failed to create core claim: %w", err)
 	}
 
-	mtp, err := convertChainProofToMerkleProof(&smtproof{
-		existence:    issuanceProof.MTP.Existence,
-		siblings:     issuanceProof.MTP.Siblings,
-		auxExistence: issuanceProof.MTP.AuxExistence,
-		auxIndex:     issuanceProof.MTP.AuxIndex,
-		auxValue:     issuanceProof.MTP.AuxValue,
-	})
+	mtp, err := convertChainProofToMerkleProof(&issuanceProof.MTP)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert chain proof to merkle proof: %v", err)
+		return nil, fmt.Errorf("failed to convert chain proof to merkle proof: %w", err)
 	}
 
 	coreClaimHex, err := coreClaim.Hex()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert CoreClaim to hex: %v", err)
+		return nil, fmt.Errorf("failed to convert CoreClaim to hex: %w", err)
 	}
 
 	rootOfRoots, err := merkletree.NewHashFromString(issuanceProof.IssuerData.State.RootOfRoots)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to convert RootOfRoots '%s' to hash: %v", issuanceProof.IssuerData.State.RootOfRoots, err)
+			fmt.Errorf("failed to convert RootOfRoots '%s' to hash: %w", issuanceProof.IssuerData.State.RootOfRoots, err)
 	}
 	claimsTreeRoot, err := merkletree.NewHashFromString(issuanceProof.IssuerData.State.ClaimsTreeRoot)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to convert ClaimsTreeRoot '%s' to hash: %v", issuanceProof.IssuerData.State.ClaimsTreeRoot, err)
+			fmt.Errorf("failed to convert ClaimsTreeRoot '%s' to hash: %w", issuanceProof.IssuerData.State.ClaimsTreeRoot, err)
 	}
 	revocationTreeRoot, err := merkletree.NewHashFromString(issuanceProof.IssuerData.State.RevocationTreeRoot)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to convert RevocationTreeRoot '%s' to hash: %v", issuanceProof.IssuerData.State.RevocationTreeRoot, err)
+			fmt.Errorf("failed to convert RevocationTreeRoot '%s' to hash: %w", issuanceProof.IssuerData.State.RevocationTreeRoot, err)
 	}
 	value, err := merkletree.NewHashFromString(issuanceProof.IssuerData.State.Value)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to convert Value '%s' to hash: %v", issuanceProof.IssuerData.State.Value, err)
+			fmt.Errorf("failed to convert Value '%s' to hash: %w", issuanceProof.IssuerData.State.Value, err)
 	}
 	mtpProof := verifiable.Iden3SparseMerkleTreeProof{
 		Type: verifiable.ProofType(issuanceProof.Type),
@@ -387,12 +395,12 @@ func bigIntToDID(bi *big.Int) (*w3c.DID, error) {
 	id, err := core.IDFromInt(bi)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to convert BigInt '%s' to ID: %v", bi.String(), err)
+			fmt.Errorf("failed to convert BigInt '%s' to ID: %w", bi.String(), err)
 	}
 	did, err := core.ParseDIDFromID(id)
 	if err != nil {
 		return nil,
-			fmt.Errorf("failed to convert ID to DID: %v", err)
+			fmt.Errorf("failed to convert ID to DID: %w", err)
 	}
 	return did, nil
 }
@@ -404,53 +412,46 @@ func strPtr(s string) *string {
 func validateSourceValue(datatype, origin string, source any) error {
 	sourceHash, err := merklize.HashValue(datatype, source)
 	if err != nil {
-		return fmt.Errorf("failed hash value '%s' with data type '%s': %v", source, datatype, err)
+		return fmt.Errorf("failed hash value '%s' with data type '%s': %w", source, datatype, err)
 	}
-	origineHash, ok := big.NewInt(0).SetString(origin, 10)
+	originHash, ok := big.NewInt(0).SetString(origin, 10)
 	if !ok {
 		return fmt.Errorf("invalid origin '%s'", origin)
 	}
-	if sourceHash.Cmp(origineHash) != 0 {
-		return fmt.Errorf("hash of value '%s' does not match core claim value '%s'", sourceHash, origineHash)
+	if sourceHash.Cmp(originHash) != 0 {
+		return fmt.Errorf("hash of value '%s' does not match core claim value '%s'", sourceHash, originHash)
 	}
 	return nil
 }
 
-type smtproof struct {
-	existence    bool
-	auxExistence bool
-	auxIndex     string
-	auxValue     string
-	siblings     []string
-}
-
-func convertChainProofToMerkleProof(smtProof *smtproof) (*merkletree.Proof, error) {
+func convertChainProofToMerkleProof(proof *MTP) (*merkletree.Proof, error) {
 	var (
 		existence bool
 		nodeAux   *merkletree.NodeAux
 		err       error
 	)
 
-	if smtProof.existence {
+	if proof.Existence {
 		existence = true
 	} else {
 		existence = false
-		if smtProof.auxExistence {
+		if proof.AuxExistence {
 			nodeAux = &merkletree.NodeAux{}
-			nodeAux.Key, err = merkletree.NewHashFromString(smtProof.auxIndex)
+			nodeAux.Key, err = merkletree.NewHashFromString(proof.AuxIndex)
 			if err != nil {
 				return nil, err
 			}
-			nodeAux.Value, err = merkletree.NewHashFromString(smtProof.auxValue)
+			nodeAux.Value, err = merkletree.NewHashFromString(proof.AuxValue)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	allSiblings := make([]*merkletree.Hash, len(smtProof.siblings))
-	for i, s := range smtProof.siblings {
-		sh, err := merkletree.NewHashFromString(s)
+	allSiblings := make([]*merkletree.Hash, len(proof.Siblings))
+	for i, s := range proof.Siblings {
+		var sh *merkletree.Hash
+		sh, err = merkletree.NewHashFromString(s)
 		if err != nil {
 			return nil, err
 		}

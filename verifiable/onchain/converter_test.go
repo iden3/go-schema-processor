@@ -149,23 +149,28 @@ func TestOnchainVerifiableCredential(t *testing.T) {
 
 func TestConvertCredentialSubject(t *testing.T) {
 	tests := []struct {
-		name    string
-		context []string
-		fields  []CredentialSubjectField
-		want    map[string]any
+		name              string
+		onchainCredential *Credential
+		want              map[string]any
 	}{
 		{
 			name: "Balance credential data",
-			context: []string{
-				"https://www.w3.org/2018/credentials/v1",
-				"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
-				"https://gist.githubusercontent.com/ilya-korotya/ac20f870943abd4805fe882ae8f3dccd/raw/1d9969a6d0454280c8d5e79b959faf9b3978b497/balance.jsonld",
-			},
-			fields: []CredentialSubjectField{
-				{"id", "26822544757879120710128032423896483348887667224594515131440237223704793602", ""},
-				{"type", "", "0x42616c616e6365"},
-				{"balance", "1699351689", ""},
-				{"address", "657065114158124047812701241180089030040156354062", ""},
+			onchainCredential: &Credential{
+				Context: []string{
+					"https://www.w3.org/2018/credentials/v1",
+					"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
+					"https://gist.githubusercontent.com/ilya-korotya/ac20f870943abd4805fe882ae8f3dccd/raw/1d9969a6d0454280c8d5e79b959faf9b3978b497/balance.jsonld",
+				},
+				Type: []string{
+					"VerifiableCredential",
+					"Balance",
+				},
+				CredentialSubject: []CredentialSubjectField{
+					{"id", "26822544757879120710128032423896483348887667224594515131440237223704793602", ""},
+					{"type", "", "0x42616c616e6365"},
+					{"balance", "1699351689", ""},
+					{"address", "657065114158124047812701241180089030040156354062", ""},
+				},
 			},
 			want: map[string]any{
 				"id":      "did:polygonid:polygon:mumbai:2qNgUX4CzfDdgppgfHn2ceT7wz8xUmDFR8zXzHFatE",
@@ -176,64 +181,70 @@ func TestConvertCredentialSubject(t *testing.T) {
 		},
 		{
 			name: "Player credential data",
-			context: []string{
-				"https://www.w3.org/2018/credentials/v1",
-				"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
-				"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/player-nonmerklized.jsonld",
-			},
-			fields: []CredentialSubjectField{
-				{"id", "26822544757879120710128032423896483348887667224594515131440237223704793602", ""},
-				{"type", "", "0x506c61796572"},
-				{
-					// Since Solidity doesn't support fixed point numbers: https://docs.soliditylang.org/en/latest/types.html#fixed-point-numbers
-					// Is possible to provide only test with integer value
-					"power",
-					// claim record
-					func(t *testing.T) string {
-						h, err := merklize.HashValue(ld.XSDDouble, 9)
-						require.NoError(t, err)
-						return h.String()
-					}(t),
-					// raw value
-					func(_ *testing.T) string {
-						// Solidity doesn't support fixed point numbers
-						return "0x" + hex.EncodeToString(big.NewInt(9).Bytes())
-					}(t),
+			onchainCredential: &Credential{
+				Context: []string{
+					"https://www.w3.org/2018/credentials/v1",
+					"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
+					"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/player-nonmerklized.jsonld",
 				},
-				{
-					"nickname",
-					// claim record
-					func(t *testing.T) string {
-						h, err := merklize.HashValue(ld.XSDString, "Alice")
-						require.NoError(t, err)
-						return h.String()
-					}(t),
-					// raw value
-					func(_ *testing.T) string {
-						return "0x" + hex.EncodeToString([]byte("Alice"))
-					}(t),
+				Type: []string{
+					"VerifiableCredential",
+					"Player",
 				},
-				{
-					"createdAt",
-					// claim record
-					func(t *testing.T) string {
-						h, err := merklize.HashValue(ld.XSDNS+"dateTime", "1997-04-16T07:04:42Z")
-						require.NoError(t, err)
-						return h.String()
-					}(t),
-					func(t *testing.T) string {
-						return "0000000000000000000000000000000000000000000000000000000033547a0a"
-					}(t),
-				},
-				{
-					"active",
-					// claim record
-					func(t *testing.T) string {
-						h, err := merklize.HashValue(ld.XSDBoolean, true)
-						require.NoError(t, err)
-						return h.String()
-					}(t),
-					"",
+				CredentialSubject: []CredentialSubjectField{
+					{"id", "26822544757879120710128032423896483348887667224594515131440237223704793602", ""},
+					{"type", "", "0x506c61796572"},
+					{
+						// Since Solidity doesn't support fixed point numbers: https://docs.soliditylang.org/en/latest/types.html#fixed-point-numbers
+						// Is possible to provide only test with integer value
+						"power",
+						// claim record
+						func(t *testing.T) string {
+							h, err := merklize.HashValue(ld.XSDDouble, 9)
+							require.NoError(t, err)
+							return h.String()
+						}(t),
+						// raw value
+						func(_ *testing.T) string {
+							// Solidity doesn't support fixed point numbers
+							return "0x" + hex.EncodeToString(big.NewInt(9).Bytes())
+						}(t),
+					},
+					{
+						"nickname",
+						// claim record
+						func(t *testing.T) string {
+							h, err := merklize.HashValue(ld.XSDString, "Alice")
+							require.NoError(t, err)
+							return h.String()
+						}(t),
+						// raw value
+						func(_ *testing.T) string {
+							return "0x" + hex.EncodeToString([]byte("Alice"))
+						}(t),
+					},
+					{
+						"createdAt",
+						// claim record
+						func(t *testing.T) string {
+							h, err := merklize.HashValue(ld.XSDNS+"dateTime", "1997-04-16T07:04:42Z")
+							require.NoError(t, err)
+							return h.String()
+						}(t),
+						func(t *testing.T) string {
+							return "0000000000000000000000000000000000000000000000000000000033547a0a"
+						}(t),
+					},
+					{
+						"active",
+						// claim record
+						func(t *testing.T) string {
+							h, err := merklize.HashValue(ld.XSDBoolean, true)
+							require.NoError(t, err)
+							return h.String()
+						}(t),
+						"",
+					},
 				},
 			},
 			want: map[string]any{
@@ -249,10 +260,7 @@ func TestConvertCredentialSubject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := (&Parser{}).convertCredentialSubject(
-				tt.context,
-				tt.fields,
-			)
+			got, err := (&Convertor{}).convertCredentialSubject(tt.onchainCredential)
 
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)

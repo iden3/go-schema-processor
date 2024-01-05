@@ -1,5 +1,5 @@
 service:
-  golangci-lint-version: 1.51.x
+  golangci-lint-version: 1.55.x
 
 run:
   timeout: 2m
@@ -10,7 +10,6 @@ linters-settings:
   govet:
     check-shadowing: true
   revive:
-    min-confidence: 0.1
     rules:
       # Add more comments for exported functions and remove this rule
       - name: package-comments
@@ -69,6 +68,4 @@ issues:
       linters:
         - gosec
         - dupl
-    - text: 'shadow: declaration of "(err|ctx)" shadows declaration at'
-      linters: [ govet ]
   exclude-use-default: false
