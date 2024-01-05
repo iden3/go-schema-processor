@@ -28,7 +28,7 @@ func (m mockNoStateError) ErrorCode() int {
 	return 3
 }
 
-func (m credStatusResolverMock) GetStateInfoById(id *big.Int) (StateInfo, error) {
+func (m credStatusResolverMock) GetStateInfoByID(id *big.Int) (StateInfo, error) {
 	if id.String() == "29305636064099160210536948077705157048478988844998217946273455478812643842" {
 		return StateInfo{
 			State: "4191494968776819400863455954888115392137551122958477943242938172592557294132",
@@ -45,7 +45,7 @@ func (m credStatusResolverMock) GetRevocationStatus(id *big.Int, nonce uint64) (
 	return RevocationStatus{}, nil
 }
 
-func (m credStatusResolverMock) GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error) {
+func (m credStatusResolverMock) GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error) {
 	return RevocationStatus{}, nil
 }
 

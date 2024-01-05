@@ -34,9 +34,9 @@ type OnChainRevStatus struct {
 }
 
 type CredStatusResolver interface {
-	GetStateInfoById(id *big.Int) (StateInfo, error)
+	GetStateInfoByID(id *big.Int) (StateInfo, error)
 	GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error)
-	GetRevocationStatusByIdAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
+	GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
 }
 
 var idsInStateContract = map[core.ID]bool{}
@@ -128,7 +128,7 @@ func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
 				revNonce)
 		}
 		if status.Type == Iden3OnchainSparseMerkleTreeProof2023 {
-			return resolverOnChainRevocationStatus(ctx, resolver, issuerID, status)
+			return resolverOnChainRevocationStatus(resolver, issuerID, status)
 		}
 		return resolveRevocationStatusFromIssuerService(ctx, status.ID)
 
@@ -171,7 +171,7 @@ func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, resolver CredSt
 		return p, err
 	}
 
-	state, err := identityStateForRHS(ctx, resolver, issuerID, genesisState)
+	state, err := identityStateForRHS(resolver, issuerID, genesisState)
 	if err != nil {
 		return p, err
 	}
@@ -231,10 +231,10 @@ func rhsBaseURL(rhsURL string) (string, *merkletree.Hash, error) {
 	return u.String(), state, nil
 }
 
-func identityStateForRHS(ctx context.Context, resolver CredStatusResolver, issuerID *core.ID,
+func identityStateForRHS(resolver CredStatusResolver, issuerID *core.ID,
 	genesisState *merkletree.Hash) (*merkletree.Hash, error) {
 
-	state, err := lastStateFromContract(ctx, resolver, issuerID)
+	state, err := lastStateFromContract(resolver, issuerID)
 	if !errors.Is(err, errIdentityDoesNotExist) {
 		return state, err
 	}
@@ -266,14 +266,14 @@ func genesisStateMatch(state *merkletree.Hash, id core.ID) (bool, error) {
 	return bytes.Equal(otherID[:], id[:]), nil
 }
 
-func lastStateFromContract(ctx context.Context, resolver CredStatusResolver,
+func lastStateFromContract(resolver CredStatusResolver,
 	id *core.ID) (*merkletree.Hash, error) {
 	var zeroID core.ID
 	if id == nil || *id == zeroID {
 		return nil, errors.New("ID is empty")
 	}
 
-	resp, err := resolver.GetStateInfoById(id.BigInt())
+	resp, err := resolver.GetStateInfoByID(id.BigInt())
 	if isErrIdentityDoesNotExist(err) {
 		return nil, errIdentityDoesNotExist
 	} else if err != nil {
@@ -471,7 +471,7 @@ func getByPath(obj jsonObj, path string) (any, error) {
 	return nil, errors.New("should not happen")
 }
 
-func resolverOnChainRevocationStatus(ctx context.Context, resolver CredStatusResolver,
+func resolverOnChainRevocationStatus(resolver CredStatusResolver,
 	id *core.ID,
 	status *CredentialStatus) (circuits.MTProof, error) {
 
@@ -492,7 +492,7 @@ func resolverOnChainRevocationStatus(ctx context.Context, resolver CredStatusRes
 			onchainRevStatus.revNonce, status.RevocationNonce)
 	}
 
-	isStateContractHasID, err := stateContractHasID(ctx, id, resolver)
+	isStateContractHasID, err := stateContractHasID(id, resolver)
 	if err != nil {
 		return circuits.MTProof{}, err
 	}
@@ -516,7 +516,7 @@ func resolverOnChainRevocationStatus(ctx context.Context, resolver CredStatusRes
 			return circuits.MTProof{}, errors.New(
 				"genesis state is not specified in OnChainCredentialStatus ID")
 		}
-		resp, err = resolver.GetRevocationStatusByIdAndState(
+		resp, err = resolver.GetRevocationStatusByIDAndState(
 			id.BigInt(), onchainRevStatus.genesisState,
 			onchainRevStatus.revNonce)
 		if err != nil {
@@ -649,16 +649,7 @@ func toMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {
 	}, nil
 }
 
-func calculateDepth(siblings []*big.Int) int {
-	for i := len(siblings) - 1; i >= 0; i-- {
-		if siblings[i].Cmp(big.NewInt(0)) != 0 {
-			return i + 1
-		}
-	}
-	return 0
-}
-
-func stateContractHasID(ctx context.Context, id *core.ID, resolver CredStatusResolver) (bool, error) {
+func stateContractHasID(id *core.ID, resolver CredStatusResolver) (bool, error) {
 
 	idsInStateContractLock.RLock()
 	ok := idsInStateContract[*id]
@@ -675,7 +666,7 @@ func stateContractHasID(ctx context.Context, id *core.ID, resolver CredStatusRes
 		return ok, nil
 	}
 
-	_, err := lastStateFromContract(ctx, resolver, id)
+	_, err := lastStateFromContract(resolver, id)
 	if errors.Is(err, errIdentityDoesNotExist) {
 		return false, nil
 	} else if err != nil {

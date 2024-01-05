@@ -1,6 +1,6 @@
 module github.com/iden3/go-schema-processor/v2
 
-go 1.19
+go 1.18
 
 require (
 	github.com/iden3/go-iden3-core/v2 v2.0.3
