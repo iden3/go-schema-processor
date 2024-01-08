@@ -15,11 +15,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/utils"
+	"github.com/iden3/iden3comm/v2"
 	mp "github.com/iden3/merkletree-proof"
 	"github.com/pkg/errors"
 )
@@ -39,6 +42,28 @@ type CredStatusResolver interface {
 	GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
 }
 
+type CredStatusConfig struct {
+	Resolver       CredStatusResolver
+	packageManager iden3comm.PackageManager
+}
+
+// Options returns configuration options for cred status
+type StatusOpt func(opts *CredStatusConfig)
+
+// WithResolver return new options
+func WithResolver(resolver CredStatusResolver) StatusOpt {
+	return func(opts *CredStatusConfig) {
+		opts.Resolver = resolver
+	}
+}
+
+// WithResolver return new options
+func WithPackageManager(pm iden3comm.PackageManager) StatusOpt {
+	return func(opts *CredStatusConfig) {
+		opts.packageManager = pm
+	}
+}
+
 var idsInStateContract = map[core.ID]bool{}
 var idsInStateContractLock sync.RWMutex
 
@@ -46,6 +71,7 @@ var supportedCredentialStatusTypes = map[CredentialStatusType]bool{
 	Iden3ReverseSparseMerkleTreeProof:     true,
 	SparseMerkleTreeProof:                 true,
 	Iden3OnchainSparseMerkleTreeProof2023: true,
+	Iden3commRevocationStatusV1:           true,
 }
 
 var errIdentityDoesNotExist = errors.New("identity does not exist")
@@ -72,68 +98,80 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func BuildAndValidateCredentialStatus(ctx context.Context, resolver CredStatusResolver,
-	credStatus interface{}, issuerID *core.ID,
-	skipClaimRevocationCheck bool) (circuits.MTProof, bool, error) {
+func ValidateCredentialStatus(ctx context.Context, credStatus interface{},
+	userDID, issuerDID string, config ...StatusOpt) (circuits.MTProof, error) {
 
-	proof, err := resolveRevStatus(ctx, resolver, credStatus, issuerID)
+	cfg := CredStatusConfig{}
+	for _, o := range config {
+		o(&cfg)
+	}
+
+	proof, err := resolveRevStatus(ctx, cfg.Resolver, credStatus, userDID, issuerDID, &cfg.packageManager)
 	if err != nil {
-		return proof, false, err
+		return proof, err
 	}
-
-	if skipClaimRevocationCheck {
-		return proof, false, nil
-	}
-
 	treeStateOk, err := validateTreeState(proof.TreeState)
 	if err != nil {
-		return proof, false, err
+		return proof, err
 	}
 	if !treeStateOk {
-		return proof, false, errors.New("invalid tree state")
+		return proof, errors.New("invalid tree state")
 	}
 
 	// revocationNonce is float64, but if we meet valid string representation
 	// of Int, we will use it.
 	credStatusObj, ok := credStatus.(jsonObj)
 	if !ok {
-		return proof, false, fmt.Errorf("invali credential status")
+		return proof, fmt.Errorf("invali credential status")
 	}
 	revNonce, err := bigIntByPath(credStatusObj, "revocationNonce", true)
 	if err != nil {
-		return proof, false, err
+		return proof, err
 	}
 
 	proofValid := merkletree.VerifyProof(proof.TreeState.RevocationRoot,
 		proof.Proof, revNonce, big.NewInt(0))
 	if !proofValid {
-		return proof, false, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
+		return proof, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
 	}
 
 	if proof.Proof.Existence {
-		return proof, false, errors.New("credential is revoked")
+		return proof, errors.New("credential is revoked")
 	}
 
-	return proof, true, nil
+	return proof, nil
 }
 
 func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
-	credStatus interface{}, issuerID *core.ID) (circuits.MTProof, error) {
+	credStatus interface{}, userDID, issuerDID string, packageManager *iden3comm.PackageManager) (circuits.MTProof, error) {
+
+	parsedIssuerDID, err := w3c.ParseDID(issuerDID)
+	if err != nil {
+		return circuits.MTProof{}, err
+	}
+
+	issuerID, err := core.IDFromDID(*parsedIssuerDID)
+	if err != nil {
+		return circuits.MTProof{}, err
+	}
 
 	switch status := credStatus.(type) {
 	case *CredentialStatus:
 		if status.Type == Iden3ReverseSparseMerkleTreeProof {
 			revNonce := new(big.Int).SetUint64(status.RevocationNonce)
-			return resolveRevStatusFromRHS(ctx, status.ID, resolver, issuerID,
+			return resolveRevStatusFromRHS(ctx, status.ID, resolver, &issuerID,
 				revNonce)
 		}
 		if status.Type == Iden3OnchainSparseMerkleTreeProof2023 {
-			return resolverOnChainRevocationStatus(resolver, issuerID, status)
+			return resolverOnChainRevocationStatus(resolver, &issuerID, status)
+		}
+		if status.Type == Iden3commRevocationStatusV1 {
+			return getRevocationStatusFromAgent(userDID, issuerDID, status, packageManager)
 		}
 		return resolveRevocationStatusFromIssuerService(ctx, status.ID)
 
 	case CredentialStatus:
-		return resolveRevStatus(ctx, resolver, &status, issuerID)
+		return resolveRevStatus(ctx, resolver, &status, userDID, issuerDID, packageManager)
 
 	case jsonObj:
 		credStatusType, ok := status["type"].(string)
@@ -153,7 +191,7 @@ func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
 		if err != nil {
 			return circuits.MTProof{}, err
 		}
-		return resolveRevStatus(ctx, resolver, &typedCredentialStatus, issuerID)
+		return resolveRevStatus(ctx, resolver, &typedCredentialStatus, userDID, issuerDID, packageManager)
 
 	default:
 		return circuits.MTProof{},
@@ -382,6 +420,94 @@ func resolveRevocationStatusFromIssuerService(ctx context.Context,
 		out.TreeState.RootOfRoots = &merkletree.Hash{}
 	}
 	return out, nil
+}
+
+// revocationStatusRequestMessageBody is struct the represents request for revocation status
+type revocationStatusRequestMessageBody struct {
+	RevocationNonce uint64 `json:"revocation_nonce"`
+}
+
+const (
+	// RevocationStatusRequestMessageType is type for request of revocation status
+	revocationStatusRequestMessageType iden3comm.ProtocolMessage = iden3comm.Iden3Protocol + "revocation/1.0/request-status"
+	// RevocationStatusResponseMessageType is type for response with a revocation status
+	revocationStatusResponseMessageType iden3comm.ProtocolMessage = iden3comm.Iden3Protocol + "revocation/1.0/status"
+)
+
+// MediaTypePlainMessage is media type for plain message
+const mediaTypePlainMessage iden3comm.MediaType = "application/iden3comm-plain-json"
+
+// RevocationStatusResponseMessageBody is struct the represents request for revocation status
+type revocationStatusResponseMessageBody struct {
+	RevocationStatus
+}
+
+func getRevocationStatusFromAgent(usedDID, issuerDID string, status *CredentialStatus, pkg *iden3comm.PackageManager) (out circuits.MTProof, err error) {
+	// pkg := iden3comm.NewPackageManager()
+	// if err := pkg.RegisterPackers(&packers.PlainMessagePacker{}); err != nil {
+	// 	return nil, errors.WithStack(err)
+	// }
+
+	revocationBody := revocationStatusRequestMessageBody{
+		RevocationNonce: status.RevocationNonce,
+	}
+	rawBody, err := json.Marshal(revocationBody)
+	if err != nil {
+		return out, errors.WithStack(err)
+	}
+
+	msg := iden3comm.BasicMessage{
+		ID:       uuid.New().String(),
+		ThreadID: uuid.New().String(),
+		From:     usedDID,
+		To:       issuerDID,
+		Type:     revocationStatusRequestMessageType,
+		Body:     rawBody,
+	}
+	bytesMsg, err := json.Marshal(msg)
+	if err != nil {
+		return out, errors.WithStack(err)
+	}
+
+	iden3commMsg, err := pkg.Pack(mediaTypePlainMessage, bytesMsg, nil)
+	if err != nil {
+		return out, errors.WithStack(err)
+	}
+
+	resp, err := http.DefaultClient.Post(status.ID, "application/json", bytes.NewBuffer(iden3commMsg))
+	if err != nil {
+		return out, errors.WithStack(err)
+	}
+	defer func() {
+		err2 := resp.Body.Close()
+		if err != nil {
+			err = errors.WithStack(err2)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return out, errors.Errorf("bad status code: %d", resp.StatusCode)
+	}
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return out, errors.WithStack(err)
+	}
+	basicMessage, _, err := pkg.Unpack(b)
+	if err != nil {
+		return out, errors.WithStack(err)
+	}
+
+	if basicMessage.Type != revocationStatusResponseMessageType {
+		return out, errors.Errorf("unexpected message type: %s", basicMessage.Type)
+	}
+
+	var revocationStatus revocationStatusResponseMessageBody
+	if err := json.Unmarshal(basicMessage.Body, &revocationStatus); err != nil {
+		return out, errors.WithStack(err)
+	}
+
+	return toMerkleTreeProof(revocationStatus.RevocationStatus)
 }
 
 // check TreeState consistency

@@ -16,11 +16,13 @@ require (
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/crypto v0.7.0
+	golang.org/x/crypto v0.12.0
 )
 
 require (
+	github.com/google/uuid v1.3.0
 	github.com/iden3/go-circuits/v2 v2.0.0
+	github.com/iden3/iden3comm/v2 v2.0.1-0.20231030214854-7a0511d0e7cc
 	github.com/iden3/merkletree-proof v0.0.3
 	github.com/jarcoal/httpmock v1.3.1
 )
@@ -32,7 +34,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/blake512 v1.0.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/ipfs/boxo v0.12.0 // indirect
 	github.com/ipfs/go-cid v0.4.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect

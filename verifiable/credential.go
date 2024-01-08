@@ -37,7 +37,7 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string, credentialStatusResolver CredStatusResolver) (bool, error) {
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string, opts ...StatusOpt) (bool, error) {
 	if resolverURL == "" {
 		return false, errors.New("resolver URL is empty")
 	}
@@ -69,7 +69,9 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 			return false, err
 		}
 
-		return verifyBJJSignatureProof(proof, coreClaim, resolverURL, credentialStatusResolver)
+		usedDID := vc.CredentialSubject["id"]
+
+		return verifyBJJSignatureProof(proof, coreClaim, fmt.Sprintf("%v", usedDID), resolverURL, opts...)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -86,7 +88,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string, credStatusResolver CredStatusResolver) (bool, error) {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, userDID, resolverURL string, opts ...StatusOpt) (bool, error) {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -138,19 +140,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 	}
 
 	// validate credential status
-	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	_, err = ValidateCredentialStatus(context.Background(), proof.IssuerData.CredentialStatus, userDID, proof.IssuerData.ID, opts...)
+
 	if err != nil {
-		return false, err
-	}
-
-	issuerID, err := core.IDFromDID(*issuerDID)
-	if err != nil {
-		return false, err
-	}
-
-	_, proofValid, err := BuildAndValidateCredentialStatus(context.Background(), credStatusResolver, proof.IssuerData.CredentialStatus, &issuerID, false)
-
-	if err != nil || !proofValid {
 		return false, err
 	}
 
