@@ -429,7 +429,8 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 		httpmock.NewStringResponder(200, `{"body":{"issuer":{"claimsTreeRoot":"d9597e2fef206c9821f2425e513a68c8c793bc93c9216fb883fedaaf72abf51c","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000","rootOfRoots":"eaa48e4a7d3fe2fabbd939c7df1048c3f647a9a7c9dfadaae836ec78ba673229","state":"96161f3fbbdd68c72bc430dae474e27b157586b33b9fbf4a3f07d75ce275570f"},"mtp":{"existence":false,"siblings":[]}},"from":"did:polygonid:polygon:mumbai:2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ","id":"9ece0dad-9267-4a52-b611-f0615b0143fb","thid":"8bdc87dc-1755-41d5-b483-26562836068e","to":"did:polygonid:polygon:mumbai:2qFDziX3k3h7To2jDJbQiXFtcozbgSNNvQpb6TgtPE","typ":"application/iden3comm-plain-json","type":"https://iden3-communication.io/revocation/1.0/status"}`))
 
 	pckManager := iden3comm.NewPackageManager()
-	pckManager.RegisterPackers(&PlainMessagePacker{})
+	err = pckManager.RegisterPackers(&PlainMessagePacker{})
+	require.NoError(t, err)
 	config := []StatusOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*pckManager)}
 	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, config...)
 	require.NoError(t, err)
