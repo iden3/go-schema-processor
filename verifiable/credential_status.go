@@ -1,29 +1,21 @@
 package verifiable
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
-	"github.com/iden3/go-schema-processor/v2/utils"
 	"github.com/iden3/iden3comm/v2"
-	mp "github.com/iden3/merkletree-proof"
 	"github.com/pkg/errors"
 )
 
@@ -166,7 +158,7 @@ func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
 			return resolverOnChainRevocationStatus(resolver, &issuerID, status)
 		}
 		if status.Type == Iden3commRevocationStatusV1 {
-			return getRevocationStatusFromAgent(userDID, issuerDID, status, packageManager)
+			return resolveRevocationStatusFromAgent(userDID, issuerDID, status, packageManager)
 		}
 		return resolveRevocationStatusFromIssuerService(ctx, status.ID)
 
@@ -199,111 +191,6 @@ func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
 	}
 }
 
-func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, resolver CredStatusResolver,
-	issuerID *core.ID, revNonce *big.Int) (circuits.MTProof, error) {
-
-	var p circuits.MTProof
-
-	baseRHSURL, genesisState, err := rhsBaseURL(rhsURL)
-	if err != nil {
-		return p, err
-	}
-
-	state, err := identityStateForRHS(resolver, issuerID, genesisState)
-	if err != nil {
-		return p, err
-	}
-
-	rhsCli, err := newRhsCli(baseRHSURL)
-	if err != nil {
-		return p, err
-	}
-
-	p.TreeState, err = treeStateFromRHS(ctx, rhsCli, state)
-	if errors.Is(err, mp.ErrNodeNotFound) {
-		if genesisState != nil && state.Equals(genesisState) {
-			return p, errors.New("genesis state is not found in RHS")
-		} else {
-			return p, errors.New("current state is not found in RHS")
-		}
-	} else if err != nil {
-		return p, err
-	}
-
-	revNonceHash, err := merkletree.NewHashFromBigInt(revNonce)
-	if err != nil {
-		return p, err
-	}
-
-	p.Proof, err = rhsCli.GenerateProof(ctx, p.TreeState.RevocationRoot,
-		revNonceHash)
-	if err != nil {
-		return p, err
-	}
-
-	return p, nil
-}
-
-func rhsBaseURL(rhsURL string) (string, *merkletree.Hash, error) {
-	u, err := url.Parse(rhsURL)
-	if err != nil {
-		return "", nil, err
-	}
-	var state *merkletree.Hash
-	stateStr := u.Query().Get("state")
-	if stateStr != "" {
-		state, err = merkletree.NewHashFromHex(stateStr)
-		if err != nil {
-			return "", nil, err
-		}
-	}
-
-	if strings.HasSuffix(u.Path, "/node") {
-		u.Path = strings.TrimSuffix(u.Path, "node")
-	}
-	if strings.HasSuffix(u.Path, "/node/") {
-		u.Path = strings.TrimSuffix(u.Path, "node/")
-	}
-
-	u.RawQuery = ""
-	return u.String(), state, nil
-}
-
-func identityStateForRHS(resolver CredStatusResolver, issuerID *core.ID,
-	genesisState *merkletree.Hash) (*merkletree.Hash, error) {
-
-	state, err := lastStateFromContract(resolver, issuerID)
-	if !errors.Is(err, errIdentityDoesNotExist) {
-		return state, err
-	}
-
-	if genesisState == nil {
-		return nil, errors.New("current state is not found for the identity")
-	}
-
-	stateIsGenesis, err := genesisStateMatch(genesisState, *issuerID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !stateIsGenesis {
-		return nil, errors.New("state is not genesis for the identity")
-	}
-
-	return genesisState, nil
-}
-
-// check if genesis state matches the state from the ID
-func genesisStateMatch(state *merkletree.Hash, id core.ID) (bool, error) {
-	var tp [2]byte
-	copy(tp[:], id[:2])
-	otherID, err := core.NewIDFromIdenState(tp, state.BigInt())
-	if err != nil {
-		return false, err
-	}
-	return bytes.Equal(otherID[:], id[:]), nil
-}
-
 func lastStateFromContract(resolver CredStatusResolver,
 	id *core.ID) (*merkletree.Hash, error) {
 	var zeroID core.ID
@@ -323,40 +210,6 @@ func lastStateFromContract(resolver CredStatusResolver,
 	}
 
 	return merkletree.NewHashFromString(resp.State)
-}
-
-func treeStateFromRHS(ctx context.Context, rhsCli *mp.HTTPReverseHashCli,
-	state *merkletree.Hash) (circuits.TreeState, error) {
-
-	var treeState circuits.TreeState
-
-	stateNode, err := rhsCli.GetNode(ctx, state)
-	if err != nil {
-		return treeState, err
-	}
-
-	if len(stateNode.Children) != 3 {
-		return treeState, errors.New(
-			"invalid state node, should have 3 children")
-	}
-
-	treeState.State = state
-	treeState.ClaimsRoot = stateNode.Children[0]
-	treeState.RevocationRoot = stateNode.Children[1]
-	treeState.RootOfRoots = stateNode.Children[2]
-
-	return treeState, err
-}
-
-func newRhsCli(rhsURL string) (*mp.HTTPReverseHashCli, error) {
-	if rhsURL == "" {
-		return nil, errors.New("reverse hash service url is empty")
-	}
-
-	return &mp.HTTPReverseHashCli{
-		URL:         rhsURL,
-		HTTPTimeout: 10 * time.Second,
-	}, nil
 }
 
 // marshal/unmarshal object from one type to other
@@ -420,94 +273,6 @@ func resolveRevocationStatusFromIssuerService(ctx context.Context,
 		out.TreeState.RootOfRoots = &merkletree.Hash{}
 	}
 	return out, nil
-}
-
-// revocationStatusRequestMessageBody is struct the represents request for revocation status
-type revocationStatusRequestMessageBody struct {
-	RevocationNonce uint64 `json:"revocation_nonce"`
-}
-
-const (
-	// RevocationStatusRequestMessageType is type for request of revocation status
-	revocationStatusRequestMessageType iden3comm.ProtocolMessage = iden3comm.Iden3Protocol + "revocation/1.0/request-status"
-	// RevocationStatusResponseMessageType is type for response with a revocation status
-	revocationStatusResponseMessageType iden3comm.ProtocolMessage = iden3comm.Iden3Protocol + "revocation/1.0/status"
-)
-
-// MediaTypePlainMessage is media type for plain message
-const mediaTypePlainMessage iden3comm.MediaType = "application/iden3comm-plain-json"
-
-// RevocationStatusResponseMessageBody is struct the represents request for revocation status
-type revocationStatusResponseMessageBody struct {
-	RevocationStatus
-}
-
-func getRevocationStatusFromAgent(usedDID, issuerDID string, status *CredentialStatus, pkg *iden3comm.PackageManager) (out circuits.MTProof, err error) {
-	// pkg := iden3comm.NewPackageManager()
-	// if err := pkg.RegisterPackers(&packers.PlainMessagePacker{}); err != nil {
-	// 	return nil, errors.WithStack(err)
-	// }
-
-	revocationBody := revocationStatusRequestMessageBody{
-		RevocationNonce: status.RevocationNonce,
-	}
-	rawBody, err := json.Marshal(revocationBody)
-	if err != nil {
-		return out, errors.WithStack(err)
-	}
-
-	msg := iden3comm.BasicMessage{
-		ID:       uuid.New().String(),
-		ThreadID: uuid.New().String(),
-		From:     usedDID,
-		To:       issuerDID,
-		Type:     revocationStatusRequestMessageType,
-		Body:     rawBody,
-	}
-	bytesMsg, err := json.Marshal(msg)
-	if err != nil {
-		return out, errors.WithStack(err)
-	}
-
-	iden3commMsg, err := pkg.Pack(mediaTypePlainMessage, bytesMsg, nil)
-	if err != nil {
-		return out, errors.WithStack(err)
-	}
-
-	resp, err := http.DefaultClient.Post(status.ID, "application/json", bytes.NewBuffer(iden3commMsg))
-	if err != nil {
-		return out, errors.WithStack(err)
-	}
-	defer func() {
-		err2 := resp.Body.Close()
-		if err != nil {
-			err = errors.WithStack(err2)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return out, errors.Errorf("bad status code: %d", resp.StatusCode)
-	}
-
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return out, errors.WithStack(err)
-	}
-	basicMessage, _, err := pkg.Unpack(b)
-	if err != nil {
-		return out, errors.WithStack(err)
-	}
-
-	if basicMessage.Type != revocationStatusResponseMessageType {
-		return out, errors.Errorf("unexpected message type: %s", basicMessage.Type)
-	}
-
-	var revocationStatus revocationStatusResponseMessageBody
-	if err := json.Unmarshal(basicMessage.Body, &revocationStatus); err != nil {
-		return out, errors.WithStack(err)
-	}
-
-	return toMerkleTreeProof(revocationStatus.RevocationStatus)
 }
 
 // check TreeState consistency
@@ -597,147 +362,6 @@ func getByPath(obj jsonObj, path string) (any, error) {
 	return nil, errors.New("should not happen")
 }
 
-func resolverOnChainRevocationStatus(resolver CredStatusResolver,
-	id *core.ID,
-	status *CredentialStatus) (circuits.MTProof, error) {
-
-	var zeroID core.ID
-	if id == nil || *id == zeroID {
-		return circuits.MTProof{}, errors.New("issuer ID is empty")
-	}
-
-	onchainRevStatus, err := newOnchainRevStatusFromURI(status.ID)
-	if err != nil {
-		return circuits.MTProof{}, err
-	}
-
-	if onchainRevStatus.revNonce != status.RevocationNonce {
-		return circuits.MTProof{}, fmt.Errorf(
-			"revocationNonce is not equal to the one "+
-				"in OnChainCredentialStatus ID {%d} {%d}",
-			onchainRevStatus.revNonce, status.RevocationNonce)
-	}
-
-	isStateContractHasID, err := stateContractHasID(id, resolver)
-	if err != nil {
-		return circuits.MTProof{}, err
-	}
-
-	var resp RevocationStatus
-	if isStateContractHasID {
-		// TODO: it is not finial version of contract GetRevocationProof must accept issuer id as parameter
-		resp, err = resolver.GetRevocationStatus(id.BigInt(),
-			onchainRevStatus.revNonce)
-		if err != nil {
-			msg := err.Error()
-			if isErrInvalidRootsLength(err) {
-				msg = "roots were not saved to identity tree store"
-			}
-			return circuits.MTProof{}, fmt.Errorf(
-				"GetRevocationProof smart contract call [GetRevocationStatus]: %s",
-				msg)
-		}
-	} else {
-		if onchainRevStatus.genesisState == nil {
-			return circuits.MTProof{}, errors.New(
-				"genesis state is not specified in OnChainCredentialStatus ID")
-		}
-		resp, err = resolver.GetRevocationStatusByIDAndState(
-			id.BigInt(), onchainRevStatus.genesisState,
-			onchainRevStatus.revNonce)
-		if err != nil {
-			return circuits.MTProof{}, fmt.Errorf(
-				"GetRevocationProof smart contract call [GetRevocationStatusByIdAndState]: %s",
-				err.Error())
-		}
-	}
-
-	return toMerkleTreeProof(resp)
-}
-
-func newOnchainRevStatusFromURI(stateID string) (OnChainRevStatus, error) {
-	var s OnChainRevStatus
-
-	uri, err := url.Parse(stateID)
-	if err != nil {
-		return s, errors.New("OnChainCredentialStatus ID is not a valid URI")
-	}
-
-	contract := uri.Query().Get("contractAddress")
-	if contract == "" {
-		return s, errors.New("OnChainCredentialStatus contract address is empty")
-	}
-
-	contractParts := strings.Split(contract, ":")
-	if len(contractParts) != 2 {
-		return s, errors.New(
-			"OnChainCredentialStatus contract address is not valid")
-	}
-
-	s.chainID, err = newChainIDFromString(contractParts[0])
-	if err != nil {
-		return s, err
-	}
-	s.contractAddress = contractParts[1]
-
-	revocationNonce := uri.Query().Get("revocationNonce")
-	if revocationNonce == "" {
-		return s, errors.New("revocationNonce is empty in OnChainCredentialStatus ID")
-	}
-
-	s.revNonce, err = strconv.ParseUint(revocationNonce, 10, 64)
-	if err != nil {
-		return s, errors.New("revocationNonce is not a number in OnChainCredentialStatus ID")
-	}
-
-	// state may be nil if params is absent in query
-	s.genesisState, err = newIntFromHexQueryParam(uri, "state")
-	if err != nil {
-		return s, err
-	}
-
-	return s, nil
-}
-
-// newIntFromHexQueryParam search for query param `paramName`, parse it
-// as hex string of LE bytes of *big.Int. Return nil if param is not found.
-func newIntFromHexQueryParam(uri *url.URL, paramName string) (*big.Int, error) {
-	stateParam := uri.Query().Get(paramName)
-	if stateParam == "" {
-		return nil, nil
-	}
-
-	stateParam = strings.TrimSuffix(stateParam, "0x")
-	stateBytes, err := hex.DecodeString(stateParam)
-	if err != nil {
-		return nil, err
-	}
-
-	return newIntFromBytesLE(stateBytes), nil
-}
-
-func newIntFromBytesLE(bs []byte) *big.Int {
-	return new(big.Int).SetBytes(utils.SwapEndianness(bs))
-}
-
-func newChainIDFromString(in string) (core.ChainID, error) {
-	var chainID uint64
-	var err error
-	if strings.HasPrefix(in, "0x") ||
-		strings.HasPrefix(in, "0X") {
-		chainID, err = strconv.ParseUint(in[2:], 16, 64)
-		if err != nil {
-			return 0, err
-		}
-	} else {
-		chainID, err = strconv.ParseUint(in, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-	}
-	return core.ChainID(chainID), nil
-}
-
 func toMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {
 	proof, err := merkletree.NewProofFromData(status.MTP.Existence, status.MTP.AllSiblings(), status.MTP.NodeAux)
 	if err != nil {
@@ -773,32 +397,4 @@ func toMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {
 			RootOfRoots:    rootOfRoots,
 		},
 	}, nil
-}
-
-func stateContractHasID(id *core.ID, resolver CredStatusResolver) (bool, error) {
-
-	idsInStateContractLock.RLock()
-	ok := idsInStateContract[*id]
-	idsInStateContractLock.RUnlock()
-	if ok {
-		return ok, nil
-	}
-
-	idsInStateContractLock.Lock()
-	defer idsInStateContractLock.Unlock()
-
-	ok = idsInStateContract[*id]
-	if ok {
-		return ok, nil
-	}
-
-	_, err := lastStateFromContract(resolver, id)
-	if errors.Is(err, errIdentityDoesNotExist) {
-		return false, nil
-	} else if err != nil {
-		return false, err
-	}
-
-	idsInStateContract[*id] = true
-	return true, err
 }
