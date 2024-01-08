@@ -47,7 +47,7 @@ type CredStatusConfig struct {
 	packageManager iden3comm.PackageManager
 }
 
-// Options returns configuration options for cred status
+// StatusOpt returns configuration options for cred status
 type StatusOpt func(opts *CredStatusConfig)
 
 // WithResolver return new options
@@ -57,7 +57,7 @@ func WithResolver(resolver CredStatusResolver) StatusOpt {
 	}
 }
 
-// WithResolver return new options
+// WithPackageManager return new options
 func WithPackageManager(pm iden3comm.PackageManager) StatusOpt {
 	return func(opts *CredStatusConfig) {
 		opts.packageManager = pm
