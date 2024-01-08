@@ -148,9 +148,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		return false, err
 	}
 
-	_, err = BuildAndValidateCredentialStatus(context.Background(), credStatusResolver, proof.IssuerData.CredentialStatus, &issuerID, false)
+	_, proofValid, err := BuildAndValidateCredentialStatus(context.Background(), credStatusResolver, proof.IssuerData.CredentialStatus, &issuerID, false)
 
-	if err != nil {
+	if err != nil || !proofValid {
 		return false, err
 	}
 

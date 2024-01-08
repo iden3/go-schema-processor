@@ -74,47 +74,47 @@ func (e errPathNotFound) Error() string {
 
 func BuildAndValidateCredentialStatus(ctx context.Context, resolver CredStatusResolver,
 	credStatus interface{}, issuerID *core.ID,
-	skipClaimRevocationCheck bool) (circuits.MTProof, error) {
+	skipClaimRevocationCheck bool) (circuits.MTProof, bool, error) {
 
 	proof, err := resolveRevStatus(ctx, resolver, credStatus, issuerID)
 	if err != nil {
-		return proof, err
+		return proof, false, err
 	}
 
 	if skipClaimRevocationCheck {
-		return proof, nil
+		return proof, false, nil
 	}
 
 	treeStateOk, err := validateTreeState(proof.TreeState)
 	if err != nil {
-		return proof, err
+		return proof, false, err
 	}
 	if !treeStateOk {
-		return proof, errors.New("invalid tree state")
+		return proof, false, errors.New("invalid tree state")
 	}
 
 	// revocationNonce is float64, but if we meet valid string representation
 	// of Int, we will use it.
 	credStatusObj, ok := credStatus.(jsonObj)
 	if !ok {
-		return proof, fmt.Errorf("invali credential status")
+		return proof, false, fmt.Errorf("invali credential status")
 	}
 	revNonce, err := bigIntByPath(credStatusObj, "revocationNonce", true)
 	if err != nil {
-		return proof, err
+		return proof, false, err
 	}
 
 	proofValid := merkletree.VerifyProof(proof.TreeState.RevocationRoot,
 		proof.Proof, revNonce, big.NewInt(0))
 	if !proofValid {
-		return proof, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
+		return proof, false, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
 	}
 
 	if proof.Proof.Existence {
-		return proof, errors.New("credential is revoked")
+		return proof, false, errors.New("credential is revoked")
 	}
 
-	return proof, nil
+	return proof, true, nil
 }
 
 func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
