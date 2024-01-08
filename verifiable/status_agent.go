@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/iden3/go-circuits/v2"
+	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/iden3comm/v2"
 	"github.com/pkg/errors"
 )
@@ -79,6 +80,9 @@ func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status *Credent
 	if err != nil {
 		return out, errors.WithStack(err)
 	}
+
+	// fmt.Println(string(b))
+
 	basicMessage, _, err := pkg.Unpack(b)
 	if err != nil {
 		return out, errors.WithStack(err)
@@ -93,5 +97,42 @@ func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status *Credent
 		return out, errors.WithStack(err)
 	}
 
-	return toMerkleTreeProof(revocationStatus.RevocationStatus)
+	return agentRespToMerkleTreeProof(revocationStatus.RevocationStatus)
+}
+
+func agentRespToMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {
+	proof, err := merkletree.NewProofFromData(status.MTP.Existence, status.MTP.AllSiblings(), status.MTP.NodeAux)
+	if err != nil {
+		return circuits.MTProof{}, errors.New("failed to create proof")
+	}
+
+	state, err := merkletree.NewHashFromHex(*status.Issuer.State)
+	if err != nil {
+		return circuits.MTProof{}, errors.New("state is not a number")
+	}
+
+	claimsRoot, err := merkletree.NewHashFromHex(*status.Issuer.ClaimsTreeRoot)
+	if err != nil {
+		return circuits.MTProof{}, errors.New("state is not a number")
+	}
+
+	revocationRoot, err := merkletree.NewHashFromHex(*status.Issuer.RevocationTreeRoot)
+	if err != nil {
+		return circuits.MTProof{}, errors.New("state is not a number")
+	}
+
+	rootOfRoots, err := merkletree.NewHashFromHex(*status.Issuer.RootOfRoots)
+	if err != nil {
+		return circuits.MTProof{}, errors.New("state is not a number")
+	}
+
+	return circuits.MTProof{
+		Proof: proof,
+		TreeState: circuits.TreeState{
+			State:          state,
+			ClaimsRoot:     claimsRoot,
+			RevocationRoot: revocationRoot,
+			RootOfRoots:    rootOfRoots,
+		},
+	}, nil
 }

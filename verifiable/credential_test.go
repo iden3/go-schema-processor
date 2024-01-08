@@ -336,6 +336,106 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	require.True(t, isValid)
 }
 
+func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
+	in := `{
+        "id": "urn:uuid:79d93584-ae2c-11ee-8050-a27b3ddbdc28",
+        "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            "https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
+            "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld"
+        ],
+        "type": [
+            "VerifiableCredential",
+            "KYCAgeCredential"
+        ],
+        "expirationDate": "2361-03-21T21:14:48+02:00",
+        "issuanceDate": "2024-01-08T15:47:34.113565+02:00",
+        "credentialSubject": {
+            "birthday": 19960424,
+            "documentType": 2,
+            "id": "did:polygonid:polygon:mumbai:2qFDziX3k3h7To2jDJbQiXFtcozbgSNNvQpb6TgtPE",
+            "type": "KYCAgeCredential"
+        },
+        "credentialStatus": {
+            "id": "http://localhost:8001/api/v1/agent",
+            "revocationNonce": 3262660310,
+            "type": "Iden3commRevocationStatusV1.0"
+        },
+        "issuer": "did:polygonid:polygon:mumbai:2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ",
+        "credentialSchema": {
+            "id": "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json/KYCAgeCredential-v3.json",
+            "type": "JsonSchema2023"
+        },
+        "proof": [
+            {
+                "type": "BJJSignature2021",
+                "issuerData": {
+                    "id": "did:polygonid:polygon:mumbai:2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ",
+                    "state": {
+                        "claimsTreeRoot": "b35562873d9870f20e3d44dd94502f4156785a4b09d7906914758a7e0ed26829",
+                        "value": "2de39210318bbc7fc79e24150c2790089c8385d7acffc0f0ebf1641b95087e0f"
+                    },
+                    "authCoreClaim": "cca3371a6cb1b715004407e325bd993c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000167c1d2857ca6579d6e995198876cdfd4edb4fe2eeedeadbabaaed3008225205e7b8ab88a60b9ef0999be82625e0831872d8aca16b2932852c3731e9df69970a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                    "mtp": {
+                        "existence": true,
+                        "siblings": []
+                    },
+                    "credentialStatus": {
+                        "id": "http://localhost:8001/api/v1/agent",
+                        "revocationNonce": 0,
+                        "type": "Iden3commRevocationStatusV1.0"
+                    }
+                },
+                "coreClaim": "c9b2370371b7fa8b3dab2a5ba81b68382a00000000000000000000000000000002123cbcd9d0f3a493561510c72b47afcb02e2f09b3855291c6b77d224260d0014f503c3ab03eebe757d5b50b570186a69d90c49904155f5fc71e0e7f5b8aa120000000000000000000000000000000000000000000000000000000000000000d63e78c200000000281cdcdf0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                "signature": "56ab45ad828c4860d02e111b2732c969005046ee26dbc7d1e5bd6a6c6604ed81c3f55ffb9349f4d407f59e2e210f6d256a328d30edae2c7c95dd057240ee8902"
+            },
+            {
+                "type": "Iden3SparseMerkleTreeProof",
+                "issuerData": {
+                    "id": "did:polygonid:polygon:mumbai:2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ",
+                    "state": {
+                        "txId": "0x02f1af6a616715ccb7511176ca53d39a28c55201effca0b43a343ee6e9dc8c97",
+                        "blockTimestamp": 1704721690,
+                        "blockNumber": 44542683,
+                        "rootOfRoots": "eaa48e4a7d3fe2fabbd939c7df1048c3f647a9a7c9dfadaae836ec78ba673229",
+                        "claimsTreeRoot": "d9597e2fef206c9821f2425e513a68c8c793bc93c9216fb883fedaaf72abf51c",
+                        "revocationTreeRoot": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "value": "96161f3fbbdd68c72bc430dae474e27b157586b33b9fbf4a3f07d75ce275570f"
+                    }
+                },
+                "coreClaim": "c9b2370371b7fa8b3dab2a5ba81b68382a00000000000000000000000000000002123cbcd9d0f3a493561510c72b47afcb02e2f09b3855291c6b77d224260d0014f503c3ab03eebe757d5b50b570186a69d90c49904155f5fc71e0e7f5b8aa120000000000000000000000000000000000000000000000000000000000000000d63e78c200000000281cdcdf0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                "mtp": {
+                    "existence": true,
+                    "siblings": [
+                        "18730028644149260049434737497088408840959357817865392043806470281178241979827"
+                    ]
+                }
+            }
+        ]
+    }`
+	var vc W3CCredential
+	err := json.Unmarshal([]byte(in), &vc)
+	require.NoError(t, err)
+
+	resolverURL := "http://my-universal-resolver/1.0/identifiers"
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ?state=2de39210318bbc7fc79e24150c2790089c8385d7acffc0f0ebf1641b95087e0f",
+		httpmock.NewStringResponder(200, `{"didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":false,"global":{"root":"ff3e987dc4c279af0e77ac2b1983ed8cf627bfeebbc6d5d56be2526cc7286621","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704719148","replacedAtTimestamp":"0","createdAtBlock":"44541667","replacedAtBlock":"0"}}]}}`))
+
+	httpmock.RegisterResponder("POST", "http://localhost:8001/api/v1/agent",
+		httpmock.NewStringResponder(200, `{"body":{"issuer":{"claimsTreeRoot":"d9597e2fef206c9821f2425e513a68c8c793bc93c9216fb883fedaaf72abf51c","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000","rootOfRoots":"eaa48e4a7d3fe2fabbd939c7df1048c3f647a9a7c9dfadaae836ec78ba673229","state":"96161f3fbbdd68c72bc430dae474e27b157586b33b9fbf4a3f07d75ce275570f"},"mtp":{"existence":false,"siblings":[]}},"from":"did:polygonid:polygon:mumbai:2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ","id":"9ece0dad-9267-4a52-b611-f0615b0143fb","thid":"8bdc87dc-1755-41d5-b483-26562836068e","to":"did:polygonid:polygon:mumbai:2qFDziX3k3h7To2jDJbQiXFtcozbgSNNvQpb6TgtPE","typ":"application/iden3comm-plain-json","type":"https://iden3-communication.io/revocation/1.0/status"}`))
+
+	pckManager := iden3comm.NewPackageManager()
+	pckManager.RegisterPackers(&PlainMessagePacker{})
+	config := []StatusOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*pckManager)}
+	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, config...)
+	require.NoError(t, err)
+	require.True(t, isValid)
+}
+
 func TestW3CCredential_JSONUnmarshal(t *testing.T) {
 	in := `{
     "id": "http://ec2-34-247-165-109.eu-west-1.compute.amazonaws.com:8888/api/v1/claim/52cec4e3-7d1d-11ed-ade2-0242ac180007",
