@@ -75,4 +75,7 @@ const (
 
 	// Iden3RefreshService2023 is the type of refresh service
 	Iden3RefreshService2023 RefreshServiceType = "Iden3RefreshService2023"
+
+	// Iden3BasicDisplayType is the type fof basic display service
+	Iden3BasicDisplayType DisplayServiceType = "Iden3BasicDisplay"
 )
