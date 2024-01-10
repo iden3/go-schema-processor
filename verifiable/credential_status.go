@@ -32,24 +32,16 @@ type CredStatusResolver interface {
 	GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
 }
 
-type CredStatusConfig struct {
-	Resolver       CredStatusResolver
-	packageManager iden3comm.PackageManager
-}
-
-// StatusOpt returns configuration options for cred status
-type StatusOpt func(opts *CredStatusConfig)
-
 // WithResolver return new options
-func WithResolver(resolver CredStatusResolver) StatusOpt {
-	return func(opts *CredStatusConfig) {
+func WithResolver(resolver CredStatusResolver) W3CProofVerificationOpt {
+	return func(opts *W3CProofVerificationConfig) {
 		opts.Resolver = resolver
 	}
 }
 
 // WithPackageManager return new options
-func WithPackageManager(pm iden3comm.PackageManager) StatusOpt {
-	return func(opts *CredStatusConfig) {
+func WithPackageManager(pm iden3comm.PackageManager) W3CProofVerificationOpt {
+	return func(opts *W3CProofVerificationConfig) {
 		opts.packageManager = pm
 	}
 }
@@ -89,9 +81,9 @@ func (e errPathNotFound) Error() string {
 }
 
 func ValidateCredentialStatus(ctx context.Context, credStatus interface{},
-	userDID, issuerDID string, config ...StatusOpt) (circuits.MTProof, error) {
+	userDID, issuerDID string, config ...W3CProofVerificationOpt) (circuits.MTProof, error) {
 
-	cfg := CredStatusConfig{}
+	cfg := W3CProofVerificationConfig{}
 	for _, o := range config {
 		o(&cfg)
 	}

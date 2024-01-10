@@ -134,7 +134,7 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	httpmock.RegisterResponder("GET", "https://rhs-staging.polygonid.me/node/34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
 		httpmock.NewStringResponder(200, `{"node":{"hash":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","children":["4436ea12d352ddb84d2ac7a27bbf7c9f1bfc7d3ff69f3e6cf4348f424317fd0b","0000000000000000000000000000000000000000000000000000000000000000","37eabc712cdaa64793561b16b8143f56f149ad1b0c35297a1b125c765d1c071e"]},"status":"OK"}`))
 
-	config := []StatusOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*iden3comm.NewPackageManager())}
+	config := []W3CProofVerificationOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*iden3comm.NewPackageManager())}
 	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, config...)
 	require.NoError(t, err)
 	require.True(t, isValid)
@@ -224,7 +224,7 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	httpmock.RegisterResponder("GET", "https://rhs-staging.polygonid.me/node/da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817",
 		httpmock.NewStringResponder(200, `{"node":{"hash":"da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817","children":["aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e","0000000000000000000000000000000000000000000000000000000000000000","0000000000000000000000000000000000000000000000000000000000000000"]},"status":"OK"}`))
 
-	config := []StatusOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*iden3comm.NewPackageManager())}
+	config := []W3CProofVerificationOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*iden3comm.NewPackageManager())}
 	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, config...)
 	require.NoError(t, err)
 	require.True(t, isValid)
@@ -330,7 +330,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
 		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":true,"info":{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","replacedByState":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1703174663","replacedAtTimestamp":"0","createdAtBlock":"43840767","replacedAtBlock":"0"},"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T07:53:42.67771172Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":442,"did":{"didString":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","methodSpecificId":"polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","method":"polygonid"}},"didDocumentMetadata":{}}`))
 
-	config := []StatusOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*iden3comm.NewPackageManager())}
+	config := []W3CProofVerificationOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*iden3comm.NewPackageManager())}
 	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, resolverURL, config...)
 	require.NoError(t, err)
 	require.True(t, isValid)
@@ -431,7 +431,7 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 	pckManager := iden3comm.NewPackageManager()
 	err = pckManager.RegisterPackers(&PlainMessagePacker{})
 	require.NoError(t, err)
-	config := []StatusOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*pckManager)}
+	config := []W3CProofVerificationOpt{WithResolver(credStatusResolverMock{}), WithPackageManager(*pckManager)}
 	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, config...)
 	require.NoError(t, err)
 	require.True(t, isValid)

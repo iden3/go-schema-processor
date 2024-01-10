@@ -17,6 +17,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
+	"github.com/iden3/iden3comm/v2"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +38,7 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string, opts ...StatusOpt) (bool, error) {
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string, opts ...W3CProofVerificationOpt) (bool, error) {
 	if resolverURL == "" {
 		return false, errors.New("resolver URL is empty")
 	}
@@ -88,7 +89,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, userDID, resolverURL string, opts ...StatusOpt) (bool, error) {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, userDID, resolverURL string, opts ...W3CProofVerificationOpt) (bool, error) {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -366,4 +367,13 @@ type RevocationStatus struct {
 		RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
 	} `json:"issuer"`
 	MTP merkletree.Proof `json:"mtp"`
+}
+
+// W3CProofVerificationOpt returns configuration options for W3C proof verification
+type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
+
+// W3CProofVerificationConfig options for W3C proof verification
+type W3CProofVerificationConfig struct {
+	Resolver       CredStatusResolver
+	packageManager iden3comm.PackageManager
 }
