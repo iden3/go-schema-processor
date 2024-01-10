@@ -105,7 +105,7 @@ func ValidateCredentialStatus(ctx context.Context, credStatus interface{},
 		return proof, err
 	}
 	if !treeStateOk {
-		return proof, errors.New("invalid tree state")
+		return proof, errors.New("signature proof: invalid tree state of the issuer while checking credential status of singing key")
 	}
 
 	// revocationNonce is float64, but if we meet valid string representation
@@ -126,7 +126,7 @@ func ValidateCredentialStatus(ctx context.Context, credStatus interface{},
 	}
 
 	if proof.Proof.Existence {
-		return proof, errors.New("credential is revoked")
+		return proof, errors.New("signature proof: singing key of the issuer is revoked")
 	}
 
 	return proof, nil

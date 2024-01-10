@@ -183,7 +183,7 @@ func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClai
 	}
 
 	if rootFromProof.BigInt().Cmp(issuerShateHash.BigInt()) != 0 {
-		return false, errors.New("mtp proof not valid")
+		return false, errors.New("verifyIden3SparseMerkleTreeProof: root from proof not equal to issuer data claims tree root")
 	}
 
 	return true, nil
