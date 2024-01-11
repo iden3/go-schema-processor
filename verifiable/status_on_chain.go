@@ -10,13 +10,31 @@ import (
 
 	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-schema-processor/v2/utils"
 	"github.com/pkg/errors"
 )
 
-func resolverOnChainRevocationStatus(resolver CredStatusResolver,
+type OnChainResolver struct {
+}
+
+func (*OnChainResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
+	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
+	if err != nil {
+		return circuits.MTProof{}, err
+	}
+
+	issuerID, err := core.IDFromDID(*parsedIssuerDID)
+	if err != nil {
+		return circuits.MTProof{}, err
+	}
+
+	return resolverOnChainRevocationStatus(cfg.stateResolver, &issuerID, credentialStatus)
+}
+
+func resolverOnChainRevocationStatus(resolver CredStatusStateResolver,
 	id *core.ID,
-	status *CredentialStatus) (circuits.MTProof, error) {
+	status CredentialStatus) (circuits.MTProof, error) {
 
 	var zeroID core.ID
 	if id == nil || *id == zeroID {
@@ -155,7 +173,7 @@ func newIntFromBytesLE(bs []byte) *big.Int {
 	return new(big.Int).SetBytes(utils.SwapEndianness(bs))
 }
 
-func stateContractHasID(id *core.ID, resolver CredStatusResolver) (bool, error) {
+func stateContractHasID(id *core.ID, resolver CredStatusStateResolver) (bool, error) {
 
 	idsInStateContractLock.RLock()
 	ok := idsInStateContract[*id]

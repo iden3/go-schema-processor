@@ -33,8 +33,14 @@ type revocationStatusResponseMessageBody struct {
 	RevocationStatus
 }
 
-func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status *CredentialStatus, pkg *iden3comm.PackageManager) (out circuits.MTProof, err error) {
+type AgentResolver struct {
+}
 
+func (AgentResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
+	return resolveRevocationStatusFromAgent(*cfg.userDID, *cfg.issuerDID, credentialStatus, cfg.packageManager)
+}
+
+func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status CredentialStatus, pkg *iden3comm.PackageManager) (out circuits.MTProof, err error) {
 	revocationBody := revocationStatusRequestMessageBody{
 		RevocationNonce: status.RevocationNonce,
 	}

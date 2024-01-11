@@ -12,10 +12,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-func resolveRevocationStatusFromIssuerService(ctx context.Context,
-	url string) (out circuits.MTProof, err error) {
+type IssuerResolver struct {
+}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url,
+func (*IssuerResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
+	return resolveRevocationStatusFromIssuerService(context.Background(), credentialStatus)
+}
+
+func resolveRevocationStatusFromIssuerService(ctx context.Context,
+	credentialStatus CredentialStatus) (out circuits.MTProof, err error) {
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, credentialStatus.ID,
 		http.NoBody)
 	if err != nil {
 		return out, err

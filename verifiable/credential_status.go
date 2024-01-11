@@ -1,7 +1,6 @@
 package verifiable
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
-	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/iden3comm/v2"
@@ -26,35 +24,61 @@ type OnChainRevStatus struct {
 	genesisState    *big.Int
 }
 
-type CredStatusResolver interface {
+type CredStatusStateResolver interface {
 	GetStateInfoByID(id *big.Int) (StateInfo, error)
 	GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error)
 	GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
 }
 
-// WithResolver return new options
-func WithResolver(resolver CredStatusResolver) W3CProofVerificationOpt {
-	return func(opts *W3CProofVerificationConfig) {
-		opts.Resolver = resolver
+// WithStatusResolverRegistry return new options
+func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) CredentialStatusOpt {
+	return func(opts *CredentialStatusConfig) {
+		opts.statusResolverRegistry = registry
+	}
+}
+
+// WithStateResolver return new options
+func WithStateResolver(resolver CredStatusStateResolver) CredentialStatusOpt {
+	return func(opts *CredentialStatusConfig) {
+		opts.stateResolver = resolver
 	}
 }
 
 // WithPackageManager return new options
-func WithPackageManager(pm iden3comm.PackageManager) W3CProofVerificationOpt {
-	return func(opts *W3CProofVerificationConfig) {
+func WithPackageManager(pm *iden3comm.PackageManager) CredentialStatusOpt {
+	return func(opts *CredentialStatusConfig) {
 		opts.packageManager = pm
 	}
 }
 
+// WithUserDID return new options
+func WithUserDID(userDID *string) CredentialStatusOpt {
+	return func(opts *CredentialStatusConfig) {
+		opts.userDID = userDID
+	}
+}
+
+// WithIssuerDID return new options
+func WithIssuerDID(issuerDID *string) CredentialStatusOpt {
+	return func(opts *CredentialStatusConfig) {
+		opts.issuerDID = issuerDID
+	}
+}
+
+// CredentialStatusOpt returns configuration options for CredentialStatusConfig
+type CredentialStatusOpt func(opts *CredentialStatusConfig)
+
+// CredentialStatusConfig options for credential status verification
+type CredentialStatusConfig struct {
+	statusResolverRegistry *CredentialStatusResolverRegistry
+	stateResolver          CredStatusStateResolver
+	packageManager         *iden3comm.PackageManager
+	userDID                *string
+	issuerDID              *string
+}
+
 var idsInStateContract = map[core.ID]bool{}
 var idsInStateContractLock sync.RWMutex
-
-var supportedCredentialStatusTypes = map[CredentialStatusType]bool{
-	Iden3ReverseSparseMerkleTreeProof:     true,
-	SparseMerkleTreeProof:                 true,
-	Iden3OnchainSparseMerkleTreeProof2023: true,
-	Iden3commRevocationStatusV1:           true,
-}
 
 var errIdentityDoesNotExist = errors.New("identity does not exist")
 
@@ -80,15 +104,8 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func ValidateCredentialStatus(ctx context.Context, credStatus interface{},
-	userDID, issuerDID string, config ...W3CProofVerificationOpt) (circuits.MTProof, error) {
-
-	cfg := W3CProofVerificationConfig{}
-	for _, o := range config {
-		o(&cfg)
-	}
-
-	proof, err := resolveRevStatus(ctx, cfg.Resolver, credStatus, userDID, issuerDID, &cfg.packageManager)
+func ValidateCredentialStatus(credStatus interface{}, config CredentialStatusConfig) (circuits.MTProof, error) {
+	proof, err := resolveRevStatus(credStatus, config)
 	if err != nil {
 		return proof, err
 	}
@@ -100,8 +117,6 @@ func ValidateCredentialStatus(ctx context.Context, credStatus interface{},
 		return proof, errors.New("signature proof: invalid tree state of the issuer while checking credential status of singing key")
 	}
 
-	// revocationNonce is float64, but if we meet valid string representation
-	// of Int, we will use it.
 	credStatusObj, ok := credStatus.(jsonObj)
 	if !ok {
 		return proof, fmt.Errorf("invali credential status")
@@ -124,64 +139,41 @@ func ValidateCredentialStatus(ctx context.Context, credStatus interface{},
 	return proof, nil
 }
 
-func resolveRevStatus(ctx context.Context, resolver CredStatusResolver,
-	credStatus interface{}, userDID, issuerDID string, packageManager *iden3comm.PackageManager) (circuits.MTProof, error) {
+func resolveRevStatus(status interface{}, config CredentialStatusConfig) (circuits.MTProof, error) {
+	var statusType CredentialStatusType
+	var credentialStatusTyped CredentialStatus
 
-	parsedIssuerDID, err := w3c.ParseDID(issuerDID)
-	if err != nil {
-		return circuits.MTProof{}, err
-	}
-
-	issuerID, err := core.IDFromDID(*parsedIssuerDID)
-	if err != nil {
-		return circuits.MTProof{}, err
-	}
-
-	switch status := credStatus.(type) {
+	switch status := status.(type) {
 	case *CredentialStatus:
-		if status.Type == Iden3ReverseSparseMerkleTreeProof {
-			revNonce := new(big.Int).SetUint64(status.RevocationNonce)
-			return resolveRevStatusFromRHS(ctx, status.ID, resolver, &issuerID,
-				revNonce)
-		}
-		if status.Type == Iden3OnchainSparseMerkleTreeProof2023 {
-			return resolverOnChainRevocationStatus(resolver, &issuerID, status)
-		}
-		if status.Type == Iden3commRevocationStatusV1 {
-			return resolveRevocationStatusFromAgent(userDID, issuerDID, status, packageManager)
-		}
-		return resolveRevocationStatusFromIssuerService(ctx, status.ID)
-
+		statusType = status.Type
+		credentialStatusTyped = *status
 	case CredentialStatus:
-		return resolveRevStatus(ctx, resolver, &status, userDID, issuerDID, packageManager)
-
+		statusType = status.Type
+		credentialStatusTyped = status
 	case jsonObj:
 		credStatusType, ok := status["type"].(string)
 		if !ok {
 			return circuits.MTProof{},
 				errors.New("credential status doesn't contain type")
 		}
-		credentialStatusType := CredentialStatusType(credStatusType)
-		if !supportedCredentialStatusTypes[credentialStatusType] {
-			return circuits.MTProof{}, fmt.Errorf(
-				"credential status type %s id not supported",
-				credStatusType)
-		}
-
-		var typedCredentialStatus CredentialStatus
-		err := remarshalObj(&typedCredentialStatus, status)
+		statusType = CredentialStatusType(credStatusType)
+		err := remarshalObj(&credentialStatusTyped, status)
 		if err != nil {
 			return circuits.MTProof{}, err
 		}
-		return resolveRevStatus(ctx, resolver, &typedCredentialStatus, userDID, issuerDID, packageManager)
-
 	default:
 		return circuits.MTProof{},
 			errors.New("unknown credential status format")
 	}
+
+	resolver, err := config.statusResolverRegistry.Get(statusType)
+	if err != nil {
+		return circuits.MTProof{}, err
+	}
+	return resolver.Resolve(credentialStatusTyped, config)
 }
 
-func lastStateFromContract(resolver CredStatusResolver,
+func lastStateFromContract(resolver CredStatusStateResolver,
 	id *core.ID) (*merkletree.Hash, error) {
 	var zeroID core.ID
 	if id == nil || *id == zeroID {

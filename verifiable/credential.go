@@ -17,7 +17,6 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
-	"github.com/iden3/iden3comm/v2"
 	"github.com/pkg/errors"
 )
 
@@ -90,6 +89,11 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 }
 
 func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, userDID, resolverURL string, opts ...W3CProofVerificationOpt) (bool, error) {
+	verifyConfig := W3CProofVerificationConfig{}
+	for _, o := range opts {
+		o(&verifyConfig)
+	}
+
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -141,7 +145,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 	}
 
 	// validate credential status
-	_, err = ValidateCredentialStatus(context.Background(), proof.IssuerData.CredentialStatus, userDID, proof.IssuerData.ID, opts...)
+	verifyConfig.credentialStatusConfig.issuerDID = &proof.IssuerData.ID
+	verifyConfig.credentialStatusConfig.userDID = &userDID
+	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, *verifyConfig.credentialStatusConfig)
 
 	if err != nil {
 		return false, err
@@ -369,11 +375,17 @@ type RevocationStatus struct {
 	MTP merkletree.Proof `json:"mtp"`
 }
 
+// WithStatusConfig return new options
+func WithStatusConfig(config *CredentialStatusConfig) W3CProofVerificationOpt {
+	return func(opts *W3CProofVerificationConfig) {
+		opts.credentialStatusConfig = config
+	}
+}
+
 // W3CProofVerificationOpt returns configuration options for W3C proof verification
 type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
 
 // W3CProofVerificationConfig options for W3C proof verification
 type W3CProofVerificationConfig struct {
-	Resolver       CredStatusResolver
-	packageManager iden3comm.PackageManager
+	credentialStatusConfig *CredentialStatusConfig
 }

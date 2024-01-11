@@ -10,12 +10,32 @@ import (
 
 	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-merkletree-sql/v2"
 	mp "github.com/iden3/merkletree-proof"
 	"github.com/pkg/errors"
 )
 
-func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, resolver CredStatusResolver,
+type RHSResolver struct {
+}
+
+func (RHSResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
+	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
+	if err != nil {
+		return circuits.MTProof{}, err
+	}
+
+	issuerID, err := core.IDFromDID(*parsedIssuerDID)
+	if err != nil {
+		return circuits.MTProof{}, err
+	}
+
+	revNonce := new(big.Int).SetUint64(credentialStatus.RevocationNonce)
+
+	return resolveRevStatusFromRHS(context.Background(), credentialStatus.ID, cfg.stateResolver, &issuerID, revNonce)
+}
+
+func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, resolver CredStatusStateResolver,
 	issuerID *core.ID, revNonce *big.Int) (circuits.MTProof, error) {
 
 	var p circuits.MTProof
@@ -60,7 +80,7 @@ func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, resolver CredSt
 	return p, nil
 }
 
-func identityStateForRHS(resolver CredStatusResolver, issuerID *core.ID,
+func identityStateForRHS(resolver CredStatusStateResolver, issuerID *core.ID,
 	genesisState *merkletree.Hash) (*merkletree.Hash, error) {
 
 	state, err := lastStateFromContract(resolver, issuerID)
