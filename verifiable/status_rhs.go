@@ -11,7 +11,7 @@ import (
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-merkletree-sql/v2"
-	mp "github.com/iden3/merkletree-proof"
+	mp "github.com/iden3/merkletree-proof/http"
 	"github.com/pkg/errors"
 )
 
@@ -112,7 +112,7 @@ func genesisStateMatch(state *merkletree.Hash, id core.ID) (bool, error) {
 	return bytes.Equal(otherID[:], id[:]), nil
 }
 
-func issuerFromRHS(ctx context.Context, rhsCli *mp.HTTPReverseHashCli,
+func issuerFromRHS(ctx context.Context, rhsCli *mp.ReverseHashCli,
 	state *merkletree.Hash) (Issuer, error) {
 
 	var issuer Issuer
@@ -139,12 +139,12 @@ func issuerFromRHS(ctx context.Context, rhsCli *mp.HTTPReverseHashCli,
 	return issuer, err
 }
 
-func newRhsCli(rhsURL string) (*mp.HTTPReverseHashCli, error) {
+func newRhsCli(rhsURL string) (*mp.ReverseHashCli, error) {
 	if rhsURL == "" {
 		return nil, errors.New("reverse hash service url is empty")
 	}
 
-	return &mp.HTTPReverseHashCli{
+	return &mp.ReverseHashCli{
 		URL:         rhsURL,
 		HTTPTimeout: 10 * time.Second,
 	}, nil

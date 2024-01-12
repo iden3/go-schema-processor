@@ -23,7 +23,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/iden3/go-circuits/v2 v2.0.0
 	github.com/iden3/iden3comm/v2 v2.0.1-0.20231030214854-7a0511d0e7cc
-	github.com/iden3/merkletree-proof v0.0.3
+	github.com/iden3/merkletree-proof v0.0.4
 	github.com/jarcoal/httpmock v1.3.1
 )
 

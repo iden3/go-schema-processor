@@ -38,6 +38,8 @@ github.com/iden3/iden3comm/v2 v2.0.1-0.20231030214854-7a0511d0e7cc h1:VciWdH3N9h
 github.com/iden3/iden3comm/v2 v2.0.1-0.20231030214854-7a0511d0e7cc/go.mod h1:wrXoxi8eoQSLopatRW5+hYF9lDRvzGL2As9ZE88q/kA=
 github.com/iden3/merkletree-proof v0.0.3 h1:01fSpjv2JIwVBYqV7ugLm0gjF+yo0aw41zDTWP5+81s=
 github.com/iden3/merkletree-proof v0.0.3/go.mod h1:cNPG00p4ALlIXnRFmM1T2zy4547jV8cgyOZsObDrORg=
+github.com/iden3/merkletree-proof v0.0.4 h1:o1XXws6zb7+BBDQYXlo0GPUH+jUY3+GxkT88U1C4Sb8=
+github.com/iden3/merkletree-proof v0.0.4/go.mod h1:D49CVDG/tshMiZuDCxWjGJoNplRg9y9XIlg9/eMSYOc=
 github.com/ipfs/boxo v0.12.0 h1:AXHg/1ONZdRQHQLgG5JHsSC3XoE4DjCAMgK+asZvUcQ=
 github.com/ipfs/boxo v0.12.0/go.mod h1:xAnfiU6PtxWCnRqu7dcXQ10bB5/kvI1kXRotuGqGBhg=
 github.com/ipfs/go-cid v0.4.1 h1:A/T3qGvxi4kpKWWcPC/PgbvDA2bjVLO7n4UeVwnbs/s=
