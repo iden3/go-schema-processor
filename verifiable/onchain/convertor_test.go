@@ -136,7 +136,7 @@ func TestOnchainVerifiableCredential(t *testing.T) {
 		]
 	}
 	`
-	vc := new(Credential)
+	vc := new(CredentialData)
 	err := json.Unmarshal([]byte(onchainVC), vc)
 	require.NoError(t, err)
 
@@ -150,12 +150,12 @@ func TestOnchainVerifiableCredential(t *testing.T) {
 func TestConvertCredentialSubject(t *testing.T) {
 	tests := []struct {
 		name              string
-		onchainCredential *Credential
+		onchainCredential *CredentialData
 		want              map[string]any
 	}{
 		{
 			name: "Balance credential data",
-			onchainCredential: &Credential{
+			onchainCredential: &CredentialData{
 				Context: []string{
 					"https://www.w3.org/2018/credentials/v1",
 					"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
@@ -181,7 +181,7 @@ func TestConvertCredentialSubject(t *testing.T) {
 		},
 		{
 			name: "Player credential data",
-			onchainCredential: &Credential{
+			onchainCredential: &CredentialData{
 				Context: []string{
 					"https://www.w3.org/2018/credentials/v1",
 					"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",

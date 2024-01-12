@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-merkletree-sql/v2"
@@ -19,20 +18,13 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
+// Convertor converts onchain issuer data to W3C verifiable credentials.
 type Convertor struct {
 	marklizeInstance merklize.Options
-
-	id string
 }
 
+// ConvertorOption is a functional option for Convertor.
 type ConvertorOption func(*Convertor)
-
-// WithID sets custom id for the credential.
-func WithID(id string) ConvertorOption {
-	return func(p *Convertor) {
-		p.id = id
-	}
-}
 
 // WithMerklizerOptions sets options for merklizer.
 func WithMerklizerOptions(m merklize.Options) ConvertorOption {
@@ -41,7 +33,8 @@ func WithMerklizerOptions(m merklize.Options) ConvertorOption {
 	}
 }
 
-func NewParser(opts ...ConvertorOption) *Convertor {
+// NewConvertor creates a new Convertor.
+func NewConvertor(opts ...ConvertorOption) *Convertor {
 	p := &Convertor{}
 
 	for _, opt := range opts {
@@ -51,15 +44,14 @@ func NewParser(opts ...ConvertorOption) *Convertor {
 	return p
 }
 
-// ConvertVerifiableCredential converts an onchain verifiable credential to a W3C verifiable credential.
+// ConvertVerifiableCredential converts an onchain issuer data to a W3C verifiable credential.
 // The w3c credential id will be regenerated.
-func ConvertVerifiableCredential(credential *Credential) (*verifiable.W3CCredential, error) {
-	id := fmt.Sprintf("urn:uuid:%s", uuid.NewString())
-	return (&Convertor{id: id}).ConvertVerifiableCredential(credential)
+func ConvertVerifiableCredential(credential *CredentialData) (*verifiable.W3CCredential, error) {
+	return (&Convertor{}).ConvertVerifiableCredential(credential)
 }
 
-// ConvertVerifiableCredential converts an onchain verifiable credential to a W3C verifiable credential.
-func (p *Convertor) ConvertVerifiableCredential(onchainCredential *Credential) (*verifiable.W3CCredential, error) {
+// ConvertVerifiableCredential converts an onchain issuer data to a W3C verifiable credential.
+func (p *Convertor) ConvertVerifiableCredential(onchainCredential *CredentialData) (*verifiable.W3CCredential, error) {
 	timestampExp, err := strconv.ParseInt(onchainCredential.Expiration, 10, 64)
 	if err != nil {
 		return nil,
@@ -105,8 +97,9 @@ func (p *Convertor) ConvertVerifiableCredential(onchainCredential *Credential) (
 
 	id, err := p.convertCredentialID(onchainCredential.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert Credential ID: %w", err)
 	}
+
 	return &verifiable.W3CCredential{
 		ID:      id,
 		Context: onchainCredential.Context,
@@ -125,12 +118,12 @@ func (p *Convertor) ConvertVerifiableCredential(onchainCredential *Credential) (
 }
 
 func (p *Convertor) convertCredentialID(id string) (string, error) {
-	if p.id != "" {
-		id = p.id
+	if id == "" {
+		return "", fmt.Errorf("credential ID is empty")
 	}
 	_, err := url.ParseRequestURI(id)
 	if err != nil {
-		return "", fmt.Errorf("id '%s' should be valid URI: %w", id, err)
+		return fmt.Sprintf("urn:id:%s", id), nil
 	}
 	return id, nil
 }
@@ -188,16 +181,16 @@ func extractCredentialType(types []string) (string, error) {
 	}
 
 	switch {
-	case types[0] == verifiableCredentialType:
+	case types[0] == verifiable.TypeW3CVerifiableCredential:
 		return types[1], nil
-	case types[1] == verifiableCredentialType:
+	case types[1] == verifiable.TypeW3CVerifiableCredential:
 		return types[0], nil
 	default:
 		return "", fmt.Errorf("credential type is invalid")
 	}
 }
 
-func (p *Convertor) convertCredentialSubject(onchainCredential *Credential) (map[string]any, error) {
+func (p *Convertor) convertCredentialSubject(onchainCredential *CredentialData) (map[string]any, error) {
 	var (
 		idIsSet bool
 

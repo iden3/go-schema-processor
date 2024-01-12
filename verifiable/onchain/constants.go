@@ -6,7 +6,4 @@ const (
 
 	reservedCredentialSubjectKeyID   string = "id"
 	reservedCredentialSubjectKeyType string = "type"
-
-	// nolint:gosec // This is type of the credential, not a secret
-	verifiableCredentialType = "VerifiableCredential"
 )

@@ -54,8 +54,8 @@ type CredentialStatus struct {
 	RevocationNonce string `json:"revocationNonce"`
 }
 
-// Credential represents a credential that was issued by an onchain issuer.
-type Credential struct {
+// CredentialData represents a credential that was issued by an onchain issuer.
+type CredentialData struct {
 	ID                string                   `json:"id"`
 	Context           []string                 `json:"context"`
 	Type              []string                 `json:"_type"`
