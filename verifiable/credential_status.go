@@ -32,35 +32,35 @@ type CredStatusStateResolver interface {
 // WithStatusResolverRegistry return new options
 func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) CredentialStatusOpt {
 	return func(opts *CredentialStatusConfig) {
-		opts.statusResolverRegistry = registry
+		opts.StatusResolverRegistry = registry
 	}
 }
 
 // WithStateResolver return new options
 func WithStateResolver(resolver CredStatusStateResolver) CredentialStatusOpt {
 	return func(opts *CredentialStatusConfig) {
-		opts.stateResolver = resolver
+		opts.StateResolver = resolver
 	}
 }
 
 // WithPackageManager return new options
 func WithPackageManager(pm *iden3comm.PackageManager) CredentialStatusOpt {
 	return func(opts *CredentialStatusConfig) {
-		opts.packageManager = pm
+		opts.PackageManager = pm
 	}
 }
 
 // WithUserDID return new options
 func WithUserDID(userDID *string) CredentialStatusOpt {
 	return func(opts *CredentialStatusConfig) {
-		opts.userDID = userDID
+		opts.UserDID = userDID
 	}
 }
 
 // WithIssuerDID return new options
 func WithIssuerDID(issuerDID *string) CredentialStatusOpt {
 	return func(opts *CredentialStatusConfig) {
-		opts.issuerDID = issuerDID
+		opts.IssuerDID = issuerDID
 	}
 }
 
@@ -69,11 +69,11 @@ type CredentialStatusOpt func(opts *CredentialStatusConfig)
 
 // CredentialStatusConfig options for credential status verification
 type CredentialStatusConfig struct {
-	statusResolverRegistry *CredentialStatusResolverRegistry
-	stateResolver          CredStatusStateResolver
-	packageManager         *iden3comm.PackageManager
-	userDID                *string
-	issuerDID              *string
+	StatusResolverRegistry *CredentialStatusResolverRegistry
+	StateResolver          CredStatusStateResolver
+	PackageManager         *iden3comm.PackageManager
+	UserDID                *string
+	IssuerDID              *string
 }
 
 var idsInStateContract = map[core.ID]bool{}
@@ -174,7 +174,7 @@ func resolveRevStatus(status interface{}, config CredentialStatusConfig) (out Re
 			errors.New("unknown credential status format")
 	}
 
-	resolver, err := config.statusResolverRegistry.Get(statusType)
+	resolver, err := config.StatusResolverRegistry.Get(statusType)
 	if err != nil {
 		return out, err
 	}

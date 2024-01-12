@@ -43,7 +43,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 		o(&verifyConfig)
 	}
 
-	if verifyConfig.resolverURL == "" {
+	if verifyConfig.ResolverURL == "" {
 		return false, errors.New("resolver URL is empty")
 	}
 
@@ -76,7 +76,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 
 		usedDID := vc.CredentialSubject["id"]
 
-		return verifyBJJSignatureProof(proof, coreClaim, fmt.Sprintf("%v", usedDID), verifyConfig.resolverURL, verifyConfig.credentialStatusOpts...)
+		return verifyBJJSignatureProof(proof, coreClaim, fmt.Sprintf("%v", usedDID), verifyConfig.ResolverURL, verifyConfig.CredentialStatusOpts...)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -87,7 +87,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 		if err != nil {
 			return false, err
 		}
-		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig.resolverURL)
+		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig.ResolverURL)
 	default:
 		return false, ErrProofNotFound
 	}
@@ -380,14 +380,14 @@ type Issuer struct {
 // WithStatusOpts return new options
 func WithStatusOpts(credentialStatusOpts []CredentialStatusOpt) W3CProofVerificationOpt {
 	return func(opts *W3CProofVerificationConfig) {
-		opts.credentialStatusOpts = credentialStatusOpts
+		opts.CredentialStatusOpts = credentialStatusOpts
 	}
 }
 
 // WithResolverURL return new options
 func WithResolverURL(resolverURL string) W3CProofVerificationOpt {
 	return func(opts *W3CProofVerificationConfig) {
-		opts.resolverURL = resolverURL
+		opts.ResolverURL = resolverURL
 	}
 }
 
@@ -396,6 +396,6 @@ type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
 
 // W3CProofVerificationConfig options for W3C proof verification
 type W3CProofVerificationConfig struct {
-	credentialStatusOpts []CredentialStatusOpt
-	resolverURL          string
+	CredentialStatusOpts []CredentialStatusOpt
+	ResolverURL          string
 }

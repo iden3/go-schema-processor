@@ -18,7 +18,7 @@ type OnChainResolver struct {
 }
 
 func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
-	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
+	parsedIssuerDID, err := w3c.ParseDID(*cfg.IssuerDID)
 	if err != nil {
 		return out, err
 	}
@@ -45,15 +45,14 @@ func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusCon
 			onchainRevStatus.revNonce, status.RevocationNonce)
 	}
 
-	isStateContractHasID, err := stateContractHasID(&issuerID, cfg.stateResolver)
+	isStateContractHasID, err := stateContractHasID(&issuerID, cfg.StateResolver)
 	if err != nil {
 		return out, err
 	}
 
 	var resp RevocationStatus
 	if isStateContractHasID {
-		// TODO: it is not finial version of contract GetRevocationProof must accept issuer id as parameter
-		resp, err = cfg.stateResolver.GetRevocationStatus(issuerID.BigInt(),
+		resp, err = cfg.StateResolver.GetRevocationStatus(issuerID.BigInt(),
 			onchainRevStatus.revNonce)
 		if err != nil {
 			msg := err.Error()
@@ -69,7 +68,7 @@ func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusCon
 			return out, errors.New(
 				"genesis state is not specified in OnChainCredentialStatus ID")
 		}
-		resp, err = cfg.stateResolver.GetRevocationStatusByIDAndState(
+		resp, err = cfg.StateResolver.GetRevocationStatusByIDAndState(
 			issuerID.BigInt(), onchainRevStatus.genesisState,
 			onchainRevStatus.revNonce)
 		if err != nil {

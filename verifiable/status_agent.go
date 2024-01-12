@@ -46,8 +46,8 @@ func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig
 	msg := iden3comm.BasicMessage{
 		ID:       uuid.New().String(),
 		ThreadID: uuid.New().String(),
-		From:     *cfg.userDID,
-		To:       *cfg.issuerDID,
+		From:     *cfg.UserDID,
+		To:       *cfg.IssuerDID,
 		Type:     revocationStatusRequestMessageType,
 		Body:     rawBody,
 	}
@@ -56,7 +56,7 @@ func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig
 		return out, errors.WithStack(err)
 	}
 
-	iden3commMsg, err := cfg.packageManager.Pack(mediaTypePlainMessage, bytesMsg, nil)
+	iden3commMsg, err := cfg.PackageManager.Pack(mediaTypePlainMessage, bytesMsg, nil)
 	if err != nil {
 		return out, errors.WithStack(err)
 	}
@@ -81,7 +81,7 @@ func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig
 		return out, errors.WithStack(err)
 	}
 
-	basicMessage, _, err := cfg.packageManager.Unpack(b)
+	basicMessage, _, err := cfg.PackageManager.Unpack(b)
 	if err != nil {
 		return out, errors.WithStack(err)
 	}

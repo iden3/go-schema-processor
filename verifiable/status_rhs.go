@@ -19,7 +19,7 @@ type RHSResolver struct {
 }
 
 func (RHSResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
-	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
+	parsedIssuerDID, err := w3c.ParseDID(*cfg.IssuerDID)
 	if err != nil {
 		return out, err
 	}
@@ -36,7 +36,7 @@ func (RHSResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) 
 		return out, err
 	}
 
-	state, err := identityStateForRHS(cfg.stateResolver, &issuerID, genesisState)
+	state, err := identityStateForRHS(cfg.StateResolver, &issuerID, genesisState)
 	if err != nil {
 		return out, err
 	}
