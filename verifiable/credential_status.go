@@ -104,46 +104,51 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func ValidateCredentialStatus(credStatus interface{}, opts ...CredentialStatusOpt) (circuits.MTProof, error) {
+func ValidateCredentialStatus(credStatus interface{}, opts ...CredentialStatusOpt) (RevocationStatus, error) {
 	config := CredentialStatusConfig{}
 	for _, o := range opts {
 		o(&config)
 	}
-	proof, err := resolveRevStatus(credStatus, config)
+	revocationStatus, err := resolveRevStatus(credStatus, config)
 	if err != nil {
-		return proof, err
+		return revocationStatus, err
 	}
-	treeStateOk, err := validateTreeState(proof.TreeState)
+	treeStateOk, err := validateTreeState(revocationStatus.Issuer)
 	if err != nil {
-		return proof, err
+		return revocationStatus, err
 	}
 	if !treeStateOk {
-		return proof, errors.New("signature proof: invalid tree state of the issuer while checking credential status of singing key")
+		return revocationStatus, errors.New("signature proof: invalid tree state of the issuer while checking credential status of singing key")
 	}
 
 	credStatusObj, ok := credStatus.(jsonObj)
 	if !ok {
-		return proof, fmt.Errorf("invali credential status")
+		return revocationStatus, fmt.Errorf("invali credential status")
 	}
 	revNonce, err := bigIntByPath(credStatusObj, "revocationNonce", true)
 	if err != nil {
-		return proof, err
+		return revocationStatus, err
 	}
 
-	proofValid := merkletree.VerifyProof(proof.TreeState.RevocationRoot,
-		proof.Proof, revNonce, big.NewInt(0))
+	revocationRootHash, err := merkletree.NewHashFromHex(*revocationStatus.Issuer.RevocationTreeRoot)
+	if err != nil {
+		return revocationStatus, err
+	}
+
+	proofValid := merkletree.VerifyProof(revocationRootHash,
+		&revocationStatus.MTP, revNonce, big.NewInt(0))
 	if !proofValid {
-		return proof, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
+		return revocationStatus, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
 	}
 
-	if proof.Proof.Existence {
-		return proof, errors.New("signature proof: singing key of the issuer is revoked")
+	if revocationStatus.MTP.Existence {
+		return revocationStatus, errors.New("signature proof: singing key of the issuer is revoked")
 	}
 
-	return proof, nil
+	return revocationStatus, nil
 }
 
-func resolveRevStatus(status interface{}, config CredentialStatusConfig) (circuits.MTProof, error) {
+func resolveRevStatus(status interface{}, config CredentialStatusConfig) (out RevocationStatus, err error) {
 	var statusType CredentialStatusType
 	var credentialStatusTyped CredentialStatus
 
@@ -157,22 +162,22 @@ func resolveRevStatus(status interface{}, config CredentialStatusConfig) (circui
 	case jsonObj:
 		credStatusType, ok := status["type"].(string)
 		if !ok {
-			return circuits.MTProof{},
+			return out,
 				errors.New("credential status doesn't contain type")
 		}
 		statusType = CredentialStatusType(credStatusType)
 		err := remarshalObj(&credentialStatusTyped, status)
 		if err != nil {
-			return circuits.MTProof{}, err
+			return out, err
 		}
 	default:
-		return circuits.MTProof{},
+		return out,
 			errors.New("unknown credential status format")
 	}
 
 	resolver, err := config.statusResolverRegistry.Get(statusType)
 	if err != nil {
-		return circuits.MTProof{}, err
+		return out, err
 	}
 	return resolver.Resolve(credentialStatusTyped, config)
 }
@@ -207,23 +212,30 @@ func remarshalObj(dst, src any) error {
 	return json.Unmarshal(objBytes, dst)
 }
 
-// check TreeState consistency
-func validateTreeState(s circuits.TreeState) (bool, error) {
-	if s.State == nil {
+// check Issuer TreeState consistency
+func validateTreeState(i Issuer) (bool, error) {
+	if i.State == nil {
 		return false, errors.New("state is nil")
 	}
 
+	var err error
 	ctrHash := &merkletree.HashZero
-	if s.ClaimsRoot != nil {
-		ctrHash = s.ClaimsRoot
+	if i.ClaimsTreeRoot != nil {
+		ctrHash, err = merkletree.NewHashFromHex(*i.ClaimsTreeRoot)
+		if err != nil {
+			return false, err
+		}
 	}
 	rtrHash := &merkletree.HashZero
-	if s.RevocationRoot != nil {
-		rtrHash = s.RevocationRoot
+	if i.RevocationTreeRoot != nil {
+		rtrHash, err = merkletree.NewHashFromHex(*i.RevocationTreeRoot)
+		if err != nil {
+			return false, err
+		}
 	}
 	rorHash := &merkletree.HashZero
-	if s.RootOfRoots != nil {
-		rorHash = s.RootOfRoots
+	if i.RootOfRoots != nil {
+		rorHash, err = merkletree.NewHashFromHex(*i.RootOfRoots)
 	}
 
 	wantState, err := poseidon.Hash([]*big.Int{ctrHash.BigInt(),
@@ -232,7 +244,11 @@ func validateTreeState(s circuits.TreeState) (bool, error) {
 		return false, err
 	}
 
-	return wantState.Cmp(s.State.BigInt()) == 0, nil
+	stateHash, err := merkletree.NewHashFromHex(*i.State)
+	if err != nil {
+		return false, err
+	}
+	return wantState.Cmp(stateHash.BigInt()) == 0, nil
 }
 
 // if allowNumbers is true, then the value can also be a number, not only strings

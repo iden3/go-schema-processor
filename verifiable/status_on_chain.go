@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-schema-processor/v2/utils"
@@ -18,7 +17,7 @@ import (
 type OnChainResolver struct {
 }
 
-func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
+func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
 	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
 	if err != nil {
 		return out, err
@@ -61,26 +60,26 @@ func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusCon
 			if isErrInvalidRootsLength(err) {
 				msg = "roots were not saved to identity tree store"
 			}
-			return circuits.MTProof{}, fmt.Errorf(
+			return out, fmt.Errorf(
 				"GetRevocationProof smart contract call [GetRevocationStatus]: %s",
 				msg)
 		}
 	} else {
 		if onchainRevStatus.genesisState == nil {
-			return circuits.MTProof{}, errors.New(
+			return out, errors.New(
 				"genesis state is not specified in OnChainCredentialStatus ID")
 		}
 		resp, err = cfg.stateResolver.GetRevocationStatusByIDAndState(
 			issuerID.BigInt(), onchainRevStatus.genesisState,
 			onchainRevStatus.revNonce)
 		if err != nil {
-			return circuits.MTProof{}, fmt.Errorf(
+			return out, fmt.Errorf(
 				"GetRevocationProof smart contract call [GetRevocationStatusByIdAndState]: %s",
 				err.Error())
 		}
 	}
 
-	return toMerkleTreeProof(resp)
+	return resp, nil
 }
 
 func newOnchainRevStatusFromURI(stateID string) (OnChainRevStatus, error) {

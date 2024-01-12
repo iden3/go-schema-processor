@@ -2,13 +2,11 @@ package verifiable
 
 import (
 	"fmt"
-
-	"github.com/iden3/go-circuits/v2"
 )
 
 // CredentialStatusResolver is an interface that allows to interact with deifferent types of credential status to resolve revocation status
 type CredentialStatusResolver interface {
-	Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error)
+	Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (RevocationStatus, error)
 }
 
 // CredentialStatusResolverRegistry is a registry of CredentialStatusResolver

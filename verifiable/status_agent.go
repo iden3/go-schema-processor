@@ -36,7 +36,7 @@ type revocationStatusResponseMessageBody struct {
 type AgentResolver struct {
 }
 
-func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
+func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
 	revocationBody := revocationStatusRequestMessageBody{
 		RevocationNonce: status.RevocationNonce,
 	}
@@ -99,7 +99,7 @@ func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig
 		return out, errors.WithStack(err)
 	}
 
-	return agentRespToMerkleTreeProof(revocationStatus.RevocationStatus)
+	return revocationStatus.RevocationStatus, nil
 }
 
 func agentRespToMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {

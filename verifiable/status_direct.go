@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/iden3/go-circuits/v2"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
 )
@@ -15,7 +14,7 @@ import (
 type IssuerResolver struct {
 }
 
-func (*IssuerResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
+func (*IssuerResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
 	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, credentialStatus.ID,
 		http.NoBody)
 	if err != nil {
@@ -53,16 +52,14 @@ func (*IssuerResolver) Resolve(credentialStatus CredentialStatus, cfg Credential
 	if err != nil {
 		return out, err
 	}
-	out.Proof = obj.Proof
-	out.TreeState.State = (*merkletree.Hash)(obj.TreeState.State)
-	out.TreeState.ClaimsRoot = (*merkletree.Hash)(obj.TreeState.ClaimsRoot)
-	out.TreeState.RevocationRoot = (*merkletree.Hash)(obj.TreeState.RevocationRoot)
-	if out.TreeState.RevocationRoot == nil {
-		out.TreeState.RevocationRoot = &merkletree.Hash{}
-	}
-	out.TreeState.RootOfRoots = (*merkletree.Hash)(obj.TreeState.RootOfRoots)
-	if out.TreeState.RootOfRoots == nil {
-		out.TreeState.RootOfRoots = &merkletree.Hash{}
-	}
+	out.MTP = *obj.Proof
+	stateHashHex := (*merkletree.Hash)(obj.TreeState.State).Hex()
+	out.Issuer.State = &stateHashHex
+	claimsRootHashHex := (*merkletree.Hash)(obj.TreeState.ClaimsRoot).Hex()
+	out.Issuer.ClaimsTreeRoot = &claimsRootHashHex
+	revocationRootHashHex := (*merkletree.Hash)(obj.TreeState.RevocationRoot).Hex()
+	out.Issuer.RevocationTreeRoot = &revocationRootHashHex
+	rootOfRootsHashHex := (*merkletree.Hash)(obj.TreeState.RootOfRoots).Hex()
+	out.Issuer.RootOfRoots = &rootOfRootsHashHex
 	return out, nil
 }

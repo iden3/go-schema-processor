@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-merkletree-sql/v2"
@@ -19,7 +18,7 @@ import (
 type RHSResolver struct {
 }
 
-func (RHSResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
+func (RHSResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
 	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
 	if err != nil {
 		return out, err
@@ -47,7 +46,7 @@ func (RHSResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) 
 		return out, err
 	}
 
-	out.TreeState, err = treeStateFromRHS(context.Background(), rhsCli, state)
+	out.Issuer, err = issuerFromRHS(context.Background(), rhsCli, state)
 	if errors.Is(err, mp.ErrNodeNotFound) {
 		if genesisState != nil && state.Equals(genesisState) {
 			return out, errors.New("genesis state is not found in RHS")
@@ -63,11 +62,17 @@ func (RHSResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) 
 		return out, err
 	}
 
-	out.Proof, err = rhsCli.GenerateProof(context.Background(), out.TreeState.RevocationRoot,
+	revTreeRootHash, err := merkletree.NewHashFromHex(*out.Issuer.RevocationTreeRoot)
+	if err != nil {
+		return out, err
+	}
+	proof, err := rhsCli.GenerateProof(context.Background(), revTreeRootHash,
 		revNonceHash)
 	if err != nil {
 		return out, err
 	}
+
+	out.MTP = *proof
 
 	return out, nil
 }
@@ -107,27 +112,31 @@ func genesisStateMatch(state *merkletree.Hash, id core.ID) (bool, error) {
 	return bytes.Equal(otherID[:], id[:]), nil
 }
 
-func treeStateFromRHS(ctx context.Context, rhsCli *mp.HTTPReverseHashCli,
-	state *merkletree.Hash) (circuits.TreeState, error) {
+func issuerFromRHS(ctx context.Context, rhsCli *mp.HTTPReverseHashCli,
+	state *merkletree.Hash) (Issuer, error) {
 
-	var treeState circuits.TreeState
+	var issuer Issuer
 
 	stateNode, err := rhsCli.GetNode(ctx, state)
 	if err != nil {
-		return treeState, err
+		return issuer, err
 	}
 
 	if len(stateNode.Children) != 3 {
-		return treeState, errors.New(
+		return issuer, errors.New(
 			"invalid state node, should have 3 children")
 	}
 
-	treeState.State = state
-	treeState.ClaimsRoot = stateNode.Children[0]
-	treeState.RevocationRoot = stateNode.Children[1]
-	treeState.RootOfRoots = stateNode.Children[2]
+	stateHex := state.Hex()
+	issuer.State = &stateHex
+	claimsTreeRootHex := stateNode.Children[0].Hex()
+	issuer.ClaimsTreeRoot = &claimsTreeRootHex
+	revocationTreeRootHex := stateNode.Children[1].Hex()
+	issuer.RevocationTreeRoot = &revocationTreeRootHex
+	rootOfRootsHex := stateNode.Children[2].Hex()
+	issuer.RootOfRoots = &rootOfRootsHex
 
-	return treeState, err
+	return issuer, err
 }
 
 func newRhsCli(rhsURL string) (*mp.HTTPReverseHashCli, error) {
