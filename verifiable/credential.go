@@ -26,6 +26,7 @@ type W3CCredential struct {
 	CredentialSchema  CredentialSchema       `json:"credentialSchema"`
 	Proof             CredentialProofs       `json:"proof,omitempty"`
 	RefreshService    *RefreshService        `json:"refreshService,omitempty"`
+	DisplayMethod     *DisplayMethod         `json:"displayMethod,omitempty"`
 }
 
 // Merklize merklizes verifiable credential
