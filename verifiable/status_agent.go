@@ -81,8 +81,6 @@ func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig
 		return out, errors.WithStack(err)
 	}
 
-	// fmt.Println(string(b))
-
 	basicMessage, _, err := cfg.packageManager.Unpack(b)
 	if err != nil {
 		return out, errors.WithStack(err)
