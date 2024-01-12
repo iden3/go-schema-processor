@@ -7,12 +7,30 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-schema-processor/v2/utils"
 	"github.com/pkg/errors"
 )
+
+type onChainRevStatus struct {
+	chainID         core.ChainID
+	contractAddress string
+	revNonce        uint64
+	genesisState    *big.Int
+}
+
+func isErrInvalidRootsLength(err error) bool {
+	if err == nil {
+		return false
+	}
+	return err.Error() == "execution reverted: Invalid roots length"
+}
+
+var idsInStateContract = map[core.ID]bool{}
+var idsInStateContractLock sync.RWMutex
 
 type OnChainResolver struct {
 }

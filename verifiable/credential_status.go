@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"sync"
 
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -76,9 +75,6 @@ type CredentialStatusConfig struct {
 	IssuerDID              *string
 }
 
-var idsInStateContract = map[core.ID]bool{}
-var idsInStateContractLock sync.RWMutex
-
 var errIdentityDoesNotExist = errors.New("identity does not exist")
 
 func isErrIdentityDoesNotExist(err error) bool {
@@ -86,13 +82,6 @@ func isErrIdentityDoesNotExist(err error) bool {
 		return false
 	}
 	return err.Error() == "execution reverted: Identity does not exist"
-}
-
-func isErrInvalidRootsLength(err error) bool {
-	if err == nil {
-		return false
-	}
-	return err.Error() == "execution reverted: Invalid roots length"
 }
 
 type errPathNotFound struct {
