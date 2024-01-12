@@ -99,8 +99,8 @@ func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusCon
 	return resp, nil
 }
 
-func newOnchainRevStatusFromURI(stateID string) (OnChainRevStatus, error) {
-	var s OnChainRevStatus
+func newOnchainRevStatusFromURI(stateID string) (onChainRevStatus, error) {
+	var s onChainRevStatus
 
 	uri, err := url.Parse(stateID)
 	if err != nil {

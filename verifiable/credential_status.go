@@ -15,13 +15,6 @@ import (
 
 type hexHash merkletree.Hash
 
-type OnChainRevStatus struct {
-	chainID         core.ChainID
-	contractAddress string
-	revNonce        uint64
-	genesisState    *big.Int
-}
-
 type CredStatusStateResolver interface {
 	GetStateInfoByID(id *big.Int) (StateInfo, error)
 	GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error)
