@@ -37,8 +37,13 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, resolverURL string, opts ...W3CProofVerificationOpt) (bool, error) {
-	if resolverURL == "" {
+func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerificationOpt) (bool, error) {
+	verifyConfig := W3CProofVerificationConfig{}
+	for _, o := range opts {
+		o(&verifyConfig)
+	}
+
+	if verifyConfig.resolverURL == "" {
 		return false, errors.New("resolver URL is empty")
 	}
 
@@ -71,7 +76,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 
 		usedDID := vc.CredentialSubject["id"]
 
-		return verifyBJJSignatureProof(proof, coreClaim, fmt.Sprintf("%v", usedDID), resolverURL, opts...)
+		return verifyBJJSignatureProof(proof, coreClaim, fmt.Sprintf("%v", usedDID), verifyConfig.resolverURL, verifyConfig.credentialStatusOpts...)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -82,18 +87,13 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType, r
 		if err != nil {
 			return false, err
 		}
-		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, resolverURL)
+		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig.resolverURL)
 	default:
 		return false, ErrProofNotFound
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, userDID, resolverURL string, opts ...W3CProofVerificationOpt) (bool, error) {
-	verifyConfig := W3CProofVerificationConfig{}
-	for _, o := range opts {
-		o(&verifyConfig)
-	}
-
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, userDID, resolverURL string, credentialStatusOpts ...CredentialStatusOpt) (bool, error) {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -145,9 +145,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 	}
 
 	// validate credential status
-	verifyConfig.credentialStatusConfig.issuerDID = &proof.IssuerData.ID
-	verifyConfig.credentialStatusConfig.userDID = &userDID
-	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, *verifyConfig.credentialStatusConfig)
+	credentialStatuDIDOpts := []CredentialStatusOpt{WithIssuerDID(&proof.IssuerData.ID), WithUserDID(&userDID)}
+	credentialStatusOpts = append(credentialStatuDIDOpts, credentialStatusOpts...)
+	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, credentialStatusOpts...)
 
 	if err != nil {
 		return false, err
@@ -375,10 +375,17 @@ type RevocationStatus struct {
 	MTP merkletree.Proof `json:"mtp"`
 }
 
-// WithStatusConfig return new options
-func WithStatusConfig(config *CredentialStatusConfig) W3CProofVerificationOpt {
+// WithStatusOpts return new options
+func WithStatusOpts(credentialStatusOpts []CredentialStatusOpt) W3CProofVerificationOpt {
 	return func(opts *W3CProofVerificationConfig) {
-		opts.credentialStatusConfig = config
+		opts.credentialStatusOpts = credentialStatusOpts
+	}
+}
+
+// WithResolverURL return new options
+func WithResolverURL(resolverURL string) W3CProofVerificationOpt {
+	return func(opts *W3CProofVerificationConfig) {
+		opts.resolverURL = resolverURL
 	}
 }
 
@@ -387,5 +394,6 @@ type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
 
 // W3CProofVerificationConfig options for W3C proof verification
 type W3CProofVerificationConfig struct {
-	credentialStatusConfig *CredentialStatusConfig
+	credentialStatusOpts []CredentialStatusOpt
+	resolverURL          string
 }

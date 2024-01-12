@@ -15,14 +15,8 @@ import (
 type IssuerResolver struct {
 }
 
-func (*IssuerResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
-	return resolveRevocationStatusFromIssuerService(context.Background(), credentialStatus)
-}
-
-func resolveRevocationStatusFromIssuerService(ctx context.Context,
-	credentialStatus CredentialStatus) (out circuits.MTProof, err error) {
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, credentialStatus.ID,
+func (*IssuerResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, credentialStatus.ID,
 		http.NoBody)
 	if err != nil {
 		return out, err

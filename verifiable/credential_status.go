@@ -104,7 +104,11 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func ValidateCredentialStatus(credStatus interface{}, config CredentialStatusConfig) (circuits.MTProof, error) {
+func ValidateCredentialStatus(credStatus interface{}, opts ...CredentialStatusOpt) (circuits.MTProof, error) {
+	config := CredentialStatusConfig{}
+	for _, o := range opts {
+		o(&config)
+	}
 	proof, err := resolveRevStatus(credStatus, config)
 	if err != nil {
 		return proof, err

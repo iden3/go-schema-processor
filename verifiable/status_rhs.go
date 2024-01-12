@@ -19,65 +19,57 @@ import (
 type RHSResolver struct {
 }
 
-func (RHSResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
+func (RHSResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
 	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
 	if err != nil {
-		return circuits.MTProof{}, err
+		return out, err
 	}
 
 	issuerID, err := core.IDFromDID(*parsedIssuerDID)
 	if err != nil {
-		return circuits.MTProof{}, err
+		return out, err
 	}
 
-	revNonce := new(big.Int).SetUint64(credentialStatus.RevocationNonce)
+	revNonce := new(big.Int).SetUint64(status.RevocationNonce)
 
-	return resolveRevStatusFromRHS(context.Background(), credentialStatus.ID, cfg.stateResolver, &issuerID, revNonce)
-}
-
-func resolveRevStatusFromRHS(ctx context.Context, rhsURL string, resolver CredStatusStateResolver,
-	issuerID *core.ID, revNonce *big.Int) (circuits.MTProof, error) {
-
-	var p circuits.MTProof
-
-	baseRHSURL, genesisState, err := rhsBaseURL(rhsURL)
+	baseRHSURL, genesisState, err := rhsBaseURL(status.ID)
 	if err != nil {
-		return p, err
+		return out, err
 	}
 
-	state, err := identityStateForRHS(resolver, issuerID, genesisState)
+	state, err := identityStateForRHS(cfg.stateResolver, &issuerID, genesisState)
 	if err != nil {
-		return p, err
+		return out, err
 	}
 
 	rhsCli, err := newRhsCli(baseRHSURL)
 	if err != nil {
-		return p, err
+		return out, err
 	}
 
-	p.TreeState, err = treeStateFromRHS(ctx, rhsCli, state)
+	out.TreeState, err = treeStateFromRHS(context.Background(), rhsCli, state)
 	if errors.Is(err, mp.ErrNodeNotFound) {
 		if genesisState != nil && state.Equals(genesisState) {
-			return p, errors.New("genesis state is not found in RHS")
+			return out, errors.New("genesis state is not found in RHS")
 		} else {
-			return p, errors.New("current state is not found in RHS")
+			return out, errors.New("current state is not found in RHS")
 		}
 	} else if err != nil {
-		return p, err
+		return out, err
 	}
 
 	revNonceHash, err := merkletree.NewHashFromBigInt(revNonce)
 	if err != nil {
-		return p, err
+		return out, err
 	}
 
-	p.Proof, err = rhsCli.GenerateProof(ctx, p.TreeState.RevocationRoot,
+	out.Proof, err = rhsCli.GenerateProof(context.Background(), out.TreeState.RevocationRoot,
 		revNonceHash)
 	if err != nil {
-		return p, err
+		return out, err
 	}
 
-	return p, nil
+	return out, nil
 }
 
 func identityStateForRHS(resolver CredStatusStateResolver, issuerID *core.ID,

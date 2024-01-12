@@ -36,11 +36,7 @@ type revocationStatusResponseMessageBody struct {
 type AgentResolver struct {
 }
 
-func (AgentResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
-	return resolveRevocationStatusFromAgent(*cfg.userDID, *cfg.issuerDID, credentialStatus, cfg.packageManager)
-}
-
-func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status CredentialStatus, pkg *iden3comm.PackageManager) (out circuits.MTProof, err error) {
+func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
 	revocationBody := revocationStatusRequestMessageBody{
 		RevocationNonce: status.RevocationNonce,
 	}
@@ -52,8 +48,8 @@ func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status Credenti
 	msg := iden3comm.BasicMessage{
 		ID:       uuid.New().String(),
 		ThreadID: uuid.New().String(),
-		From:     usedDID,
-		To:       issuerDID,
+		From:     *cfg.userDID,
+		To:       *cfg.issuerDID,
 		Type:     revocationStatusRequestMessageType,
 		Body:     rawBody,
 	}
@@ -62,7 +58,7 @@ func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status Credenti
 		return out, errors.WithStack(err)
 	}
 
-	iden3commMsg, err := pkg.Pack(mediaTypePlainMessage, bytesMsg, nil)
+	iden3commMsg, err := cfg.packageManager.Pack(mediaTypePlainMessage, bytesMsg, nil)
 	if err != nil {
 		return out, errors.WithStack(err)
 	}
@@ -89,7 +85,7 @@ func resolveRevocationStatusFromAgent(usedDID, issuerDID string, status Credenti
 
 	// fmt.Println(string(b))
 
-	basicMessage, _, err := pkg.Unpack(b)
+	basicMessage, _, err := cfg.packageManager.Unpack(b)
 	if err != nil {
 		return out, errors.WithStack(err)
 	}

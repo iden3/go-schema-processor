@@ -18,50 +18,43 @@ import (
 type OnChainResolver struct {
 }
 
-func (*OnChainResolver) Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (circuits.MTProof, error) {
+func (*OnChainResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out circuits.MTProof, err error) {
 	parsedIssuerDID, err := w3c.ParseDID(*cfg.issuerDID)
 	if err != nil {
-		return circuits.MTProof{}, err
+		return out, err
 	}
 
 	issuerID, err := core.IDFromDID(*parsedIssuerDID)
 	if err != nil {
-		return circuits.MTProof{}, err
+		return out, err
 	}
 
-	return resolverOnChainRevocationStatus(cfg.stateResolver, &issuerID, credentialStatus)
-}
-
-func resolverOnChainRevocationStatus(resolver CredStatusStateResolver,
-	id *core.ID,
-	status CredentialStatus) (circuits.MTProof, error) {
-
 	var zeroID core.ID
-	if id == nil || *id == zeroID {
-		return circuits.MTProof{}, errors.New("issuer ID is empty")
+	if issuerID == zeroID {
+		return out, errors.New("issuer ID is empty")
 	}
 
 	onchainRevStatus, err := newOnchainRevStatusFromURI(status.ID)
 	if err != nil {
-		return circuits.MTProof{}, err
+		return out, err
 	}
 
 	if onchainRevStatus.revNonce != status.RevocationNonce {
-		return circuits.MTProof{}, fmt.Errorf(
+		return out, fmt.Errorf(
 			"revocationNonce is not equal to the one "+
 				"in OnChainCredentialStatus ID {%d} {%d}",
 			onchainRevStatus.revNonce, status.RevocationNonce)
 	}
 
-	isStateContractHasID, err := stateContractHasID(id, resolver)
+	isStateContractHasID, err := stateContractHasID(&issuerID, cfg.stateResolver)
 	if err != nil {
-		return circuits.MTProof{}, err
+		return out, err
 	}
 
 	var resp RevocationStatus
 	if isStateContractHasID {
 		// TODO: it is not finial version of contract GetRevocationProof must accept issuer id as parameter
-		resp, err = resolver.GetRevocationStatus(id.BigInt(),
+		resp, err = cfg.stateResolver.GetRevocationStatus(issuerID.BigInt(),
 			onchainRevStatus.revNonce)
 		if err != nil {
 			msg := err.Error()
@@ -77,8 +70,8 @@ func resolverOnChainRevocationStatus(resolver CredStatusStateResolver,
 			return circuits.MTProof{}, errors.New(
 				"genesis state is not specified in OnChainCredentialStatus ID")
 		}
-		resp, err = resolver.GetRevocationStatusByIDAndState(
-			id.BigInt(), onchainRevStatus.genesisState,
+		resp, err = cfg.stateResolver.GetRevocationStatusByIDAndState(
+			issuerID.BigInt(), onchainRevStatus.genesisState,
 			onchainRevStatus.revNonce)
 		if err != nil {
 			return circuits.MTProof{}, fmt.Errorf(

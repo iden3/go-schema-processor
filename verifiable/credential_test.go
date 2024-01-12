@@ -135,12 +135,8 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
 	statusResolverMock := credStatusResolverMock{}
 	statusConfigOpts := []CredentialStatusOpt{WithStateResolver(statusResolverMock), WithPackageManager(iden3comm.NewPackageManager()), WithStatusResolverRegistry(&resolverRegisty)}
-	statusConfig := CredentialStatusConfig{}
-	for _, o := range statusConfigOpts {
-		o(&statusConfig)
-	}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusConfig(&statusConfig)}
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, verifyConfig...)
+	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	isValid, err := vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -233,13 +229,9 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	rhsResolver := RHSResolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
 	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(iden3comm.NewPackageManager())}
-	statusConfig := CredentialStatusConfig{}
-	for _, o := range statusConfigOpts {
-		o(&statusConfig)
-	}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusConfig(&statusConfig)}
+	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
 
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, verifyConfig...)
+	isValid, err := vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -348,12 +340,8 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	rhsResolver := RHSResolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
 	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(iden3comm.NewPackageManager())}
-	statusConfig := CredentialStatusConfig{}
-	for _, o := range statusConfigOpts {
-		o(&statusConfig)
-	}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusConfig(&statusConfig)}
-	isValid, err := vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType, resolverURL, verifyConfig...)
+	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	isValid, err := vc.VerifyProof(Iden3SparseMerkleTreeProofType, verifyConfig...)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
@@ -456,12 +444,8 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(Iden3commRevocationStatusV1, AgentResolver{})
 	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(pckManager)}
-	statusConfig := CredentialStatusConfig{}
-	for _, o := range statusConfigOpts {
-		o(&statusConfig)
-	}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusConfig(&statusConfig)}
-	isValid, err := vc.VerifyProof(context.Background(), BJJSignatureProofType, resolverURL, verifyConfig...)
+	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	isValid, err := vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
