@@ -278,9 +278,6 @@ func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVeri
 		return nil, err
 	}
 
-	// bs, err := json.Marshal(res)
-	// fmt.Println(string(bs))
-
 	var iden3StateInfo2023 *CommonVerificationMethod
 	for _, a := range res.DIDDocument.VerificationMethod {
 		if a.Type == "Iden3StateInfo2023" {

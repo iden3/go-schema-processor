@@ -6,14 +6,11 @@ import (
 	"math/big"
 	"strings"
 
-	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/iden3comm/v2"
 	"github.com/pkg/errors"
 )
-
-type hexHash merkletree.Hash
 
 type CredStatusStateResolver interface {
 	GetStateInfoByID(id *big.Int) (StateInfo, error)
@@ -68,15 +65,6 @@ type CredentialStatusConfig struct {
 	IssuerDID              *string
 }
 
-var errIdentityDoesNotExist = errors.New("identity does not exist")
-
-func isErrIdentityDoesNotExist(err error) bool {
-	if err == nil {
-		return false
-	}
-	return err.Error() == "execution reverted: Identity does not exist"
-}
-
 type errPathNotFound struct {
 	path string
 }
@@ -111,7 +99,10 @@ func ValidateCredentialStatus(credStatus interface{}, opts ...CredentialStatusOp
 		return revocationStatus, err
 	}
 
-	revocationRootHash, err := merkletree.NewHashFromHex(*revocationStatus.Issuer.RevocationTreeRoot)
+	revocationRootHash := &merkletree.HashZero
+	if revocationStatus.Issuer.RevocationTreeRoot != nil {
+		revocationRootHash, err = merkletree.NewHashFromHex(*revocationStatus.Issuer.RevocationTreeRoot)
+	}
 	if err != nil {
 		return revocationStatus, err
 	}
@@ -161,27 +152,6 @@ func resolveRevStatus(status interface{}, config CredentialStatusConfig) (out Re
 		return out, err
 	}
 	return resolver.Resolve(credentialStatusTyped, config)
-}
-
-func lastStateFromContract(resolver CredStatusStateResolver,
-	id *core.ID) (*merkletree.Hash, error) {
-	var zeroID core.ID
-	if id == nil || *id == zeroID {
-		return nil, errors.New("ID is empty")
-	}
-
-	resp, err := resolver.GetStateInfoByID(id.BigInt())
-	if isErrIdentityDoesNotExist(err) {
-		return nil, errIdentityDoesNotExist
-	} else if err != nil {
-		return nil, err
-	}
-
-	if resp.State == "" {
-		return nil, errors.New("got empty state")
-	}
-
-	return merkletree.NewHashFromString(resp.State)
 }
 
 // marshal/unmarshal object from one type to other

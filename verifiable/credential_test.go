@@ -50,6 +50,14 @@ func (m credStatusResolverMock) GetRevocationStatusByIDAndState(id *big.Int, sta
 	return RevocationStatus{}, nil
 }
 
+type test1Resolver struct{}
+
+func (test1Resolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
+	statusJSON := `{"issuer":{"state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","rootOfRoots":"37eabc712cdaa64793561b16b8143f56f149ad1b0c35297a1b125c765d1c071e","claimsTreeRoot":"4436ea12d352ddb84d2ac7a27bbf7c9f1bfc7d3ff69f3e6cf4348f424317fd0b","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
+	var rs RevocationStatus
+	_ = json.Unmarshal([]byte(statusJSON), &rs)
+	return rs, nil
+}
 func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	in := `{
     "id": "urn:uuid:3a8d1822-a00e-11ee-8f57-a27b3ddbdc29",
@@ -131,7 +139,7 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 		httpmock.NewStringResponder(200, `{"node":{"hash":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","children":["4436ea12d352ddb84d2ac7a27bbf7c9f1bfc7d3ff69f3e6cf4348f424317fd0b","0000000000000000000000000000000000000000000000000000000000000000","37eabc712cdaa64793561b16b8143f56f149ad1b0c35297a1b125c765d1c071e"]},"status":"OK"}`))
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
-	rhsResolver := RHSResolver{}
+	rhsResolver := test1Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
 	statusResolverMock := credStatusResolverMock{}
 	statusConfigOpts := []CredentialStatusOpt{WithStateResolver(statusResolverMock), WithPackageManager(iden3comm.NewPackageManager()), WithStatusResolverRegistry(&resolverRegisty)}
@@ -141,6 +149,14 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	require.True(t, isValid)
 }
 
+type test2Resolver struct{}
+
+func (test2Resolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
+	statusJSON := `{"issuer":{"state":"da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817","rootOfRoots":"0000000000000000000000000000000000000000000000000000000000000000","claimsTreeRoot":"aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
+	var rs RevocationStatus
+	_ = json.Unmarshal([]byte(statusJSON), &rs)
+	return rs, nil
+}
 func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	in := `{
     "id": "urn:uuid:b7a1e232-a0d3-11ee-bc8a-a27b3ddbdc29",
@@ -226,7 +242,7 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 		httpmock.NewStringResponder(200, `{"node":{"hash":"da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817","children":["aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e","0000000000000000000000000000000000000000000000000000000000000000","0000000000000000000000000000000000000000000000000000000000000000"]},"status":"OK"}`))
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
-	rhsResolver := RHSResolver{}
+	rhsResolver := test2Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
 	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(iden3comm.NewPackageManager())}
 	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
@@ -336,16 +352,21 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
 		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":true,"info":{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","replacedByState":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1703174663","replacedAtTimestamp":"0","createdAtBlock":"43840767","replacedAtBlock":"0"},"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T07:53:42.67771172Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":442,"did":{"didString":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","methodSpecificId":"polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","method":"polygonid"}},"didDocumentMetadata":{}}`))
 
-	resolverRegisty := CredentialStatusResolverRegistry{}
-	rhsResolver := RHSResolver{}
-	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
-	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(iden3comm.NewPackageManager())}
+	statusConfigOpts := []CredentialStatusOpt{WithStateResolver(credStatusResolverMock{}), WithPackageManager(iden3comm.NewPackageManager())}
 	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
 	isValid, err := vc.VerifyProof(Iden3SparseMerkleTreeProofType, verifyConfig...)
 	require.NoError(t, err)
 	require.True(t, isValid)
 }
 
+type test3Resolver struct{}
+
+func (test3Resolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
+	statusJSON := `{"issuer":{"state":"96161f3fbbdd68c72bc430dae474e27b157586b33b9fbf4a3f07d75ce275570f","rootOfRoots":"eaa48e4a7d3fe2fabbd939c7df1048c3f647a9a7c9dfadaae836ec78ba673229","claimsTreeRoot":"d9597e2fef206c9821f2425e513a68c8c793bc93c9216fb883fedaaf72abf51c","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
+	var rs RevocationStatus
+	_ = json.Unmarshal([]byte(statusJSON), &rs)
+	return rs, nil
+}
 func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 	in := `{
         "id": "urn:uuid:79d93584-ae2c-11ee-8050-a27b3ddbdc28",
@@ -442,7 +463,89 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 	err = pckManager.RegisterPackers(&PlainMessagePacker{})
 	require.NoError(t, err)
 	resolverRegisty := CredentialStatusResolverRegistry{}
-	resolverRegisty.Register(Iden3commRevocationStatusV1, AgentResolver{})
+	resolverRegisty.Register(Iden3commRevocationStatusV1, test3Resolver{})
+	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(pckManager)}
+	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	isValid, err := vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
+	require.NoError(t, err)
+	require.True(t, isValid)
+}
+
+func TestW3CCredential_ValidateBJJSignatureProofIssuerStatus(t *testing.T) {
+	in := `{
+        "id": "urn:uuid:c784e54c-b14e-11ee-94df-a27b3ddbdc28",
+        "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            "https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
+            "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld"
+        ],
+        "type": [
+            "VerifiableCredential",
+            "KYCAgeCredential"
+        ],
+        "expirationDate": "2361-03-21T21:14:48+02:00",
+        "issuanceDate": "2024-01-12T15:30:40.800436+02:00",
+        "credentialSubject": {
+            "birthday": 19960424,
+            "documentType": 2,
+            "id": "did:polygonid:polygon:mumbai:2qDwkysfn58urGGatGYsHKqzYPsy5p3mc9yxZZTeqh",
+            "type": "KYCAgeCredential"
+        },
+        "credentialStatus": {
+            "id": "http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/1737529009",
+            "revocationNonce": 1737529009,
+            "type": "SparseMerkleTreeProof"
+        },
+        "issuer": "did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn",
+        "credentialSchema": {
+            "id": "https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json/KYCAgeCredential-v3.json",
+            "type": "JsonSchema2023"
+        },
+        "proof": [
+            {
+                "type": "BJJSignature2021",
+                "issuerData": {
+                    "id": "did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn",
+                    "state": {
+                        "claimsTreeRoot": "9af7b27d7176f465dc9acfd7dc937bae5df1d1cd34d682692f1ea6bf7cedf514",
+                        "value": "95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119"
+                    },
+                    "authCoreClaim": "cca3371a6cb1b715004407e325bd993c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d95ae65475a9b380ca6118927f741c06466e951c25bb7b03a1505d597fc078222fe8db4747e2bf9c847308b283a5c17eeba4e50ced3283d24cce665b35f701050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                    "mtp": {
+                        "existence": true,
+                        "siblings": []
+                    },
+                    "credentialStatus": {
+                        "id": "http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/0",
+                        "revocationNonce": 0,
+                        "type": "SparseMerkleTreeProof"
+                    }
+                },
+                "coreClaim": "c9b2370371b7fa8b3dab2a5ba81b68382a0000000000000000000000000000000212208b10849a2f9bbacd2a583d4177ec460ac4f599d8355cfc39d820d90c00c7f1c984807cf958a96b0850ee8e9f495902a87c3a8f11a2fbcabe10fdea702c0000000000000000000000000000000000000000000000000000000000000000b196906700000000281cdcdf0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                "signature": "16a3e5cf7638bf843dbff803aeafa9c8735dde795cc9b8638c6b1963f290f890cad183481dee4f6376ed3496296f30170d1558f929486ec8ada00aa1d1104005"
+            }
+        ]
+    }`
+	var vc W3CCredential
+	err := json.Unmarshal([]byte(in), &vc)
+	require.NoError(t, err)
+
+	resolverURL := "http://my-universal-resolver/1.0/identifiers"
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn?state=95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119",
+		httpmock.NewStringResponder(200, `{"didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":false,"global":{"root":"40c30e53dc6649842d8f1297f8b4267e7097b6941c413ac032ce53726f826229","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1705061221","replacedAtTimestamp":"0","createdAtBlock":"44690848","replacedAtBlock":"0"}}]}}`))
+
+	httpmock.RegisterResponder("GET", "http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/0",
+		httpmock.NewStringResponder(200, `{"issuer":{"state":"95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119","claimsTreeRoot":"9af7b27d7176f465dc9acfd7dc937bae5df1d1cd34d682692f1ea6bf7cedf514"},"mtp":{"existence":false,"siblings":[]}}`))
+
+	pckManager := iden3comm.NewPackageManager()
+	err = pckManager.RegisterPackers(&PlainMessagePacker{})
+	require.NoError(t, err)
+	resolverRegisty := CredentialStatusResolverRegistry{}
+	resolverRegisty.Register(SparseMerkleTreeProof, IssuerResolver{})
 	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(pckManager)}
 	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
 	isValid, err := vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
