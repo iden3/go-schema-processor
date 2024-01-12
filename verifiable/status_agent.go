@@ -7,8 +7,6 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/iden3/go-circuits/v2"
-	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/iden3comm/v2"
 	"github.com/pkg/errors"
 )
@@ -100,36 +98,4 @@ func (AgentResolver) Resolve(status CredentialStatus, cfg CredentialStatusConfig
 	}
 
 	return revocationStatus.RevocationStatus, nil
-}
-
-func agentRespToMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {
-	state, err := merkletree.NewHashFromHex(*status.Issuer.State)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	claimsRoot, err := merkletree.NewHashFromHex(*status.Issuer.ClaimsTreeRoot)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	revocationRoot, err := merkletree.NewHashFromHex(*status.Issuer.RevocationTreeRoot)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	rootOfRoots, err := merkletree.NewHashFromHex(*status.Issuer.RootOfRoots)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	return circuits.MTProof{
-		Proof: &merkletree.Proof{},
-		TreeState: circuits.TreeState{
-			State:          state,
-			ClaimsRoot:     claimsRoot,
-			RevocationRoot: revocationRoot,
-			RootOfRoots:    rootOfRoots,
-		},
-	}, nil
 }

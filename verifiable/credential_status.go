@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/iden3/go-circuits/v2"
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
@@ -166,7 +165,7 @@ func resolveRevStatus(status interface{}, config CredentialStatusConfig) (out Re
 				errors.New("credential status doesn't contain type")
 		}
 		statusType = CredentialStatusType(credStatusType)
-		err := remarshalObj(&credentialStatusTyped, status)
+		err = remarshalObj(&credentialStatusTyped, status)
 		if err != nil {
 			return out, err
 		}
@@ -236,6 +235,9 @@ func validateTreeState(i Issuer) (bool, error) {
 	rorHash := &merkletree.HashZero
 	if i.RootOfRoots != nil {
 		rorHash, err = merkletree.NewHashFromHex(*i.RootOfRoots)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	wantState, err := poseidon.Hash([]*big.Int{ctrHash.BigInt(),
@@ -308,41 +310,4 @@ func getByPath(obj jsonObj, path string) (any, error) {
 	}
 
 	return nil, errors.New("should not happen")
-}
-
-func toMerkleTreeProof(status RevocationStatus) (circuits.MTProof, error) {
-	proof, err := merkletree.NewProofFromData(status.MTP.Existence, status.MTP.AllSiblings(), status.MTP.NodeAux)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("failed to create proof")
-	}
-
-	state, err := merkletree.NewHashFromString(*status.Issuer.State)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	claimsRoot, err := merkletree.NewHashFromString(*status.Issuer.ClaimsTreeRoot)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	revocationRoot, err := merkletree.NewHashFromString(*status.Issuer.RevocationTreeRoot)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	rootOfRoots, err := merkletree.NewHashFromString(*status.Issuer.RootOfRoots)
-	if err != nil {
-		return circuits.MTProof{}, errors.New("state is not a number")
-	}
-
-	return circuits.MTProof{
-		Proof: proof,
-		TreeState: circuits.TreeState{
-			State:          state,
-			ClaimsRoot:     claimsRoot,
-			RevocationRoot: revocationRoot,
-			RootOfRoots:    rootOfRoots,
-		},
-	}, nil
 }
