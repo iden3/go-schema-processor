@@ -1461,7 +1461,7 @@ type Merklizer struct {
 	entries        map[string]RDFEntry
 	hasher         Hasher
 	safeMode       bool
-	ipfsCli        loaders.IPFSClient  // @formatter:off : Goland bug
+	ipfsCli        loaders.IPFSClient // @formatter:off : Goland bug
 	ipfsGW         string
 	documentLoader ld.DocumentLoader
 }
