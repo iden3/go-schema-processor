@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 	"github.com/pquerna/cachecontrol"
 )
@@ -31,8 +30,12 @@ type CacheEngine interface {
 	Set(key string, doc *ld.RemoteDocument, expireTime time.Time) error
 }
 
+type IPFSClient interface {
+	Cat(url string) (io.ReadCloser, error)
+}
+
 type documentLoader struct {
-	ipfsCli     *shell.Shell
+	ipfsCli     IPFSClient // @formatter:off : Goland bug
 	ipfsGW      string
 	cacheEngine CacheEngine
 	noCache     bool
@@ -60,7 +63,7 @@ func WithHTTPClient(httpClient *http.Client) DocumentLoaderOption {
 
 // NewDocumentLoader creates a new document loader with a cache for http.
 // ipfs cache is not implemented yet.
-func NewDocumentLoader(ipfsCli *shell.Shell, ipfsGW string,
+func NewDocumentLoader(ipfsCli IPFSClient, ipfsGW string,
 	opts ...DocumentLoaderOption) ld.DocumentLoader {
 	loader := &documentLoader{
 		ipfsCli: ipfsCli,

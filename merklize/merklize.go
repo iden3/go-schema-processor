@@ -18,7 +18,6 @@ import (
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
 	"github.com/iden3/go-schema-processor/v2/loaders"
-	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -1462,7 +1461,7 @@ type Merklizer struct {
 	entries        map[string]RDFEntry
 	hasher         Hasher
 	safeMode       bool
-	ipfsCli        *shell.Shell
+	ipfsCli        loaders.IPFSClient  // @formatter:off : Goland bug
 	ipfsGW         string
 	documentLoader ld.DocumentLoader
 }
@@ -1498,7 +1497,7 @@ func WithSafeMode(safeMode bool) MerklizeOption {
 // WithIPFSClient sets IPFS client option required to resolve ipfs:// contexts.
 // It works only if documentLoader is not set using WithDocumentLoader option.
 // Otherwise, it will be ignored.
-func WithIPFSClient(ipfsCli *shell.Shell) MerklizeOption {
+func WithIPFSClient(ipfsCli loaders.IPFSClient) MerklizeOption {
 	return func(m *Merklizer) {
 		m.ipfsCli = ipfsCli
 	}

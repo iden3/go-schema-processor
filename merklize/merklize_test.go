@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"os"
@@ -21,7 +23,6 @@ import (
 	"github.com/iden3/go-merkletree-sql/v2/db/memory"
 	"github.com/iden3/go-schema-processor/v2/loaders"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
-	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1930,49 +1931,37 @@ const ipfsDocument = `{
   ]
 }`
 
-func uploadIPFSFile(t testing.TB, ipfsCli *shell.Shell, fName string) string {
-	f, err := os.Open(fName)
-	require.NoError(t, err)
-	// no need to close f
+type mockIPFSLoader map[string]string
 
-	// Context is a pure file (no directory)
-	cid, err := ipfsCli.Add(f)
-	require.NoError(t, err)
-
-	return cid
+func (m mockIPFSLoader) Cat(url string) (io.ReadCloser, error) {
+	fName, ok := m[url]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	return os.Open(fName)
 }
 
 func TestIPFSContext(t *testing.T) {
-	ipfsURL := os.Getenv("IPFS_URL")
-	if ipfsURL == "" {
-		t.Skip("IPFS_URL is not set")
-	}
+
+	citizenshipCtx := "Qmbp4kwoHULnmK71abrxdksjPH5sAjxSAXU5PEp2XRMFNw/dir2/bbs-v2.jsonld"
+	bbsCtx := "QmdP4MZkESEabRVB322r2xWm7TCi7LueMNWMJawYmSy7hp"
 
 	defer tst.MockHTTPClient(t, testDocumentIPFSURLMaps,
 		tst.IgnoreUntouchedURLs())()
 
-	ipfsCli := shell.NewShell(ipfsURL)
-
-	// Context inside some directory
-	bbsCtx, err := ipfsCli.AddDir("testdata/ipfs/dir1")
-	require.NoError(t, err)
-	bbsCtx = "ipfs://" + bbsCtx + "/dir2/bbs-v2.jsonld"
-
-	citizenshipCtx := uploadIPFSFile(t, ipfsCli,
-		"testdata/ipfs/citizenship-v1.jsonld")
-	citizenshipCtx = "ipfs://" + citizenshipCtx
+	ipfsCli := mockIPFSLoader{
+		citizenshipCtx: "testdata/ipfs/dir1/dir2/bbs-v2.jsonld",
+		bbsCtx:         "testdata/ipfs/citizenship-v1.jsonld",
+		"QmeMevwUeD7o6hjfmdaeFD1q4L84hSDiRjeXZLi1bZK1My": "testdata/ipfs/testNewType.jsonld",
+	}
 
 	tmpl := template.Must(template.New("").Parse(ipfsDocument))
 	b := bytes.NewBuffer(nil)
-	err = tmpl.Execute(b, map[string]interface{}{
-		"CitizenshipContext": citizenshipCtx,
-		"BBSContext":         bbsCtx,
+	err := tmpl.Execute(b, map[string]interface{}{
+		"CitizenshipContext": "ipfs://" + citizenshipCtx,
+		"BBSContext":         "ipfs://" + bbsCtx,
 	})
 	require.NoError(t, err)
-
-	cid := uploadIPFSFile(t, ipfsCli, "testdata/ipfs/testNewType.jsonld")
-	// CID should be equal to the on in `testDocumentIPFS` document
-	require.Equal(t, "QmeMevwUeD7o6hjfmdaeFD1q4L84hSDiRjeXZLi1bZK1My", cid)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
