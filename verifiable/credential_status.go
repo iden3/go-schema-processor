@@ -7,65 +7,63 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
-	"github.com/iden3/iden3comm/v2"
 	"github.com/pkg/errors"
 )
 
-type CredStatusStateResolver interface {
-	GetStateInfoByID(id *big.Int) (StateInfo, error)
-	GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error)
-	GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
-}
+// type CredStatusStateResolver interface {
+// 	GetStateInfoByID(id *big.Int) (StateInfo, error)
+// 	GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error)
+// 	GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
+// }
 
-// WithStatusResolverRegistry return new options
-func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) CredentialStatusOpt {
-	return func(opts *CredentialStatusConfig) {
-		opts.StatusResolverRegistry = registry
-	}
-}
+// // WithStatusResolverRegistry return new options
+// func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) CredentialStatusOpt {
+// 	return func(opts *CredentialStatusConfig) {
+// 		opts.StatusResolverRegistry = registry
+// 	}
+// }
 
-// WithStateResolver return new options
-func WithStateResolver(resolver CredStatusStateResolver) CredentialStatusOpt {
-	return func(opts *CredentialStatusConfig) {
-		opts.StateResolver = resolver
-	}
-}
+// // WithStateResolver return new options
+// func WithStateResolver(resolver CredStatusStateResolver) CredentialStatusOpt {
+// 	return func(opts *CredentialStatusConfig) {
+// 		opts.StateResolver = resolver
+// 	}
+// }
 
-// WithPackageManager return new options
-func WithPackageManager(pm *iden3comm.PackageManager) CredentialStatusOpt {
-	return func(opts *CredentialStatusConfig) {
-		opts.PackageManager = pm
-	}
-}
+// // WithPackageManager return new options
+// func WithPackageManager(pm *iden3comm.PackageManager) CredentialStatusOpt {
+// 	return func(opts *CredentialStatusConfig) {
+// 		opts.PackageManager = pm
+// 	}
+// }
 
-// WithUserDID return new options
-func WithUserDID(userDID *w3c.DID) CredentialStatusOpt {
-	return func(opts *CredentialStatusConfig) {
-		opts.UserDID = userDID
-	}
-}
+// // WithUserDID return new options
+// func WithUserDID(userDID *w3c.DID) CredentialStatusOpt {
+// 	return func(opts *CredentialStatusConfig) {
+// 		opts.UserDID = userDID
+// 	}
+// }
 
-// WithIssuerDID return new options
-func WithIssuerDID(issuerDID *w3c.DID) CredentialStatusOpt {
-	return func(opts *CredentialStatusConfig) {
-		opts.IssuerDID = issuerDID
-	}
-}
+// // WithIssuerDID return new options
+// func WithIssuerDID(issuerDID *w3c.DID) CredentialStatusOpt {
+// 	return func(opts *CredentialStatusConfig) {
+// 		opts.IssuerDID = issuerDID
+// 	}
+// }
 
-// CredentialStatusOpt returns configuration options for CredentialStatusConfig
-type CredentialStatusOpt func(opts *CredentialStatusConfig)
+// // CredentialStatusOpt returns configuration options for CredentialStatusConfig
+// type CredentialStatusOpt func(opts *CredentialStatusConfig)
 
-// CredentialStatusConfig options for credential status verification
-type CredentialStatusConfig struct {
-	StatusResolverRegistry *CredentialStatusResolverRegistry
-	StateResolver          CredStatusStateResolver
-	PackageManager         *iden3comm.PackageManager
-	UserDID                *w3c.DID
-	IssuerDID              *w3c.DID
-}
+// // CredentialStatusConfig options for credential status verification
+// type CredentialStatusConfig struct {
+// 	StatusResolverRegistry *CredentialStatusResolverRegistry
+// 	StateResolver          CredStatusStateResolver
+// 	PackageManager         *iden3comm.PackageManager
+// 	UserDID                *w3c.DID
+// 	IssuerDID              *w3c.DID
+// }
 
 type errPathNotFound struct {
 	path string
@@ -75,12 +73,8 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func ValidateCredentialStatus(credStatus any, opts ...CredentialStatusOpt) (RevocationStatus, error) {
-	config := CredentialStatusConfig{}
-	for _, o := range opts {
-		o(&config)
-	}
-	revocationStatus, err := resolveRevStatus(credStatus, config)
+func ValidateCredentialStatus(credStatus any, credStatusResolverRegistry *CredentialStatusResolverRegistry) (RevocationStatus, error) {
+	revocationStatus, err := resolveRevStatus(credStatus, credStatusResolverRegistry)
 	if err != nil {
 		return revocationStatus, err
 	}
@@ -122,7 +116,7 @@ func ValidateCredentialStatus(credStatus any, opts ...CredentialStatusOpt) (Revo
 	return revocationStatus, nil
 }
 
-func resolveRevStatus(status any, config CredentialStatusConfig) (out RevocationStatus, err error) {
+func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusResolverRegistry) (out RevocationStatus, err error) {
 	var statusType CredentialStatusType
 	var credentialStatusTyped CredentialStatus
 
@@ -149,11 +143,11 @@ func resolveRevStatus(status any, config CredentialStatusConfig) (out Revocation
 			errors.New("unknown credential status format")
 	}
 
-	resolver, err := config.StatusResolverRegistry.Get(statusType)
+	resolver, err := credStatusResolverRegistry.Get(statusType)
 	if err != nil {
 		return out, err
 	}
-	return resolver.Resolve(context.Background(), credentialStatusTyped, config)
+	return resolver.Resolve(context.Background(), credentialStatusTyped)
 }
 
 // marshal/unmarshal object from one type to other

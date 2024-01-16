@@ -10,7 +10,6 @@ import (
 
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
-	"github.com/iden3/iden3comm/v2"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +51,7 @@ func (m credStatusResolverMock) GetRevocationStatusByIDAndState(id *big.Int, sta
 
 type test1Resolver struct{}
 
-func (test1Resolver) Resolve(context context.Context, status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
+func (test1Resolver) Resolve(context context.Context, status CredentialStatus) (out RevocationStatus, err error) {
 	statusJSON := `{"issuer":{"state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","rootOfRoots":"37eabc712cdaa64793561b16b8143f56f149ad1b0c35297a1b125c765d1c071e","claimsTreeRoot":"4436ea12d352ddb84d2ac7a27bbf7c9f1bfc7d3ff69f3e6cf4348f424317fd0b","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
 	var rs RevocationStatus
 	_ = json.Unmarshal([]byte(statusJSON), &rs)
@@ -141,16 +140,14 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test1Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
-	statusResolverMock := credStatusResolverMock{}
-	statusConfigOpts := []CredentialStatusOpt{WithStateResolver(statusResolverMock), WithPackageManager(iden3comm.NewPackageManager()), WithStatusResolverRegistry(&resolverRegisty)}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
 	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
 	require.NoError(t, err)
 }
 
 type test2Resolver struct{}
 
-func (test2Resolver) Resolve(context context.Context, status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
+func (test2Resolver) Resolve(context context.Context, status CredentialStatus) (out RevocationStatus, err error) {
 	statusJSON := `{"issuer":{"state":"da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817","rootOfRoots":"0000000000000000000000000000000000000000000000000000000000000000","claimsTreeRoot":"aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
 	var rs RevocationStatus
 	_ = json.Unmarshal([]byte(statusJSON), &rs)
@@ -243,8 +240,7 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test2Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
-	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{}), WithPackageManager(iden3comm.NewPackageManager())}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
 
 	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
 	require.NoError(t, err)
@@ -350,15 +346,14 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
 		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":true,"info":{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","replacedByState":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1703174663","replacedAtTimestamp":"0","createdAtBlock":"43840767","replacedAtBlock":"0"},"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T07:53:42.67771172Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":442,"did":{"didString":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","methodSpecificId":"polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","method":"polygonid"}},"didDocumentMetadata":{}}`))
 
-	statusConfigOpts := []CredentialStatusOpt{WithStateResolver(credStatusResolverMock{}), WithPackageManager(iden3comm.NewPackageManager())}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	verifyConfig := []W3CProofVerificationOpt{WithResolverURL(resolverURL)}
 	err = vc.VerifyProof(Iden3SparseMerkleTreeProofType, verifyConfig...)
 	require.NoError(t, err)
 }
 
 type test3Resolver struct{}
 
-func (test3Resolver) Resolve(context context.Context, status CredentialStatus, cfg CredentialStatusConfig) (out RevocationStatus, err error) {
+func (test3Resolver) Resolve(context context.Context, status CredentialStatus) (out RevocationStatus, err error) {
 	statusJSON := `{"issuer":{"state":"96161f3fbbdd68c72bc430dae474e27b157586b33b9fbf4a3f07d75ce275570f","rootOfRoots":"eaa48e4a7d3fe2fabbd939c7df1048c3f647a9a7c9dfadaae836ec78ba673229","claimsTreeRoot":"d9597e2fef206c9821f2425e513a68c8c793bc93c9216fb883fedaaf72abf51c","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
 	var rs RevocationStatus
 	_ = json.Unmarshal([]byte(statusJSON), &rs)
@@ -459,8 +454,7 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(Iden3commRevocationStatusV1, test3Resolver{})
-	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{})}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
 	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
 	require.NoError(t, err)
 }
@@ -537,8 +531,7 @@ func TestW3CCredential_ValidateBJJSignatureProofIssuerStatus(t *testing.T) {
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(SparseMerkleTreeProof, IssuerResolver{})
-	statusConfigOpts := []CredentialStatusOpt{WithStatusResolverRegistry(&resolverRegisty), WithStateResolver(credStatusResolverMock{})}
-	verifyConfig := []W3CProofVerificationOpt{WithStatusOpts(statusConfigOpts), WithResolverURL(resolverURL)}
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
 	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
 	require.NoError(t, err)
 }

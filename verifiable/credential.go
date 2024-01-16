@@ -89,7 +89,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 			}
 		}
 
-		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig, userDID, verifyConfig.CredentialStatusOpts...)
+		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig, userDID)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -106,7 +106,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig, userDID *w3c.DID, credentialStatusOpts ...CredentialStatusOpt) error {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig, userDID *w3c.DID) error {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -158,15 +158,15 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		}
 	}
 
-	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
-	if err != nil {
-		return err
-	}
+	// issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// validate credential status
-	credentialStatuDIDOpts := []CredentialStatusOpt{WithIssuerDID(issuerDID), WithUserDID(userDID)}
-	credentialStatusOpts = append(credentialStatuDIDOpts, credentialStatusOpts...)
-	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, credentialStatusOpts...)
+	// credentialStatuDIDOpts := []CredentialStatusOpt{WithIssuerDID(issuerDID), WithUserDID(userDID)}
+	// credentialStatusOpts = append(credentialStatuDIDOpts, credentialStatusOpts...)
+	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, verifyConfig.StatusResolverRegistry)
 	if err != nil {
 		return err
 	}
@@ -380,10 +380,10 @@ type Issuer struct {
 	RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
 }
 
-// WithStatusOpts return new options
-func WithStatusOpts(credentialStatusOpts []CredentialStatusOpt) W3CProofVerificationOpt {
+// WithStatusResolverRegistry return new options
+func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) W3CProofVerificationOpt {
 	return func(opts *W3CProofVerificationConfig) {
-		opts.CredentialStatusOpts = credentialStatusOpts
+		opts.StatusResolverRegistry = registry
 	}
 }
 
@@ -406,7 +406,7 @@ type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
 
 // W3CProofVerificationConfig options for W3C proof verification
 type W3CProofVerificationConfig struct {
-	CredentialStatusOpts []CredentialStatusOpt
-	ResolverURL          string
-	httpClient           *http.Client
+	StatusResolverRegistry *CredentialStatusResolverRegistry
+	ResolverURL            string
+	httpClient             *http.Client
 }
