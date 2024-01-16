@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -38,68 +39,79 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerificationOpt) (bool, error) {
+func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerificationOpt) error {
 	verifyConfig := W3CProofVerificationConfig{}
 	for _, o := range opts {
 		o(&verifyConfig)
 	}
 
 	if verifyConfig.ResolverURL == "" {
-		return false, errors.New("resolver URL is empty")
+		return errors.New("resolver URL is empty")
 	}
 
-	var credProof CredentialProof
-	var coreClaim *core.Claim
+	var (
+		credProof CredentialProof
+		coreClaim *core.Claim
+	)
 	for _, p := range vc.Proof {
 		if p.ProofType() == proofType {
 			credProof = p
+			break
 		}
 	}
 	if credProof == nil {
-		return false, ErrProofNotFound
+		return ErrProofNotFound
 	}
 
 	coreClaim, err := credProof.GetCoreClaim()
 	if err != nil {
-		return false, errors.New("can't get core claim")
+		return errors.New("can't get core claim")
 	}
 	switch proofType {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
 		credProofJ, err := json.Marshal(credProof)
 		if err != nil {
-			return false, err
+			return err
 		}
 		err = json.Unmarshal(credProofJ, &proof)
 		if err != nil {
-			return false, err
+			return err
 		}
 
-		usedDID := vc.CredentialSubject["id"]
+		var userDID *w3c.DID
+		credSubjID, ok := vc.CredentialSubject["id"]
+		if ok {
+			credSubjString := fmt.Sprintf("%v", credSubjID)
+			userDID, err = w3c.ParseDID(credSubjString)
+			if err != nil {
+				return err
+			}
+		}
 
-		return verifyBJJSignatureProof(proof, coreClaim, fmt.Sprintf("%v", usedDID), verifyConfig.ResolverURL, verifyConfig.CredentialStatusOpts...)
+		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig.ResolverURL, userDID, verifyConfig.CredentialStatusOpts...)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
 		if err != nil {
-			return false, err
+			return err
 		}
 		err = json.Unmarshal(credProofJ, &proof)
 		if err != nil {
-			return false, err
+			return err
 		}
 		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig.ResolverURL)
 	default:
-		return false, ErrProofNotFound
+		return ErrorProofNotSupported
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, userDID, resolverURL string, credentialStatusOpts ...CredentialStatusOpt) (bool, error) {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string, userDID *w3c.DID, credentialStatusOpts ...CredentialStatusOpt) error {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	rawSlotInts := authClaim.RawSlotsAsInts()
@@ -109,92 +121,97 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 
 	sig, err := bjjSignatureFromHexString(proof.Signature)
 	if err != nil || sig == nil {
-		return false, err
+		return err
 	}
 
 	// core claim hash
 	hi, hv, err := coreClaim.HiHv()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	claimHash, err := poseidon.Hash([]*big.Int{hi, hv})
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	valid := publicKey.VerifyPoseidon(claimHash, sig)
 
 	if !valid {
-		return false, err
+		return err
 	}
 
 	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Published or genesis
 	if !*vm.IdentityState.Published {
-		isGenesis, err2 := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
-		if err2 != nil {
-			return false, err2
+		var isGenesisState bool
+		isGenesisState, err = isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		if err != nil {
+			return err
 		}
-		if !isGenesis {
-			return false, errors.New("issuer state not published and not genesis")
+		if !isGenesisState {
+			return errors.New("issuer state not published and not genesis")
 		}
+	}
+
+	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	if err != nil {
+		return err
 	}
 
 	// validate credential status
-	credentialStatuDIDOpts := []CredentialStatusOpt{WithIssuerDID(&proof.IssuerData.ID), WithUserDID(&userDID)}
+	credentialStatuDIDOpts := []CredentialStatusOpt{WithIssuerDID(issuerDID), WithUserDID(userDID)}
 	credentialStatusOpts = append(credentialStatuDIDOpts, credentialStatusOpts...)
 	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, credentialStatusOpts...)
-
 	if err != nil {
-		return false, err
+		return err
 	}
-
-	return true, nil
+	return nil
 }
 
-func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) (bool, error) {
+func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) error {
 	var err error
 	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Published or genesis
 	if !*vm.IdentityState.Published {
-		isGenesis, err2 := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
-		if err2 != nil {
-			return false, err2
+		var isGenesisState bool
+		isGenesisState, err := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		if err != nil {
+			return err
 		}
-		if !isGenesis {
-			return false, errors.New("issuer state not published and not genesis")
+		if !isGenesisState {
+			return errors.New("issuer state not published and not genesis")
 		}
 	}
 
 	// 3. root from proof == issuerData.state.сlaimsTreeRoot
 	hi, hv, err := coreClaim.HiHv()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	rootFromProof, err := merkletree.RootFromProof(proof.MTP, hi, hv)
 	if err != nil {
-		return false, err
+		return err
 	}
 	issuerShateHash, err := merkletree.NewHashFromHex(*proof.IssuerData.State.ClaimsTreeRoot)
 	if err != nil {
-		return false, fmt.Errorf("invalid state formant: %v", err)
+		return fmt.Errorf("invalid state formant: %v", err)
 	}
 
 	if rootFromProof.BigInt().Cmp(issuerShateHash.BigInt()) != 0 {
-		return false, errors.New("verifyIden3SparseMerkleTreeProof: root from proof not equal to issuer data claims tree root")
+		return errors.New("verifyIden3SparseMerkleTreeProof: root from proof not equal to issuer data claims tree root")
 	}
 
-	return true, nil
+	return nil
 }
 
 func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
@@ -222,29 +239,7 @@ func isGenesis(id, state string) (bool, error) {
 		return false, fmt.Errorf("invalid state formant: %v", err)
 	}
 
-	method, err := core.MethodFromID(issuerID)
-	if err != nil {
-		return false, err
-	}
-	blockchain, err := core.BlockchainFromID(issuerID)
-	if err != nil {
-		return false, err
-	}
-	networkID, err := core.NetworkIDFromID(issuerID)
-	if err != nil {
-		return false, err
-	}
-
-	didType, err := core.BuildDIDType(method, blockchain, networkID)
-	if err != nil {
-		return false, err
-	}
-	identifier, err := core.NewIDFromIdenState(didType, stateHash.BigInt())
-	if err != nil {
-		return false, err
-	}
-
-	return issuerID.BigInt().Cmp(identifier.BigInt()) == 0, nil
+	return core.CheckGenesisStateID(issuerID.BigInt(), stateHash.BigInt())
 }
 
 func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVerificationMethod, error) {
@@ -253,11 +248,12 @@ func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVeri
 	}
 	res := &didResolutionResult{}
 
-	var resp *http.Response
-	var err error
+	var (
+		resp *http.Response
+		err  error
+	)
 	if state != nil {
-		// encapsulate did if any query params
-		did = strings.ReplaceAll(did, ":", "%3A")
+		did = url.QueryEscape(did)
 		resp, err = http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), did, *state))
 	} else {
 		resp, err = http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), did))
@@ -325,6 +321,9 @@ func (vc *W3CCredential) Merklize(ctx context.Context,
 
 // ErrProofNotFound is an error when specific proof is not found in the credential
 var ErrProofNotFound = errors.New("proof not found")
+
+// ErrorProofNotSupported is an error when specific proof is not supported for validation
+var ErrorProofNotSupported = errors.New("proof not supported")
 
 // GetCoreClaimFromProof returns  core claim from given proof
 func (vc *W3CCredential) GetCoreClaimFromProof(proofType ProofType) (*core.Claim, error) {

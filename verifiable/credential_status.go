@@ -1,11 +1,13 @@
 package verifiable
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
 
+	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/iden3comm/v2"
@@ -40,14 +42,14 @@ func WithPackageManager(pm *iden3comm.PackageManager) CredentialStatusOpt {
 }
 
 // WithUserDID return new options
-func WithUserDID(userDID *string) CredentialStatusOpt {
+func WithUserDID(userDID *w3c.DID) CredentialStatusOpt {
 	return func(opts *CredentialStatusConfig) {
 		opts.UserDID = userDID
 	}
 }
 
 // WithIssuerDID return new options
-func WithIssuerDID(issuerDID *string) CredentialStatusOpt {
+func WithIssuerDID(issuerDID *w3c.DID) CredentialStatusOpt {
 	return func(opts *CredentialStatusConfig) {
 		opts.IssuerDID = issuerDID
 	}
@@ -61,8 +63,8 @@ type CredentialStatusConfig struct {
 	StatusResolverRegistry *CredentialStatusResolverRegistry
 	StateResolver          CredStatusStateResolver
 	PackageManager         *iden3comm.PackageManager
-	UserDID                *string
-	IssuerDID              *string
+	UserDID                *w3c.DID
+	IssuerDID              *w3c.DID
 }
 
 type errPathNotFound struct {
@@ -73,7 +75,7 @@ func (e errPathNotFound) Error() string {
 	return fmt.Sprintf("path not found: %v", e.path)
 }
 
-func ValidateCredentialStatus(credStatus interface{}, opts ...CredentialStatusOpt) (RevocationStatus, error) {
+func ValidateCredentialStatus(credStatus any, opts ...CredentialStatusOpt) (RevocationStatus, error) {
 	config := CredentialStatusConfig{}
 	for _, o := range opts {
 		o(&config)
@@ -120,7 +122,7 @@ func ValidateCredentialStatus(credStatus interface{}, opts ...CredentialStatusOp
 	return revocationStatus, nil
 }
 
-func resolveRevStatus(status interface{}, config CredentialStatusConfig) (out RevocationStatus, err error) {
+func resolveRevStatus(status any, config CredentialStatusConfig) (out RevocationStatus, err error) {
 	var statusType CredentialStatusType
 	var credentialStatusTyped CredentialStatus
 
@@ -151,7 +153,7 @@ func resolveRevStatus(status interface{}, config CredentialStatusConfig) (out Re
 	if err != nil {
 		return out, err
 	}
-	return resolver.Resolve(credentialStatusTyped, config)
+	return resolver.Resolve(context.Background(), credentialStatusTyped, config)
 }
 
 // marshal/unmarshal object from one type to other

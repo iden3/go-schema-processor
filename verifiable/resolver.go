@@ -1,12 +1,13 @@
 package verifiable
 
 import (
+	"context"
 	"fmt"
 )
 
 // CredentialStatusResolver is an interface that allows to interact with deifferent types of credential status to resolve revocation status
 type CredentialStatusResolver interface {
-	Resolve(credentialStatus CredentialStatus, cfg CredentialStatusConfig) (RevocationStatus, error)
+	Resolve(context context.Context, credentialStatus CredentialStatus, cfg CredentialStatusConfig) (RevocationStatus, error)
 }
 
 // CredentialStatusResolverRegistry is a registry of CredentialStatusResolver
