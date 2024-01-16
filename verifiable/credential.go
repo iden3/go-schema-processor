@@ -89,7 +89,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 			}
 		}
 
-		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig.ResolverURL, userDID, verifyConfig.CredentialStatusOpts...)
+		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig, userDID, verifyConfig.CredentialStatusOpts...)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -100,13 +100,13 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 		if err != nil {
 			return err
 		}
-		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig.ResolverURL)
+		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig)
 	default:
 		return ErrorProofNotSupported
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, resolverURL string, userDID *w3c.DID, credentialStatusOpts ...CredentialStatusOpt) error {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig, userDID *w3c.DID, credentialStatusOpts ...CredentialStatusOpt) error {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -141,7 +141,7 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		return err
 	}
 
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, verifyConfig.ResolverURL, proof.IssuerData.State.Value, verifyConfig.httpClient)
 	if err != nil {
 		return err
 	}
@@ -173,9 +173,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 	return nil
 }
 
-func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, resolverURL string) error {
+func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig) error {
 	var err error
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, resolverURL, proof.IssuerData.State.Value)
+	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, verifyConfig.ResolverURL, proof.IssuerData.State.Value, verifyConfig.httpClient)
 	if err != nil {
 		return err
 	}
@@ -242,7 +242,7 @@ func isGenesis(id, state string) (bool, error) {
 	return core.CheckGenesisStateID(issuerID.BigInt(), stateHash.BigInt())
 }
 
-func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVerificationMethod, error) {
+func resolveDIDDocumentAuth(did, resolverURL string, state *string, customHTTPClient *http.Client) (*CommonVerificationMethod, error) {
 	type didResolutionResult struct {
 		DIDDocument DIDDocument `json:"didDocument"`
 	}
@@ -252,11 +252,17 @@ func resolveDIDDocumentAuth(did, resolverURL string, state *string) (*CommonVeri
 		resp *http.Response
 		err  error
 	)
+	var httpClient *http.Client
+	if customHTTPClient != nil {
+		httpClient = customHTTPClient
+	} else {
+		httpClient = http.DefaultClient
+	}
 	if state != nil {
 		did = url.QueryEscape(did)
-		resp, err = http.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), did, *state))
+		resp, err = httpClient.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), did, *state))
 	} else {
-		resp, err = http.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), did))
+		resp, err = httpClient.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), did))
 	}
 
 	if err != nil {
@@ -388,6 +394,13 @@ func WithResolverURL(resolverURL string) W3CProofVerificationOpt {
 	}
 }
 
+// WithCustomHTTPClient return new options
+func WithCustomHTTPClient(httpClient *http.Client) W3CProofVerificationOpt {
+	return func(opts *W3CProofVerificationConfig) {
+		opts.httpClient = httpClient
+	}
+}
+
 // W3CProofVerificationOpt returns configuration options for W3C proof verification
 type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
 
@@ -395,4 +408,5 @@ type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
 type W3CProofVerificationConfig struct {
 	CredentialStatusOpts []CredentialStatusOpt
 	ResolverURL          string
+	httpClient           *http.Client
 }
