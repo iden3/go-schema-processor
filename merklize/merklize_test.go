@@ -1889,7 +1889,7 @@ const ipfsDocument = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "{{ .CitizenshipContext }}",
-	"{{ .BBSContext }}"
+    "{{ .BBSContext }}"
   ],
   "id": "https://issuer.oidp.uscis.gov/credentials/83627465",
   "type": ["VerifiableCredential", "PermanentResidentCard"],
@@ -1943,15 +1943,15 @@ func (m mockIPFSLoader) Cat(url string) (io.ReadCloser, error) {
 
 func TestIPFSContext(t *testing.T) {
 
-	citizenshipCtx := "Qmbp4kwoHULnmK71abrxdksjPH5sAjxSAXU5PEp2XRMFNw/dir2/bbs-v2.jsonld"
-	bbsCtx := "QmdP4MZkESEabRVB322r2xWm7TCi7LueMNWMJawYmSy7hp"
+	bbsCtx := "Qmbp4kwoHULnmK71abrxdksjPH5sAjxSAXU5PEp2XRMFNw/dir2/bbs-v2.jsonld"
+	citizenshipCtx := "QmdP4MZkESEabRVB322r2xWm7TCi7LueMNWMJawYmSy7hp"
 
 	defer tst.MockHTTPClient(t, testDocumentIPFSURLMaps,
 		tst.IgnoreUntouchedURLs())()
 
 	ipfsCli := mockIPFSLoader{
-		citizenshipCtx: "testdata/ipfs/dir1/dir2/bbs-v2.jsonld",
-		bbsCtx:         "testdata/ipfs/citizenship-v1.jsonld",
+		bbsCtx:         "testdata/ipfs/dir1/dir2/bbs-v2.jsonld",
+		citizenshipCtx: "testdata/ipfs/citizenship-v1.jsonld",
 		"QmeMevwUeD7o6hjfmdaeFD1q4L84hSDiRjeXZLi1bZK1My": "testdata/ipfs/testNewType.jsonld",
 	}
 
