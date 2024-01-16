@@ -79,17 +79,17 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 			return err
 		}
 
-		var userDID *w3c.DID
-		credSubjID, ok := vc.CredentialSubject["id"]
-		if ok {
-			credSubjString := fmt.Sprintf("%v", credSubjID)
-			userDID, err = w3c.ParseDID(credSubjString)
-			if err != nil {
-				return err
-			}
-		}
+		// var userDID *w3c.DID
+		// credSubjID, ok := vc.CredentialSubject["id"]
+		// if ok {
+		// 	credSubjString := fmt.Sprintf("%v", credSubjID)
+		// 	userDID, err = w3c.ParseDID(credSubjString)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
 
-		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig, userDID)
+		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		credProofJ, err := json.Marshal(credProof)
@@ -106,7 +106,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig, userDID *w3c.DID) error {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig) error {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)

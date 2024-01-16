@@ -3,7 +3,6 @@ package verifiable
 import (
 	"context"
 	"encoding/json"
-	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -14,40 +13,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type credStatusResolverMock struct {
-}
+// type credStatusResolverMock struct {
+// }
 
-type mockNoStateError struct {
-}
+// type mockNoStateError struct {
+// }
 
-func (m mockNoStateError) Error() string {
-	return "execution reverted: Identity does not exist"
-}
+// func (m mockNoStateError) Error() string {
+// 	return "execution reverted: Identity does not exist"
+// }
 
-func (m mockNoStateError) ErrorCode() int {
-	return 3
-}
+// func (m mockNoStateError) ErrorCode() int {
+// 	return 3
+// }
 
-func (m credStatusResolverMock) GetStateInfoByID(id *big.Int) (StateInfo, error) {
-	if id.String() == "29305636064099160210536948077705157048478988844998217946273455478812643842" {
-		return StateInfo{
-			State: "4191494968776819400863455954888115392137551122958477943242938172592557294132",
-		}, nil
-	}
+// func (m credStatusResolverMock) GetStateInfoByID(id *big.Int) (StateInfo, error) {
+// 	if id.String() == "29305636064099160210536948077705157048478988844998217946273455478812643842" {
+// 		return StateInfo{
+// 			State: "4191494968776819400863455954888115392137551122958477943242938172592557294132",
+// 		}, nil
+// 	}
 
-	if id.String() == "25116094451735045024912155729979573740232593171393457835171656777831420418" {
-		return StateInfo{}, mockNoStateError{}
-	}
-	return StateInfo{}, nil
-}
+// 	if id.String() == "25116094451735045024912155729979573740232593171393457835171656777831420418" {
+// 		return StateInfo{}, mockNoStateError{}
+// 	}
+// 	return StateInfo{}, nil
+// }
 
-func (m credStatusResolverMock) GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error) {
-	return RevocationStatus{}, nil
-}
+// func (m credStatusResolverMock) GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error) {
+// 	return RevocationStatus{}, nil
+// }
 
-func (m credStatusResolverMock) GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error) {
-	return RevocationStatus{}, nil
-}
+// func (m credStatusResolverMock) GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error) {
+// 	return RevocationStatus{}, nil
+// }
 
 type test1Resolver struct{}
 
