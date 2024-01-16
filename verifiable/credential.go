@@ -79,16 +79,6 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 			return err
 		}
 
-		// var userDID *w3c.DID
-		// credSubjID, ok := vc.CredentialSubject["id"]
-		// if ok {
-		// 	credSubjString := fmt.Sprintf("%v", credSubjID)
-		// 	userDID, err = w3c.ParseDID(credSubjString)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
-
 		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
@@ -158,14 +148,6 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		}
 	}
 
-	// issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// validate credential status
-	// credentialStatuDIDOpts := []CredentialStatusOpt{WithIssuerDID(issuerDID), WithUserDID(userDID)}
-	// credentialStatusOpts = append(credentialStatuDIDOpts, credentialStatusOpts...)
 	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, verifyConfig.StatusResolverRegistry)
 	if err != nil {
 		return err

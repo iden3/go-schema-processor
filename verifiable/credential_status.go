@@ -12,59 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// type CredStatusStateResolver interface {
-// 	GetStateInfoByID(id *big.Int) (StateInfo, error)
-// 	GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error)
-// 	GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error)
-// }
-
-// // WithStatusResolverRegistry return new options
-// func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) CredentialStatusOpt {
-// 	return func(opts *CredentialStatusConfig) {
-// 		opts.StatusResolverRegistry = registry
-// 	}
-// }
-
-// // WithStateResolver return new options
-// func WithStateResolver(resolver CredStatusStateResolver) CredentialStatusOpt {
-// 	return func(opts *CredentialStatusConfig) {
-// 		opts.StateResolver = resolver
-// 	}
-// }
-
-// // WithPackageManager return new options
-// func WithPackageManager(pm *iden3comm.PackageManager) CredentialStatusOpt {
-// 	return func(opts *CredentialStatusConfig) {
-// 		opts.PackageManager = pm
-// 	}
-// }
-
-// // WithUserDID return new options
-// func WithUserDID(userDID *w3c.DID) CredentialStatusOpt {
-// 	return func(opts *CredentialStatusConfig) {
-// 		opts.UserDID = userDID
-// 	}
-// }
-
-// // WithIssuerDID return new options
-// func WithIssuerDID(issuerDID *w3c.DID) CredentialStatusOpt {
-// 	return func(opts *CredentialStatusConfig) {
-// 		opts.IssuerDID = issuerDID
-// 	}
-// }
-
-// // CredentialStatusOpt returns configuration options for CredentialStatusConfig
-// type CredentialStatusOpt func(opts *CredentialStatusConfig)
-
-// // CredentialStatusConfig options for credential status verification
-// type CredentialStatusConfig struct {
-// 	StatusResolverRegistry *CredentialStatusResolverRegistry
-// 	StateResolver          CredStatusStateResolver
-// 	PackageManager         *iden3comm.PackageManager
-// 	UserDID                *w3c.DID
-// 	IssuerDID              *w3c.DID
-// }
-
 type errPathNotFound struct {
 	path string
 }

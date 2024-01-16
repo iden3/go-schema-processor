@@ -7,7 +7,7 @@ import (
 
 // CredentialStatusResolver is an interface that allows to interact with deifferent types of credential status to resolve revocation status
 type CredentialStatusResolver interface {
-	Resolve(context context.Context, credentialStatus CredentialStatus) (RevocationStatus, error)
+	Resolve(ctx context.Context, credentialStatus CredentialStatus) (RevocationStatus, error)
 }
 
 // CredentialStatusResolverRegistry is a registry of CredentialStatusResolver

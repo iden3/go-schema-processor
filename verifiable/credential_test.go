@@ -13,41 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// type credStatusResolverMock struct {
-// }
-
-// type mockNoStateError struct {
-// }
-
-// func (m mockNoStateError) Error() string {
-// 	return "execution reverted: Identity does not exist"
-// }
-
-// func (m mockNoStateError) ErrorCode() int {
-// 	return 3
-// }
-
-// func (m credStatusResolverMock) GetStateInfoByID(id *big.Int) (StateInfo, error) {
-// 	if id.String() == "29305636064099160210536948077705157048478988844998217946273455478812643842" {
-// 		return StateInfo{
-// 			State: "4191494968776819400863455954888115392137551122958477943242938172592557294132",
-// 		}, nil
-// 	}
-
-// 	if id.String() == "25116094451735045024912155729979573740232593171393457835171656777831420418" {
-// 		return StateInfo{}, mockNoStateError{}
-// 	}
-// 	return StateInfo{}, nil
-// }
-
-// func (m credStatusResolverMock) GetRevocationStatus(id *big.Int, nonce uint64) (RevocationStatus, error) {
-// 	return RevocationStatus{}, nil
-// }
-
-// func (m credStatusResolverMock) GetRevocationStatusByIDAndState(id *big.Int, state *big.Int, nonce uint64) (RevocationStatus, error) {
-// 	return RevocationStatus{}, nil
-// }
-
 type test1Resolver struct{}
 
 func (test1Resolver) Resolve(context context.Context, status CredentialStatus) (out RevocationStatus, err error) {
@@ -447,9 +412,6 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 
 	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ?state=2de39210318bbc7fc79e24150c2790089c8385d7acffc0f0ebf1641b95087e0f",
 		httpmock.NewStringResponder(200, `{"didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":false,"global":{"root":"ff3e987dc4c279af0e77ac2b1983ed8cf627bfeebbc6d5d56be2526cc7286621","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704719148","replacedAtTimestamp":"0","createdAtBlock":"44541667","replacedAtBlock":"0"}}]}}`))
-
-	// httpmock.RegisterResponder("POST", "http://localhost:8001/api/v1/agent",
-	// 	httpmock.NewStringResponder(200, `{"body":{"issuer":{"claimsTreeRoot":"d9597e2fef206c9821f2425e513a68c8c793bc93c9216fb883fedaaf72abf51c","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000","rootOfRoots":"eaa48e4a7d3fe2fabbd939c7df1048c3f647a9a7c9dfadaae836ec78ba673229","state":"96161f3fbbdd68c72bc430dae474e27b157586b33b9fbf4a3f07d75ce275570f"},"mtp":{"existence":false,"siblings":[]}},"from":"did:polygonid:polygon:mumbai:2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ","id":"9ece0dad-9267-4a52-b611-f0615b0143fb","thid":"8bdc87dc-1755-41d5-b483-26562836068e","to":"did:polygonid:polygon:mumbai:2qFDziX3k3h7To2jDJbQiXFtcozbgSNNvQpb6TgtPE","typ":"application/iden3comm-plain-json","type":"https://iden3-communication.io/revocation/1.0/status"}`))
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(Iden3commRevocationStatusV1, test3Resolver{})
