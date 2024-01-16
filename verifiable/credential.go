@@ -183,7 +183,7 @@ func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClai
 	// Published or genesis
 	if !*vm.IdentityState.Published {
 		var isGenesisState bool
-		isGenesisState, err := isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		isGenesisState, err = isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
 		if err != nil {
 			return err
 		}
