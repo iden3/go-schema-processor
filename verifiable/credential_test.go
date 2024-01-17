@@ -9,7 +9,6 @@ import (
 
 	mt "github.com/iden3/go-merkletree-sql/v2"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
-	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,15 +91,10 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 
 	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=f9dd6aa4e1abef52b6c94ab7eb92faf1a283b371d263e25ac835c9c04894741e",
-		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":true,"info":{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","replacedByState":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1703174663","replacedAtTimestamp":"0","createdAtBlock":"43840767","replacedAtBlock":"0"},"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T08:05:13.413770024Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":429,"did":{"didString":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","methodSpecificId":"polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","method":"polygonid"}},"didDocumentMetadata":{}}`))
-
-	httpmock.RegisterResponder("GET", "https://rhs-staging.polygonid.me/node/34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
-		httpmock.NewStringResponder(200, `{"node":{"hash":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","children":["4436ea12d352ddb84d2ac7a27bbf7c9f1bfc7d3ff69f3e6cf4348f424317fd0b","0000000000000000000000000000000000000000000000000000000000000000","37eabc712cdaa64793561b16b8143f56f149ad1b0c35297a1b125c765d1c071e"]},"status":"OK"}`))
-
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=f9dd6aa4e1abef52b6c94ab7eb92faf1a283b371d263e25ac835c9c04894741e": `./testdata/verifycred//my-universal-resolver-1.json`,
+		})()
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test1Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
@@ -188,18 +182,10 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 
 	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks?state=da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817",
-		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":false,"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T08:02:25.986085836Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":434,"did":{"didString":"did:polygonid:polygon:mumbai:2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks","methodSpecificId":"polygon:mumbai:2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks","method":"polygonid"}},"didDocumentMetadata":{}}`))
-
-	httpmock.RegisterMatcherResponder("POST", "http://my-rpc/v2/1111",
-		httpmock.BodyContainsString(`{"jsonrpc":"2.0","id":1,"method":"eth_call","params":[{"data":"0xb4bdea55000e3717b8601710678ac6bc754dc7876d513fffe8e2bf4dbb52cc0cd9ba1202","from":"0x0000000000000000000000000000000000000000","to":"0x134b1be34911e39a8397ec6289782989729807a4"},"latest"]}`),
-		httpmock.NewStringResponder(200, `{"jsonrpc":"2.0","id":1,"error":{"code":3,"message":"execution reverted: Identity does not exist","data":"0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000174964656e7469747920646f6573206e6f74206578697374000000000000000000"}}`))
-
-	httpmock.RegisterResponder("GET", "https://rhs-staging.polygonid.me/node/da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817",
-		httpmock.NewStringResponder(200, `{"node":{"hash":"da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817","children":["aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e","0000000000000000000000000000000000000000000000000000000000000000","0000000000000000000000000000000000000000000000000000000000000000"]},"status":"OK"}`))
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks?state=da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817": `./testdata/verifycred//my-universal-resolver-2.json`,
+		})()
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test2Resolver{}
@@ -304,11 +290,10 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 
 	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409",
-		httpmock.NewStringResponder(200, `{"@context":"https://w3id.org/did-resolution/v1","didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":true,"info":{"id":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","replacedByState":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1703174663","replacedAtTimestamp":"0","createdAtBlock":"43840767","replacedAtBlock":"0"},"global":{"root":"92c4610a24247a4013ce6de4903452d164134a232a94fd1fe37178bce4937006","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704439557","replacedAtTimestamp":"0","createdAtBlock":"44415346","replacedAtBlock":"0"}}]},"didResolutionMetadata":{"contentType":"application/did+ld+json","retrieved":"2024-01-05T07:53:42.67771172Z","pattern":"^(did:polygonid:.+)$","driverUrl":"http://driver-did-polygonid:8080/1.0/identifiers/","duration":442,"did":{"didString":"did:polygonid:polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","methodSpecificId":"polygon:mumbai:2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf","method":"polygonid"}},"didDocumentMetadata":{}}`))
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409": `./testdata/verifycred//my-universal-resolver-3.json`,
+		})()
 
 	verifyConfig := []W3CProofVerificationOpt{WithResolverURL(resolverURL)}
 	err = vc.VerifyProof(Iden3SparseMerkleTreeProofType, verifyConfig...)
@@ -407,11 +392,10 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 
 	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ?state=2de39210318bbc7fc79e24150c2790089c8385d7acffc0f0ebf1641b95087e0f",
-		httpmock.NewStringResponder(200, `{"didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qEChbFATnamWnToMgNycnVi4W9Xw5772qX61qwki6","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":false,"global":{"root":"ff3e987dc4c279af0e77ac2b1983ed8cf627bfeebbc6d5d56be2526cc7286621","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1704719148","replacedAtTimestamp":"0","createdAtBlock":"44541667","replacedAtBlock":"0"}}]}}`))
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ?state=2de39210318bbc7fc79e24150c2790089c8385d7acffc0f0ebf1641b95087e0f": `./testdata/verifycred//my-universal-resolver-4.json`,
+		})()
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(Iden3commRevocationStatusV1, test3Resolver{})
@@ -481,14 +465,11 @@ func TestW3CCredential_ValidateBJJSignatureProofIssuerStatus(t *testing.T) {
 
 	resolverURL := "http://my-universal-resolver/1.0/identifiers"
 
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	httpmock.RegisterResponder("GET", "http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn?state=95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119",
-		httpmock.NewStringResponder(200, `{"didDocument":{"@context":["https://www.w3.org/ns/did/v1","https://schema.iden3.io/core/jsonld/auth.jsonld"],"id":"did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn","verificationMethod":[{"id":"did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn#stateInfo","type":"Iden3StateInfo2023","controller":"did:polygonid:polygon:mumbai:2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn","stateContractAddress":"80001:0x134B1BE34911E39A8397ec6289782989729807a4","published":false,"global":{"root":"40c30e53dc6649842d8f1297f8b4267e7097b6941c413ac032ce53726f826229","replacedByRoot":"0000000000000000000000000000000000000000000000000000000000000000","createdAtTimestamp":"1705061221","replacedAtTimestamp":"0","createdAtBlock":"44690848","replacedAtBlock":"0"}}]}}`))
-
-	httpmock.RegisterResponder("GET", "http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/0",
-		httpmock.NewStringResponder(200, `{"issuer":{"state":"95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119","claimsTreeRoot":"9af7b27d7176f465dc9acfd7dc937bae5df1d1cd34d682692f1ea6bf7cedf514"},"mtp":{"existence":false,"siblings":[]}}`))
+	defer tst.MockHTTPClient(t,
+		map[string]string{
+			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn?state=95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119": `./testdata/verifycred//my-universal-resolver-5.json`,
+			"http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/0":                                                  `./testdata/verifycred//issuer-state-response.json`,
+		})()
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(SparseMerkleTreeProof, IssuerResolver{})

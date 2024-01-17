@@ -6,7 +6,6 @@ require (
 	github.com/iden3/go-iden3-core/v2 v2.0.3
 	github.com/iden3/go-iden3-crypto v0.0.15
 	github.com/iden3/go-merkletree-sql/v2 v2.0.4
-	github.com/jarcoal/httpmock v1.3.1
 	// We require the `json-gold` bugfix which has not yet been included in the
 	// stable version. After the release of version 0.5.1 or later, it will be
 	// necessary to update to the stable version.
