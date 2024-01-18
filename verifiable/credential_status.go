@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
 )
 
-func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolverRegistry *CredentialStatusResolverRegistry) (RevocationStatus, error) {
-	revocationStatus, err := resolveRevStatus(credStatus, credStatusResolverRegistry)
+func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolverRegistry *CredentialStatusResolverRegistry, issuerDID, userDID *w3c.DID) (RevocationStatus, error) {
+	revocationStatus, err := resolveRevStatus(credStatus, credStatusResolverRegistry, issuerDID, userDID)
 	if err != nil {
 		return revocationStatus, err
 	}
@@ -45,7 +46,7 @@ func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolve
 	return revocationStatus, nil
 }
 
-func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusResolverRegistry) (out RevocationStatus, err error) {
+func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusResolverRegistry, issuerDID, userDID *w3c.DID) (out RevocationStatus, err error) {
 	var statusType CredentialStatusType
 	var credentialStatusTyped CredentialStatus
 
@@ -76,7 +77,12 @@ func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusRe
 	if err != nil {
 		return out, err
 	}
-	return resolver.Resolve(context.Background(), credentialStatusTyped)
+
+	resolveOpts := CredentialStatusResolveOptions{
+		IssuerDID: issuerDID,
+		UserDID:   userDID,
+	}
+	return resolver.Resolve(context.Background(), credentialStatusTyped, &resolveOpts)
 }
 
 // marshal/unmarshal object from one type to other

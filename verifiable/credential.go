@@ -74,7 +74,16 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, didResolver DIDResolve
 			return err
 		}
 
-		return verifyBJJSignatureProof(proof, coreClaim, didResolver, verifyConfig)
+		var userDID *w3c.DID
+		credSubjID, ok := vc.CredentialSubject["id"]
+		if ok {
+			credSubjString := fmt.Sprintf("%v", credSubjID)
+			userDID, err = w3c.ParseDID(credSubjString)
+			if err != nil {
+				return err
+			}
+		}
+		return verifyBJJSignatureProof(proof, coreClaim, didResolver, userDID, verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		err = json.Unmarshal(credProofBytes, &proof)
@@ -87,7 +96,7 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, didResolver DIDResolve
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, didResolver DIDResolver, verifyConfig W3CProofVerificationConfig) error {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, didResolver DIDResolver, userDID *w3c.DID, verifyConfig W3CProofVerificationConfig) error {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -161,7 +170,7 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		}
 	}
 
-	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, coreClaim.GetRevocationNonce(), verifyConfig.StatusResolverRegistry)
+	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, coreClaim.GetRevocationNonce(), verifyConfig.StatusResolverRegistry, issuerDID, userDID)
 	if err != nil {
 		return err
 	}

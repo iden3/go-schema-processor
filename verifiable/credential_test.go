@@ -14,7 +14,7 @@ import (
 
 type test1Resolver struct{}
 
-func (test1Resolver) Resolve(context context.Context, status CredentialStatus) (out RevocationStatus, err error) {
+func (test1Resolver) Resolve(context context.Context, status CredentialStatus, opts *CredentialStatusResolveOptions) (out RevocationStatus, err error) {
 	statusJSON := `{"issuer":{"state":"34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409","rootOfRoots":"37eabc712cdaa64793561b16b8143f56f149ad1b0c35297a1b125c765d1c071e","claimsTreeRoot":"4436ea12d352ddb84d2ac7a27bbf7c9f1bfc7d3ff69f3e6cf4348f424317fd0b","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
 	var rs RevocationStatus
 	_ = json.Unmarshal([]byte(statusJSON), &rs)
@@ -105,7 +105,7 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 
 type test2Resolver struct{}
 
-func (test2Resolver) Resolve(context context.Context, status CredentialStatus) (out RevocationStatus, err error) {
+func (test2Resolver) Resolve(context context.Context, status CredentialStatus, opts *CredentialStatusResolveOptions) (out RevocationStatus, err error) {
 	statusJSON := `{"issuer":{"state":"da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817","rootOfRoots":"0000000000000000000000000000000000000000000000000000000000000000","claimsTreeRoot":"aec50251fdc67959254c74ab4f2e746a7cd1c6f494c8ac028d655dfbccea430e","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
 	var rs RevocationStatus
 	_ = json.Unmarshal([]byte(statusJSON), &rs)
@@ -301,7 +301,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 
 type test3Resolver struct{}
 
-func (test3Resolver) Resolve(context context.Context, status CredentialStatus) (out RevocationStatus, err error) {
+func (test3Resolver) Resolve(context context.Context, status CredentialStatus, opts *CredentialStatusResolveOptions) (out RevocationStatus, err error) {
 	statusJSON := `{"issuer":{"state":"96161f3fbbdd68c72bc430dae474e27b157586b33b9fbf4a3f07d75ce275570f","rootOfRoots":"eaa48e4a7d3fe2fabbd939c7df1048c3f647a9a7c9dfadaae836ec78ba673229","claimsTreeRoot":"d9597e2fef206c9821f2425e513a68c8c793bc93c9216fb883fedaaf72abf51c","revocationTreeRoot":"0000000000000000000000000000000000000000000000000000000000000000"},"mtp":{"existence":false,"siblings":[]}}`
 	var rs RevocationStatus
 	_ = json.Unmarshal([]byte(statusJSON), &rs)
