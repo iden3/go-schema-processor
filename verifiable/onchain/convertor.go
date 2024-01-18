@@ -123,7 +123,7 @@ func (p *Convertor) convertCredentialID(id string) (string, error) {
 	}
 	_, err := url.ParseRequestURI(id)
 	if err != nil {
-		return fmt.Sprintf("urn:id:%s", id), nil
+		return "", fmt.Errorf("credential ID '%s' is not a valid URI: %w", id, err)
 	}
 	return id, nil
 }
