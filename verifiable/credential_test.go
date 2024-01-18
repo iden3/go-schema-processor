@@ -98,8 +98,8 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test1Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
-	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
-	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty)}
+	err = vc.VerifyProof(BJJSignatureProofType, HTTPDIDResolver{resolverURL: resolverURL}, verifyConfig...)
 	require.NoError(t, err)
 }
 
@@ -190,9 +190,9 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test2Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
-	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty)}
 
-	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
+	err = vc.VerifyProof(BJJSignatureProofType, HTTPDIDResolver{resolverURL: resolverURL}, verifyConfig...)
 	require.NoError(t, err)
 }
 
@@ -295,8 +295,7 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409": `./testdata/verifycred//my-universal-resolver-3.json`,
 		})()
 
-	verifyConfig := []W3CProofVerificationOpt{WithResolverURL(resolverURL)}
-	err = vc.VerifyProof(Iden3SparseMerkleTreeProofType, verifyConfig...)
+	err = vc.VerifyProof(Iden3SparseMerkleTreeProofType, HTTPDIDResolver{resolverURL: resolverURL})
 	require.NoError(t, err)
 }
 
@@ -399,8 +398,8 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(Iden3commRevocationStatusV1, test3Resolver{})
-	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
-	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty)}
+	err = vc.VerifyProof(BJJSignatureProofType, HTTPDIDResolver{resolverURL: resolverURL}, verifyConfig...)
 	require.NoError(t, err)
 }
 
@@ -473,8 +472,8 @@ func TestW3CCredential_ValidateBJJSignatureProofIssuerStatus(t *testing.T) {
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(SparseMerkleTreeProof, IssuerResolver{})
-	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty), WithResolverURL(resolverURL)}
-	err = vc.VerifyProof(BJJSignatureProofType, verifyConfig...)
+	verifyConfig := []W3CProofVerificationOpt{WithStatusResolverRegistry(&resolverRegisty)}
+	err = vc.VerifyProof(BJJSignatureProofType, HTTPDIDResolver{resolverURL: resolverURL}, verifyConfig...)
 	require.NoError(t, err)
 }
 

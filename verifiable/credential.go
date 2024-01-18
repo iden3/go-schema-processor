@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	core "github.com/iden3/go-iden3-core/v2"
@@ -39,14 +36,10 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerificationOpt) error {
+func (vc *W3CCredential) VerifyProof(proofType ProofType, didResolver DIDResolver, opts ...W3CProofVerificationOpt) error {
 	verifyConfig := W3CProofVerificationConfig{}
 	for _, o := range opts {
 		o(&verifyConfig)
-	}
-
-	if verifyConfig.ResolverURL == "" {
-		return errors.New("resolver URL is empty")
 	}
 
 	var (
@@ -67,36 +60,34 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, opts ...W3CProofVerifi
 	if err != nil {
 		return errors.New("can't get core claim")
 	}
+
+	var credProofBytes []byte
+	credProofBytes, err = json.Marshal(credProof)
+	if err != nil {
+		return err
+	}
 	switch proofType {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
-		credProofJ, err := json.Marshal(credProof)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(credProofJ, &proof)
+		err = json.Unmarshal(credProofBytes, &proof)
 		if err != nil {
 			return err
 		}
 
-		return verifyBJJSignatureProof(proof, coreClaim, verifyConfig)
+		return verifyBJJSignatureProof(proof, coreClaim, didResolver, verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
-		credProofJ, err := json.Marshal(credProof)
+		err = json.Unmarshal(credProofBytes, &proof)
 		if err != nil {
 			return err
 		}
-		err = json.Unmarshal(credProofJ, &proof)
-		if err != nil {
-			return err
-		}
-		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, verifyConfig)
+		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, didResolver)
 	default:
 		return ErrorProofNotSupported
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig) error {
+func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, didResolver DIDResolver, verifyConfig W3CProofVerificationConfig) error {
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -131,15 +122,37 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		return err
 	}
 
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, verifyConfig.ResolverURL, proof.IssuerData.State.Value, verifyConfig.httpClient)
+	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	if err != nil {
+		return err
+	}
+
+	issuerStateHash, err := merkletree.NewHashFromHex(*proof.IssuerData.State.Value)
+	if err != nil {
+		return fmt.Errorf("invalid state formant: %v", err)
+	}
+
+	didDoc, err := didResolver.Resolve(context.Background(), issuerDID, issuerStateHash.BigInt())
+	if err != nil {
+		return err
+	}
+
+	vm, err := getIden3StateInfo2023FromDIDDocument(didDoc)
 	if err != nil {
 		return err
 	}
 
 	// Published or genesis
 	if !*vm.IdentityState.Published {
-		var isGenesisState bool
-		isGenesisState, err = isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		var (
+			isGenesisState bool
+			issuerID       core.ID
+		)
+		issuerID, err = core.IDFromDID(*issuerDID)
+		if err != nil {
+			return err
+		}
+		isGenesisState, err = core.CheckGenesisStateID(issuerID.BigInt(), issuerStateHash.BigInt())
 		if err != nil {
 			return err
 		}
@@ -155,17 +168,40 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 	return nil
 }
 
-func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, verifyConfig W3CProofVerificationConfig) error {
+func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, didResolver DIDResolver) error {
 	var err error
-	vm, err := resolveDIDDocumentAuth(proof.IssuerData.ID, verifyConfig.ResolverURL, proof.IssuerData.State.Value, verifyConfig.httpClient)
+
+	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	if err != nil {
+		return err
+	}
+
+	issuerStateHash, err := merkletree.NewHashFromHex(*proof.IssuerData.State.Value)
+	if err != nil {
+		return fmt.Errorf("invalid state formant: %v", err)
+	}
+
+	didDoc, err := didResolver.Resolve(context.Background(), issuerDID, issuerStateHash.BigInt())
+	if err != nil {
+		return err
+	}
+
+	vm, err := getIden3StateInfo2023FromDIDDocument(didDoc)
 	if err != nil {
 		return err
 	}
 
 	// Published or genesis
 	if !*vm.IdentityState.Published {
-		var isGenesisState bool
-		isGenesisState, err = isGenesis(proof.IssuerData.ID, *proof.IssuerData.State.Value)
+		var (
+			isGenesisState bool
+			issuerID       core.ID
+		)
+		issuerID, err = core.IDFromDID(*issuerDID)
+		if err != nil {
+			return err
+		}
+		isGenesisState, err = core.CheckGenesisStateID(issuerID.BigInt(), issuerStateHash.BigInt())
 		if err != nil {
 			return err
 		}
@@ -207,64 +243,9 @@ func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
 	return bjjSig, errors.WithStack(err)
 }
 
-func isGenesis(id, state string) (bool, error) {
-	issuerDID, err := w3c.ParseDID(id)
-	if err != nil {
-		return false, err
-	}
-	issuerID, err := core.IDFromDID(*issuerDID)
-	if err != nil {
-		return false, err
-	}
-	stateHash, err := merkletree.NewHashFromHex(state)
-	if err != nil {
-		return false, fmt.Errorf("invalid state formant: %v", err)
-	}
-
-	return core.CheckGenesisStateID(issuerID.BigInt(), stateHash.BigInt())
-}
-
-func resolveDIDDocumentAuth(did, resolverURL string, state *string, customHTTPClient *http.Client) (*CommonVerificationMethod, error) {
-	type didResolutionResult struct {
-		DIDDocument DIDDocument `json:"didDocument"`
-	}
-	res := &didResolutionResult{}
-
-	var (
-		resp *http.Response
-		err  error
-	)
-	var httpClient *http.Client
-	if customHTTPClient != nil {
-		httpClient = customHTTPClient
-	} else {
-		httpClient = http.DefaultClient
-	}
-	if state != nil {
-		did = url.QueryEscape(did)
-		resp, err = httpClient.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(resolverURL, "/"), did, *state))
-	} else {
-		resp, err = httpClient.Get(fmt.Sprintf("%s/%s", strings.Trim(resolverURL, "/"), did))
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		err2 := resp.Body.Close()
-		if err != nil {
-			err = errors.WithStack(err2)
-		}
-	}()
-
-	err = json.NewDecoder(resp.Body).Decode(&res)
-	if err != nil {
-		return nil, err
-	}
-
+func getIden3StateInfo2023FromDIDDocument(document DIDDocument) (*CommonVerificationMethod, error) {
 	var iden3StateInfo2023 *CommonVerificationMethod
-	for _, a := range res.DIDDocument.VerificationMethod {
+	for _, a := range document.VerificationMethod {
 		if a.Type == "Iden3StateInfo2023" {
 			a2 := a
 			iden3StateInfo2023 = &a2
@@ -369,26 +350,10 @@ func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) W3CP
 	}
 }
 
-// WithResolverURL return new options
-func WithResolverURL(resolverURL string) W3CProofVerificationOpt {
-	return func(opts *W3CProofVerificationConfig) {
-		opts.ResolverURL = resolverURL
-	}
-}
-
-// WithCustomHTTPClient return new options
-func WithCustomHTTPClient(httpClient *http.Client) W3CProofVerificationOpt {
-	return func(opts *W3CProofVerificationConfig) {
-		opts.httpClient = httpClient
-	}
-}
-
 // W3CProofVerificationOpt returns configuration options for W3C proof verification
 type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
 
 // W3CProofVerificationConfig options for W3C proof verification
 type W3CProofVerificationConfig struct {
 	StatusResolverRegistry *CredentialStatusResolverRegistry
-	ResolverURL            string
-	httpClient             *http.Client
 }
