@@ -5,22 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
 )
 
-type errPathNotFound struct {
-	path string
-}
-
-func (e errPathNotFound) Error() string {
-	return fmt.Sprintf("path not found: %v", e.path)
-}
-
-func ValidateCredentialStatus(credStatus any, credStatusResolverRegistry *CredentialStatusResolverRegistry) (RevocationStatus, error) {
+func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolverRegistry *CredentialStatusResolverRegistry) (RevocationStatus, error) {
 	revocationStatus, err := resolveRevStatus(credStatus, credStatusResolverRegistry)
 	if err != nil {
 		return revocationStatus, err
@@ -33,15 +24,6 @@ func ValidateCredentialStatus(credStatus any, credStatusResolverRegistry *Creden
 		return revocationStatus, errors.New("signature proof: invalid tree state of the issuer while checking credential status of singing key")
 	}
 
-	credStatusObj, ok := credStatus.(jsonObj)
-	if !ok {
-		return revocationStatus, fmt.Errorf("invali credential status")
-	}
-	revNonce, err := bigIntByPath(credStatusObj, "revocationNonce", true)
-	if err != nil {
-		return revocationStatus, err
-	}
-
 	revocationRootHash := &merkletree.HashZero
 	if revocationStatus.Issuer.RevocationTreeRoot != nil {
 		revocationRootHash, err = merkletree.NewHashFromHex(*revocationStatus.Issuer.RevocationTreeRoot)
@@ -51,7 +33,7 @@ func ValidateCredentialStatus(credStatus any, credStatusResolverRegistry *Creden
 	}
 
 	proofValid := merkletree.VerifyProof(revocationRootHash,
-		&revocationStatus.MTP, revNonce, big.NewInt(0))
+		&revocationStatus.MTP, big.NewInt(int64(revNonce)), big.NewInt(0))
 	if !proofValid {
 		return revocationStatus, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
 	}
@@ -146,63 +128,4 @@ func validateTreeState(i Issuer) (bool, error) {
 		return false, err
 	}
 	return wantState.Cmp(stateHash.BigInt()) == 0, nil
-}
-
-// if allowNumbers is true, then the value can also be a number, not only strings
-func bigIntByPath(obj jsonObj, path string,
-	allowNumbers bool) (*big.Int, error) {
-
-	v, err := getByPath(obj, path)
-	if err != nil {
-		return nil, err
-	}
-
-	switch vt := v.(type) {
-	case string:
-		i, ok := new(big.Int).SetString(vt, 10)
-		if !ok {
-			return nil, errors.New("not a big int")
-		}
-		return i, nil
-	case float64:
-		if !allowNumbers {
-			return nil, errors.New("not a string")
-		}
-		ii := int64(vt)
-		if float64(ii) != vt {
-			return nil, errors.New("not an int")
-		}
-		return big.NewInt(0).SetInt64(ii), nil
-	default:
-		return nil, errors.New("not a string")
-	}
-}
-
-func getByPath(obj jsonObj, path string) (any, error) {
-	parts := strings.Split(path, ".")
-
-	var curObj = obj
-	for i, part := range parts {
-		if part == "" {
-			return nil, errors.New("path is empty")
-		}
-		if i == len(parts)-1 {
-			v, ok := curObj[part]
-			if !ok {
-				return nil, errPathNotFound{path}
-			}
-			return v, nil
-		}
-
-		nextObj, ok := curObj[part]
-		if !ok {
-			return nil, errPathNotFound{path}
-		}
-		curObj, ok = nextObj.(jsonObj)
-		if !ok {
-			return nil, errors.New("not a json object")
-		}
-	}
-
-	return nil, errors.New("should not happen")
 }
