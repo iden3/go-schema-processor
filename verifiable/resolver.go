@@ -3,11 +3,19 @@ package verifiable
 import (
 	"context"
 	"fmt"
+
+	"github.com/iden3/go-iden3-core/v2/w3c"
 )
+
+// CredentialStatusResolveOptions options for CredentialStatusResolver Resolve
+type CredentialStatusResolveOptions struct {
+	UserDID   *w3c.DID
+	IssuerDID *w3c.DID
+}
 
 // CredentialStatusResolver is an interface that allows to interact with deifferent types of credential status to resolve revocation status
 type CredentialStatusResolver interface {
-	Resolve(ctx context.Context, credentialStatus CredentialStatus) (RevocationStatus, error)
+	Resolve(ctx context.Context, credentialStatus CredentialStatus, opts *CredentialStatusResolveOptions) (RevocationStatus, error)
 }
 
 // CredentialStatusResolverRegistry is a registry of CredentialStatusResolver
