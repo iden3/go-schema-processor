@@ -78,11 +78,8 @@ func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusRe
 		return out, err
 	}
 
-	resolveOpts := CredentialStatusResolveOptions{
-		IssuerDID: issuerDID,
-		UserDID:   userDID,
-	}
-	return resolver.Resolve(context.Background(), credentialStatusTyped, &resolveOpts)
+	resolveOpts := []CredentialStatusResolveOpt{WithIssuerDID(issuerDID), WithUserDID(userDID)}
+	return resolver.Resolve(context.Background(), credentialStatusTyped, resolveOpts...)
 }
 
 // marshal/unmarshal object from one type to other

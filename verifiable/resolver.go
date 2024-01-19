@@ -7,15 +7,32 @@ import (
 	"github.com/iden3/go-iden3-core/v2/w3c"
 )
 
-// CredentialStatusResolveOptions options for CredentialStatusResolver Resolve
-type CredentialStatusResolveOptions struct {
+// CredentialStatusResolveConfig credential status resolve config
+type CredentialStatusResolveConfig struct {
 	UserDID   *w3c.DID
 	IssuerDID *w3c.DID
 }
 
+// CredentialStatusResolveOpt returns configuration options for resolve
+type CredentialStatusResolveOpt func(opts *CredentialStatusResolveConfig)
+
+// WithIssuerDID return new options
+func WithIssuerDID(issuerDID *w3c.DID) CredentialStatusResolveOpt {
+	return func(opts *CredentialStatusResolveConfig) {
+		opts.IssuerDID = issuerDID
+	}
+}
+
+// WithUserDID return new options
+func WithUserDID(userDID *w3c.DID) CredentialStatusResolveOpt {
+	return func(opts *CredentialStatusResolveConfig) {
+		opts.UserDID = userDID
+	}
+}
+
 // CredentialStatusResolver is an interface that allows to interact with deifferent types of credential status to resolve revocation status
 type CredentialStatusResolver interface {
-	Resolve(ctx context.Context, credentialStatus CredentialStatus, opts *CredentialStatusResolveOptions) (RevocationStatus, error)
+	Resolve(ctx context.Context, credentialStatus CredentialStatus, opts ...CredentialStatusResolveOpt) (RevocationStatus, error)
 }
 
 // CredentialStatusResolverRegistry is a registry of CredentialStatusResolver

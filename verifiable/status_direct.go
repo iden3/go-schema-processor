@@ -15,7 +15,7 @@ type IssuerResolver struct {
 
 const limitReaderBytes = 16 * 1024
 
-func (IssuerResolver) Resolve(context context.Context, credentialStatus CredentialStatus, opts *CredentialStatusResolveOptions) (out RevocationStatus, err error) {
+func (IssuerResolver) Resolve(context context.Context, credentialStatus CredentialStatus, opts ...CredentialStatusResolveOpt) (out RevocationStatus, err error) {
 	httpReq, err := http.NewRequestWithContext(context, http.MethodGet, credentialStatus.ID,
 		http.NoBody)
 	if err != nil {
