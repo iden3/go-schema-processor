@@ -15,7 +15,7 @@ import (
 func TestOnchainVerifiableCredential(t *testing.T) {
 	const onchainVC = `
 	{
-		"id": "3",
+		"id": "urn:onchain:80001:0x22fae4d812d06f7e7cbe1754502956d78a720d17:5",
 		"context": [
 			"https://www.w3.org/2018/credentials/v1",
 			"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld",
