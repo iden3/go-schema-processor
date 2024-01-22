@@ -36,8 +36,7 @@ func (r HTTPDIDResolver) Resolve(ctx context.Context, did *w3c.DID) (out DIDDocu
 	} else {
 		httpClient = http.DefaultClient
 	}
-	var didStr string
-	didStr = did.String()
+	didStr := did.String()
 	didParts := strings.Split(didStr, "?")
 	if len(didParts) == 2 {
 		didEscaped := url.QueryEscape(didParts[0])
