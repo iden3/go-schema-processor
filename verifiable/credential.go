@@ -96,7 +96,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		return verifyIden3SparseMerkleTreeProof(ctx, proof, coreClaim,
 			didResolver)
 	default:
-		return ErrorProofNotSupported
+		return ErrProofNotSupported
 	}
 }
 
@@ -316,8 +316,8 @@ func (vc *W3CCredential) Merklize(ctx context.Context,
 // ErrProofNotFound is an error when specific proof is not found in the credential
 var ErrProofNotFound = errors.New("proof not found")
 
-// ErrorProofNotSupported is an error when specific proof is not supported for validation
-var ErrorProofNotSupported = errors.New("proof not supported")
+// ErrProofNotSupported is an error when specific proof is not supported for validation
+var ErrProofNotSupported = errors.New("proof not supported")
 
 // GetCoreClaimFromProof returns  core claim from given proof
 func (vc *W3CCredential) GetCoreClaimFromProof(proofType ProofType) (*core.Claim, error) {
