@@ -12,8 +12,21 @@ import (
 	"github.com/pkg/errors"
 )
 
-func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolverRegistry *CredentialStatusResolverRegistry, issuerDID, userDID *w3c.DID) (RevocationStatus, error) {
-	revocationStatus, err := resolveRevStatus(credStatus, credStatusResolverRegistry, issuerDID, userDID)
+var ErrCredentialIsRevoked = errors.New("credential is revoked")
+
+// TODO: Many be it would be reasonable to accept Registry optionaly and use global one (default) is not passed.
+//       Issuser DID  & user DID may be passed as options as well. I'm not sure for now how to use them.
+
+// ValidateCredentialStatus resolves the credential status (possibly download
+// proofs from outer world) and validates the proof. May return
+// ErrCredentialIsRevoked if the credential was revoked.
+func ValidateCredentialStatus(ctx context.Context, credStatus any,
+	revNonce uint64,
+	credStatusResolverRegistry *CredentialStatusResolverRegistry,
+	issuerDID, userDID *w3c.DID) (RevocationStatus, error) {
+
+	revocationStatus, err := resolveRevStatus(ctx, credStatus,
+		credStatusResolverRegistry, issuerDID, userDID)
 	if err != nil {
 		return revocationStatus, err
 	}
@@ -28,25 +41,28 @@ func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolve
 	revocationRootHash := &merkletree.HashZero
 	if revocationStatus.Issuer.RevocationTreeRoot != nil {
 		revocationRootHash, err = merkletree.NewHashFromHex(*revocationStatus.Issuer.RevocationTreeRoot)
-	}
-	if err != nil {
-		return revocationStatus, err
+		if err != nil {
+			return revocationStatus, err
+		}
 	}
 
 	proofValid := merkletree.VerifyProof(revocationRootHash,
-		&revocationStatus.MTP, big.NewInt(int64(revNonce)), big.NewInt(0))
+		&revocationStatus.MTP, new(big.Int).SetUint64(revNonce), big.NewInt(0))
 	if !proofValid {
 		return revocationStatus, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
 	}
 
 	if revocationStatus.MTP.Existence {
-		return revocationStatus, errors.New("signature proof: singing key of the issuer is revoked")
+		return revocationStatus, ErrCredentialIsRevoked
 	}
 
 	return revocationStatus, nil
 }
 
-func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusResolverRegistry, issuerDID, userDID *w3c.DID) (out RevocationStatus, err error) {
+func resolveRevStatus(ctx context.Context, status any,
+	credStatusResolverRegistry *CredentialStatusResolverRegistry,
+	issuerDID, userDID *w3c.DID) (out RevocationStatus, err error) {
+
 	var statusType CredentialStatusType
 	var credentialStatusTyped CredentialStatus
 
@@ -78,8 +94,10 @@ func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusRe
 		return out, err
 	}
 
-	resolveOpts := []CredentialStatusResolveOpt{WithIssuerDID(issuerDID), WithUserDID(userDID)}
-	return resolver.Resolve(context.Background(), credentialStatusTyped, resolveOpts...)
+	// TODO do we need this here or we should delegate it to the upper level?
+	ctx = WithIssuerDID(ctx, issuerDID)
+	ctx = WithUserDID(ctx, userDID)
+	return resolver.Resolve(ctx, credentialStatusTyped)
 }
 
 // marshal/unmarshal object from one type to other

@@ -7,33 +7,46 @@ import (
 	"github.com/iden3/go-iden3-core/v2/w3c"
 )
 
-// CredentialStatusResolveConfig credential status resolve config
-type CredentialStatusResolveConfig struct {
-	UserDID   *w3c.DID
-	IssuerDID *w3c.DID
+type ctxKeyIssuerDID struct{}
+type ctxKeyUserDID struct{}
+
+// WithIssuerDID puts the issuer DID in the context
+func WithIssuerDID(ctx context.Context, issuerDID *w3c.DID) context.Context {
+	return context.WithValue(ctx, ctxKeyIssuerDID{}, issuerDID)
 }
 
-// CredentialStatusResolveOpt returns configuration options for resolve
-type CredentialStatusResolveOpt func(opts *CredentialStatusResolveConfig)
-
-// WithIssuerDID return new options
-func WithIssuerDID(issuerDID *w3c.DID) CredentialStatusResolveOpt {
-	return func(opts *CredentialStatusResolveConfig) {
-		opts.IssuerDID = issuerDID
-	}
+// GetIssuerDID extract the issuer DID from the context.
+// Or nil if nothing is found.
+func GetIssuerDID(ctx context.Context) *w3c.DID {
+	return getTpCtx[w3c.DID](ctx, ctxKeyIssuerDID{})
 }
 
-// WithUserDID return new options
-func WithUserDID(userDID *w3c.DID) CredentialStatusResolveOpt {
-	return func(opts *CredentialStatusResolveConfig) {
-		opts.UserDID = userDID
+// WithUserDID puts the user DID in the context
+func WithUserDID(ctx context.Context, userDID *w3c.DID) context.Context {
+	return context.WithValue(ctx, ctxKeyUserDID{}, userDID)
+}
+
+// GetUserDID extract the user DID from the context.
+// Or nil if nothing is found.
+func GetUserDID(ctx context.Context) *w3c.DID {
+	return getTpCtx[w3c.DID](ctx, ctxKeyUserDID{})
+}
+
+func getTpCtx[T any](ctx context.Context, key any) *T {
+	v := ctx.Value(key)
+	if v == nil {
+		return nil
 	}
+	return v.(*T)
 }
 
 // CredentialStatusResolver is an interface that allows to interact with deifferent types of credential status to resolve revocation status
 type CredentialStatusResolver interface {
-	Resolve(ctx context.Context, credentialStatus CredentialStatus, opts ...CredentialStatusResolveOpt) (RevocationStatus, error)
+	Resolve(ctx context.Context,
+		credentialStatus CredentialStatus) (RevocationStatus, error)
 }
+
+// TODO: should we create a default Registry with global function to register new types???
 
 // CredentialStatusResolverRegistry is a registry of CredentialStatusResolver
 type CredentialStatusResolverRegistry struct {

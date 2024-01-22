@@ -36,7 +36,9 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(proofType ProofType, didResolver DIDResolver, opts ...W3CProofVerificationOpt) error {
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
+	didResolver DIDResolver, opts ...W3CProofVerificationOpt) error {
+
 	verifyConfig := W3CProofVerificationConfig{}
 	for _, o := range opts {
 		o(&verifyConfig)
@@ -83,20 +85,25 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, didResolver DIDResolve
 				return err
 			}
 		}
-		return verifyBJJSignatureProof(proof, coreClaim, didResolver, userDID, verifyConfig)
+		return verifyBJJSignatureProof(ctx, proof, coreClaim, didResolver,
+			userDID, verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		err = json.Unmarshal(credProofBytes, &proof)
 		if err != nil {
 			return err
 		}
-		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, didResolver)
+		return verifyIden3SparseMerkleTreeProof(ctx, proof, coreClaim,
+			didResolver)
 	default:
 		return ErrorProofNotSupported
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, didResolver DIDResolver, userDID *w3c.DID, verifyConfig W3CProofVerificationConfig) error {
+func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
+	coreClaim *core.Claim, didResolver DIDResolver, userDID *w3c.DID,
+	verifyConfig W3CProofVerificationConfig) error {
+
 	// issuer claim
 	authClaim := &core.Claim{}
 	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
@@ -141,7 +148,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		return fmt.Errorf("invalid state formant: %v", err)
 	}
 
-	didDoc, err := didResolver.Resolve(context.Background(), issuerDID, issuerStateHash.BigInt())
+	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
+
+	didDoc, err := didResolver.Resolve(ctx, issuerDID)
 	if err != nil {
 		return err
 	}
@@ -170,14 +179,19 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		}
 	}
 
-	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, coreClaim.GetRevocationNonce(), verifyConfig.StatusResolverRegistry, issuerDID, userDID)
+	_, err = ValidateCredentialStatus(ctx, proof.IssuerData.CredentialStatus,
+		coreClaim.GetRevocationNonce(), verifyConfig.StatusResolverRegistry,
+		issuerDID, userDID)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, didResolver DIDResolver) error {
+func verifyIden3SparseMerkleTreeProof(ctx context.Context,
+	proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim,
+	didResolver DIDResolver) error {
+
 	var err error
 
 	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
@@ -190,7 +204,9 @@ func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClai
 		return fmt.Errorf("invalid state formant: %v", err)
 	}
 
-	didDoc, err := didResolver.Resolve(context.Background(), issuerDID, issuerStateHash.BigInt())
+	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
+
+	didDoc, err := didResolver.Resolve(ctx, issuerDID)
 	if err != nil {
 		return err
 	}
@@ -345,8 +361,10 @@ type RevocationStatus struct {
 	MTP    merkletree.Proof `json:"mtp"`
 }
 
+// TODO: rename the type to something more meaningful. For example, TreeState
+//       as we have in other places.
 type Issuer struct {
-	State              *string `json:"state,omitempty"`
+	State *string `json:"state,omitempty"` // TODO: is it meaningless to be empty? Hash of three zeros is not zero.
 	RootOfRoots        *string `json:"rootOfRoots,omitempty"`
 	ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
 	RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
