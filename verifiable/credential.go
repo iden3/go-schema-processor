@@ -363,8 +363,9 @@ type RevocationStatus struct {
 
 // TODO: rename the type to something more meaningful. For example, TreeState
 //       as we have in other places.
+
 type Issuer struct {
-	State *string `json:"state,omitempty"` // TODO: is it meaningless to be empty? Hash of three zeros is not zero.
+	State              *string `json:"state,omitempty"` // TODO: is it meaningless to be empty? Hash of three zeros is not zero.
 	RootOfRoots        *string `json:"rootOfRoots,omitempty"`
 	ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
 	RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
