@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/iden3/go-iden3-core/v2/w3c"
-	"github.com/pkg/errors"
 	"net/http"
 	"net/url"
 	"strings"
-)
 
-type DIDResolveOptions func(ctx context.Context) context.Context
+	"github.com/iden3/go-iden3-core/v2/w3c"
+	"github.com/pkg/errors"
+)
 
 type DIDResolver interface {
 	Resolve(ctx context.Context, did *w3c.DID) (DIDDocument, error)
@@ -38,8 +37,7 @@ func (r HTTPDIDResolver) Resolve(ctx context.Context, did *w3c.DID) (out DIDDocu
 		httpClient = http.DefaultClient
 	}
 
-	var didStr string
-	didStr = did.String()
+	didStr := did.String()
 	didParts := strings.Split(didStr, "?")
 	if len(didParts) == 2 {
 		didEscaped := url.QueryEscape(didParts[0])
