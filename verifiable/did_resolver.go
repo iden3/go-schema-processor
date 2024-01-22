@@ -4,18 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/iden3/go-iden3-core/v2/w3c"
-	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
 )
 
 type DIDResolver interface {
-	Resolve(ctx context.Context, did *w3c.DID, state *big.Int) (DIDDocument, error)
+	Resolve(ctx context.Context, did *w3c.DID) (DIDDocument, error)
 }
 
 type HTTPDIDResolver struct {
@@ -23,7 +21,7 @@ type HTTPDIDResolver struct {
 	customHTTPClient *http.Client
 }
 
-func (r HTTPDIDResolver) Resolve(ctx context.Context, did *w3c.DID, state *big.Int) (out DIDDocument, err error) {
+func (r HTTPDIDResolver) Resolve(ctx context.Context, did *w3c.DID) (out DIDDocument, err error) {
 	type didResolutionResult struct {
 		DIDDocument DIDDocument `json:"didDocument"`
 	}
@@ -38,22 +36,17 @@ func (r HTTPDIDResolver) Resolve(ctx context.Context, did *w3c.DID, state *big.I
 	} else {
 		httpClient = http.DefaultClient
 	}
-	if state != nil {
-		var (
-			didStr        string
-			didQueryParam string
-			stateHash     *merkletree.Hash
-		)
-		didStr = did.String()
-		didQueryParam = url.QueryEscape(didStr)
-		stateHash, err = merkletree.NewHashFromBigInt(state)
-		if err != nil {
-			return out, err
-		}
-		resp, err = httpClient.Get(fmt.Sprintf("%s/%s?state=%s", strings.Trim(r.resolverURL, "/"), didQueryParam, stateHash.Hex()))
-	} else {
-		resp, err = httpClient.Get(fmt.Sprintf("%s/%s", strings.Trim(r.resolverURL, "/"), did))
+	var didStr string
+	didStr = did.String()
+	didParts := strings.Split(didStr, "?")
+	if len(didParts) == 2 {
+		didEscaped := url.QueryEscape(didParts[0])
+		didStr = fmt.Sprintf("%s?%s", didEscaped, didParts[1])
 	}
+	if err != nil {
+		return out, err
+	}
+	resp, err = httpClient.Get(fmt.Sprintf("%s/%s", strings.Trim(r.resolverURL, "/"), didStr))
 
 	if err != nil {
 		return out, err

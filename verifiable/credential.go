@@ -141,7 +141,9 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		return fmt.Errorf("invalid state formant: %v", err)
 	}
 
-	didDoc, err := didResolver.Resolve(context.Background(), issuerDID, issuerStateHash.BigInt())
+	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
+
+	didDoc, err := didResolver.Resolve(context.Background(), issuerDID)
 	if err != nil {
 		return err
 	}
@@ -190,7 +192,9 @@ func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClai
 		return fmt.Errorf("invalid state formant: %v", err)
 	}
 
-	didDoc, err := didResolver.Resolve(context.Background(), issuerDID, issuerStateHash.BigInt())
+	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
+
+	didDoc, err := didResolver.Resolve(context.Background(), issuerDID)
 	if err != nil {
 		return err
 	}
