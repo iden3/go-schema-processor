@@ -354,12 +354,12 @@ type CredentialStatusType string
 
 // RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
 type RevocationStatus struct {
-	Issuer TreeState `json:"issuer"`
+	Issuer TreeState        `json:"issuer"`
 	MTP    merkletree.Proof `json:"mtp"`
 }
 
 type TreeState struct {
-	State *string `json:"state"`
+	State              *string `json:"state"`
 	RootOfRoots        *string `json:"rootOfRoots,omitempty"`
 	ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
 	RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
