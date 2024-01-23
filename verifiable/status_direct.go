@@ -3,12 +3,9 @@ package verifiable
 import (
 	"context"
 	"encoding/json"
-	goerr "errors"
 	"fmt"
 	"io"
 	"net/http"
-
-	"github.com/pkg/errors"
 )
 
 type IssuerResolver struct {
@@ -24,22 +21,14 @@ func (IssuerResolver) Resolve(ctx context.Context,
 	if err != nil {
 		return out, err
 	}
-	// TODO: Maybe this place is a candidate to get a non-default http client from the context tha same way as User/Issuer DIDs.
 	httpResp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
 		return out, err
 	}
 	defer func() {
-		// TODO: review this error handing.
 		err2 := httpResp.Body.Close()
-		if err2 != nil {
-			err2 = errors.WithStack(err2)
-			if err == nil {
-				err = err2
-			} else {
-				err = goerr.Join(err, err2)
-			}
-			err = errors.WithStack(err2)
+		if err2 != nil && err == nil {
+			err = err2
 		}
 	}()
 

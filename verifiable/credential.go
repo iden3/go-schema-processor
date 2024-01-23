@@ -39,7 +39,7 @@ type W3CCredential struct {
 func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 	didResolver DIDResolver, opts ...W3CProofVerificationOpt) error {
 
-	verifyConfig := W3CProofVerificationConfig{}
+	verifyConfig := w3CProofVerificationConfig{}
 	for _, o := range opts {
 		o(&verifyConfig)
 	}
@@ -75,18 +75,8 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		if err != nil {
 			return err
 		}
-
-		var userDID *w3c.DID
-		credSubjID, ok := vc.CredentialSubject["id"]
-		if ok {
-			credSubjString := fmt.Sprintf("%v", credSubjID)
-			userDID, err = w3c.ParseDID(credSubjString)
-			if err != nil {
-				return err
-			}
-		}
 		return verifyBJJSignatureProof(ctx, proof, coreClaim, didResolver,
-			userDID, verifyConfig)
+			verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
 		err = json.Unmarshal(credProofBytes, &proof)
@@ -101,8 +91,8 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 }
 
 func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
-	coreClaim *core.Claim, didResolver DIDResolver, userDID *w3c.DID,
-	verifyConfig W3CProofVerificationConfig) error {
+	coreClaim *core.Claim, didResolver DIDResolver,
+	verifyConfig w3CProofVerificationConfig) error {
 
 	// issuer claim
 	authClaim := &core.Claim{}
@@ -179,13 +169,20 @@ func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
 		}
 	}
 
-	_, err = ValidateCredentialStatus(ctx, proof.IssuerData.CredentialStatus,
-		coreClaim.GetRevocationNonce(), verifyConfig.StatusResolverRegistry,
-		issuerDID, userDID)
+	credStatus, err := coerceCredentialStatus(proof.IssuerData.CredentialStatus)
 	if err != nil {
 		return err
 	}
-	return nil
+
+	if credStatus.RevocationNonce != coreClaim.GetRevocationNonce() {
+		return errors.New("revocation nonce mismatch: credential revocation " +
+			"nonce != proof claim revocation nonce")
+	}
+
+	_, err = ValidateCredentialStatus(ctx, *credStatus,
+		verifyConfig.credStatusValidationOpts...)
+
+	return err
 }
 
 func verifyIden3SparseMerkleTreeProof(ctx context.Context,
@@ -357,15 +354,12 @@ type CredentialStatusType string
 
 // RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
 type RevocationStatus struct {
-	Issuer Issuer           `json:"issuer"`
+	Issuer TreeState `json:"issuer"`
 	MTP    merkletree.Proof `json:"mtp"`
 }
 
-// TODO: rename the type to something more meaningful. For example, TreeState
-//       as we have in other places.
-
-type Issuer struct {
-	State              *string `json:"state,omitempty"` // TODO: is it meaningless to be empty? Hash of three zeros is not zero.
+type TreeState struct {
+	State *string `json:"state"`
 	RootOfRoots        *string `json:"rootOfRoots,omitempty"`
 	ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
 	RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
@@ -373,15 +367,16 @@ type Issuer struct {
 
 // WithStatusResolverRegistry return new options
 func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) W3CProofVerificationOpt {
-	return func(opts *W3CProofVerificationConfig) {
-		opts.StatusResolverRegistry = registry
+	return func(opts *w3CProofVerificationConfig) {
+		opts.credStatusValidationOpts = append(opts.credStatusValidationOpts,
+			WithValidationStatusResolverRegistry(registry))
 	}
 }
 
 // W3CProofVerificationOpt returns configuration options for W3C proof verification
-type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
+type W3CProofVerificationOpt func(opts *w3CProofVerificationConfig)
 
-// W3CProofVerificationConfig options for W3C proof verification
-type W3CProofVerificationConfig struct {
-	StatusResolverRegistry *CredentialStatusResolverRegistry
+// w3CProofVerificationConfig options for W3C proof verification
+type w3CProofVerificationConfig struct {
+	credStatusValidationOpts []CredentialStatusValidationOption
 }

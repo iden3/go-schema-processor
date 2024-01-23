@@ -1,7 +1,6 @@
 module github.com/iden3/go-schema-processor/v2
 
-// TODO do we need a errors.Join? Need to discuss either we use std errors or pkg/errors
-go 1.21
+go 1.18
 
 require (
 	github.com/iden3/go-iden3-core/v2 v2.0.3

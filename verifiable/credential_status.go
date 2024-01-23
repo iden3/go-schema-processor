@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
@@ -14,22 +13,42 @@ import (
 
 var ErrCredentialIsRevoked = errors.New("credential is revoked")
 
-// TODO: Many be it would be reasonable to accept Registry optionaly and use global one (default) is not passed.
-//       Issuser DID  & user DID may be passed as options as well. I'm not sure for now how to use them.
+type credentialStatusValidationOpts struct {
+	statusResolverRegistry *CredentialStatusResolverRegistry
+}
+
+type CredentialStatusValidationOption func(*credentialStatusValidationOpts) error
+
+func WithValidationStatusResolverRegistry(
+	registry *CredentialStatusResolverRegistry) CredentialStatusValidationOption {
+	return func(opts *credentialStatusValidationOpts) error {
+		opts.statusResolverRegistry = registry
+		return nil
+	}
+}
 
 // ValidateCredentialStatus resolves the credential status (possibly download
 // proofs from outer world) and validates the proof. May return
 // ErrCredentialIsRevoked if the credential was revoked.
-func ValidateCredentialStatus(ctx context.Context, credStatus any,
-	revNonce uint64,
-	credStatusResolverRegistry *CredentialStatusResolverRegistry,
-	issuerDID, userDID *w3c.DID) (RevocationStatus, error) {
+func ValidateCredentialStatus(ctx context.Context, credStatus CredentialStatus,
+	opts ...CredentialStatusValidationOption) (RevocationStatus, error) {
+
+	o := &credentialStatusValidationOpts{
+		statusResolverRegistry: DefaultCredentialStatusResolverRegistry,
+	}
+	for _, opt := range opts {
+		err := opt(o)
+		if err != nil {
+			return RevocationStatus{}, err
+		}
+	}
 
 	revocationStatus, err := resolveRevStatus(ctx, credStatus,
-		credStatusResolverRegistry, issuerDID, userDID)
+		o.statusResolverRegistry)
 	if err != nil {
 		return revocationStatus, err
 	}
+
 	treeStateOk, err := validateTreeState(revocationStatus.Issuer)
 	if err != nil {
 		return revocationStatus, err
@@ -46,8 +65,9 @@ func ValidateCredentialStatus(ctx context.Context, credStatus any,
 		}
 	}
 
+	revNonce := new(big.Int).SetUint64(credStatus.RevocationNonce)
 	proofValid := merkletree.VerifyProof(revocationRootHash,
-		&revocationStatus.MTP, new(big.Int).SetUint64(revNonce), big.NewInt(0))
+		&revocationStatus.MTP, revNonce, big.NewInt(0))
 	if !proofValid {
 		return revocationStatus, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
 	}
@@ -59,45 +79,36 @@ func ValidateCredentialStatus(ctx context.Context, credStatus any,
 	return revocationStatus, nil
 }
 
-func resolveRevStatus(ctx context.Context, status any,
-	credStatusResolverRegistry *CredentialStatusResolverRegistry,
-	issuerDID, userDID *w3c.DID) (out RevocationStatus, err error) {
-
-	var statusType CredentialStatusType
-	var credentialStatusTyped CredentialStatus
-
-	switch status := status.(type) {
+func coerceCredentialStatus(credStatus any) (*CredentialStatus, error) {
+	switch credStatusT := credStatus.(type) {
 	case *CredentialStatus:
-		statusType = status.Type
-		credentialStatusTyped = *status
+		return credStatusT, nil
 	case CredentialStatus:
-		statusType = status.Type
-		credentialStatusTyped = status
+		return &credStatusT, nil
 	case jsonObj:
-		credStatusType, ok := status["type"].(string)
-		if !ok {
-			return out,
-				errors.New("credential status doesn't contain type")
-		}
-		statusType = CredentialStatusType(credStatusType)
-		err = remarshalObj(&credentialStatusTyped, status)
+		var credStatusTyped CredentialStatus
+		err := remarshalObj(&credStatusTyped, credStatusT)
 		if err != nil {
-			return out, err
+			return nil, err
 		}
+		if credStatusTyped.Type == "" {
+			return nil, errors.New("credential status doesn't contain type")
+		}
+		return &credStatusTyped, nil
 	default:
-		return out,
-			errors.New("unknown credential status format")
+		return nil, errors.New("unknown credential status format")
 	}
+}
 
-	resolver, err := credStatusResolverRegistry.Get(statusType)
+func resolveRevStatus(ctx context.Context, credStatus CredentialStatus,
+	credStatusResolverRegistry *CredentialStatusResolverRegistry) (out RevocationStatus, err error) {
+
+	resolver, err := credStatusResolverRegistry.Get(credStatus.Type)
 	if err != nil {
 		return out, err
 	}
 
-	// TODO do we need this here or we should delegate it to the upper level?
-	ctx = WithIssuerDID(ctx, issuerDID)
-	ctx = WithUserDID(ctx, userDID)
-	return resolver.Resolve(ctx, credentialStatusTyped)
+	return resolver.Resolve(ctx, credStatus)
 }
 
 // marshal/unmarshal object from one type to other
@@ -110,7 +121,7 @@ func remarshalObj(dst, src any) error {
 }
 
 // check Issuer TreeState consistency
-func validateTreeState(i Issuer) (bool, error) {
+func validateTreeState(i TreeState) (bool, error) {
 	if i.State == nil {
 		return false, errors.New("state is nil")
 	}
