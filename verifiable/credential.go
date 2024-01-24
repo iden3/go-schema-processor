@@ -44,10 +44,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		o(&verifyConfig)
 	}
 
-	var (
-		credProof CredentialProof
-		coreClaim *core.Claim
-	)
+	var credProof CredentialProof
 	for _, p := range vc.Proof {
 		if p.ProofType() == proofType {
 			credProof = p
@@ -63,15 +60,10 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		return errors.New("can't get core claim")
 	}
 
-	var credProofBytes []byte
-	credProofBytes, err = json.Marshal(credProof)
-	if err != nil {
-		return err
-	}
 	switch proofType {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
-		err = json.Unmarshal(credProofBytes, &proof)
+		err = remarshalObj(&proof, credProof)
 		if err != nil {
 			return err
 		}
@@ -79,7 +71,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 			verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
-		err = json.Unmarshal(credProofBytes, &proof)
+		err = remarshalObj(&proof, credProof)
 		if err != nil {
 			return err
 		}
@@ -94,37 +86,20 @@ func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
 	coreClaim *core.Claim, didResolver DIDResolver,
 	verifyConfig w3CProofVerificationConfig) error {
 
-	// issuer claim
-	authClaim := &core.Claim{}
-	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
+	// issuer's claim with public key
+	authClaim, err := proof.IssuerData.authClaim()
 	if err != nil {
 		return err
 	}
 
-	rawSlotInts := authClaim.RawSlotsAsInts()
-	var publicKey babyjub.PublicKey
-	publicKey.X = rawSlotInts[2] // Ax should be in indexSlotA
-	publicKey.Y = rawSlotInts[3] // Ay should be in indexSlotB
-
+	// core claim's signature
 	sig, err := bjjSignatureFromHexString(proof.Signature)
 	if err != nil || sig == nil {
 		return err
 	}
 
-	// core claim hash
-	hi, hv, err := coreClaim.HiHv()
+	err = verifyClaimSignature(coreClaim, sig, authClaim)
 	if err != nil {
-		return err
-	}
-
-	claimHash, err := poseidon.Hash([]*big.Int{hi, hv})
-	if err != nil {
-		return err
-	}
-
-	valid := publicKey.VerifyPoseidon(claimHash, sig)
-
-	if !valid {
 		return err
 	}
 
@@ -169,19 +144,65 @@ func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
 		}
 	}
 
-	credStatus, err := coerceCredentialStatus(proof.IssuerData.CredentialStatus)
+	err = validateAuthClaimRevocation(ctx, proof.IssuerData,
+		verifyConfig.credStatusValidationOpts...)
 	if err != nil {
 		return err
 	}
 
-	if credStatus.RevocationNonce != coreClaim.GetRevocationNonce() {
-		return errors.New("revocation nonce mismatch: credential revocation " +
-			"nonce != proof claim revocation nonce")
+	return err
+}
+
+func verifyClaimSignature(claim *core.Claim, sig *babyjub.Signature,
+	authClaim *core.Claim) error {
+
+	publicKey := publicKeyFromClaim(authClaim)
+
+	// core claim hash
+	hi, hv, err := claim.HiHv()
+	if err != nil {
+		return err
 	}
 
-	_, err = ValidateCredentialStatus(ctx, *credStatus,
-		verifyConfig.credStatusValidationOpts...)
+	claimHash, err := poseidon.Hash([]*big.Int{hi, hv})
+	if err != nil {
+		return err
+	}
 
+	valid := publicKey.VerifyPoseidon(claimHash, sig)
+	if !valid {
+		return errors.New("claim signature validation failed")
+	}
+	return nil
+}
+
+func publicKeyFromClaim(claim *core.Claim) *babyjub.PublicKey {
+	rawSlotInts := claim.RawSlotsAsInts()
+	var publicKey babyjub.PublicKey
+	publicKey.X = rawSlotInts[2] // Ax should be in indexSlotA
+	publicKey.Y = rawSlotInts[3] // Ay should be in indexSlotB
+	return &publicKey
+}
+
+func validateAuthClaimRevocation(ctx context.Context, issuerData IssuerData,
+	opts ...CredentialStatusValidationOption) error {
+	credStatus, err := coerceCredentialStatus(issuerData.CredentialStatus)
+	if err != nil {
+		return err
+	}
+
+	authClaim, err := issuerData.authClaim()
+	if err != nil {
+		return err
+	}
+
+	if credStatus.RevocationNonce != authClaim.GetRevocationNonce() {
+		return fmt.Errorf("revocation nonce mismatch: credential revocation "+
+			"nonce (%v) != auth claim revocation nonce (%v)",
+			credStatus.RevocationNonce, authClaim.GetRevocationNonce())
+	}
+
+	_, err = ValidateCredentialStatus(ctx, *credStatus, opts...)
 	return err
 }
 

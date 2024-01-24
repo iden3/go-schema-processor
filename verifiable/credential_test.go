@@ -470,8 +470,8 @@ func TestW3CCredential_ValidateBJJSignatureProofIssuerStatus(t *testing.T) {
 
 	defer tst.MockHTTPClient(t,
 		map[string]string{
-			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn?state=95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119": `./testdata/verifycred//my-universal-resolver-5.json`,
-			"http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/0":                                                  `./testdata/verifycred//issuer-state-response.json`,
+			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn?state=95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119": `./testdata/verifycred/my-universal-resolver-5.json`,
+			"http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/0":                                                  `./testdata/verifycred/issuer-state-response.json`,
 		})()
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
