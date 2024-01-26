@@ -6,17 +6,49 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/iden3/go-iden3-core/v2/w3c"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
 )
 
-func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolverRegistry *CredentialStatusResolverRegistry, issuerDID, userDID *w3c.DID) (RevocationStatus, error) {
-	revocationStatus, err := resolveRevStatus(credStatus, credStatusResolverRegistry, issuerDID, userDID)
+var ErrCredentialIsRevoked = errors.New("credential is revoked")
+
+type credentialStatusValidationOpts struct {
+	statusResolverRegistry *CredentialStatusResolverRegistry
+}
+
+type CredentialStatusValidationOption func(*credentialStatusValidationOpts) error
+
+func WithValidationStatusResolverRegistry(
+	registry *CredentialStatusResolverRegistry) CredentialStatusValidationOption {
+	return func(opts *credentialStatusValidationOpts) error {
+		opts.statusResolverRegistry = registry
+		return nil
+	}
+}
+
+// ValidateCredentialStatus resolves the credential status (possibly download
+// proofs from outer world) and validates the proof. May return
+// ErrCredentialIsRevoked if the credential was revoked.
+func ValidateCredentialStatus(ctx context.Context, credStatus CredentialStatus,
+	opts ...CredentialStatusValidationOption) (RevocationStatus, error) {
+
+	o := &credentialStatusValidationOpts{
+		statusResolverRegistry: DefaultCredentialStatusResolverRegistry,
+	}
+	for _, opt := range opts {
+		err := opt(o)
+		if err != nil {
+			return RevocationStatus{}, err
+		}
+	}
+
+	revocationStatus, err := resolveRevStatus(ctx, credStatus,
+		o.statusResolverRegistry)
 	if err != nil {
 		return revocationStatus, err
 	}
+
 	treeStateOk, err := validateTreeState(revocationStatus.Issuer)
 	if err != nil {
 		return revocationStatus, err
@@ -28,58 +60,55 @@ func ValidateCredentialStatus(credStatus any, revNonce uint64, credStatusResolve
 	revocationRootHash := &merkletree.HashZero
 	if revocationStatus.Issuer.RevocationTreeRoot != nil {
 		revocationRootHash, err = merkletree.NewHashFromHex(*revocationStatus.Issuer.RevocationTreeRoot)
-	}
-	if err != nil {
-		return revocationStatus, err
+		if err != nil {
+			return revocationStatus, err
+		}
 	}
 
+	revNonce := new(big.Int).SetUint64(credStatus.RevocationNonce)
 	proofValid := merkletree.VerifyProof(revocationRootHash,
-		&revocationStatus.MTP, big.NewInt(int64(revNonce)), big.NewInt(0))
+		&revocationStatus.MTP, revNonce, big.NewInt(0))
 	if !proofValid {
 		return revocationStatus, fmt.Errorf("proof validation failed. revNonce=%d", revNonce)
 	}
 
 	if revocationStatus.MTP.Existence {
-		return revocationStatus, errors.New("signature proof: singing key of the issuer is revoked")
+		return revocationStatus, ErrCredentialIsRevoked
 	}
 
 	return revocationStatus, nil
 }
 
-func resolveRevStatus(status any, credStatusResolverRegistry *CredentialStatusResolverRegistry, issuerDID, userDID *w3c.DID) (out RevocationStatus, err error) {
-	var statusType CredentialStatusType
-	var credentialStatusTyped CredentialStatus
-
-	switch status := status.(type) {
+func coerceCredentialStatus(credStatus any) (*CredentialStatus, error) {
+	switch credStatusT := credStatus.(type) {
 	case *CredentialStatus:
-		statusType = status.Type
-		credentialStatusTyped = *status
+		return credStatusT, nil
 	case CredentialStatus:
-		statusType = status.Type
-		credentialStatusTyped = status
+		return &credStatusT, nil
 	case jsonObj:
-		credStatusType, ok := status["type"].(string)
-		if !ok {
-			return out,
-				errors.New("credential status doesn't contain type")
-		}
-		statusType = CredentialStatusType(credStatusType)
-		err = remarshalObj(&credentialStatusTyped, status)
+		var credStatusTyped CredentialStatus
+		err := remarshalObj(&credStatusTyped, credStatusT)
 		if err != nil {
-			return out, err
+			return nil, err
 		}
+		if credStatusTyped.Type == "" {
+			return nil, errors.New("credential status doesn't contain type")
+		}
+		return &credStatusTyped, nil
 	default:
-		return out,
-			errors.New("unknown credential status format")
+		return nil, errors.New("unknown credential status format")
 	}
+}
 
-	resolver, err := credStatusResolverRegistry.Get(statusType)
+func resolveRevStatus(ctx context.Context, credStatus CredentialStatus,
+	credStatusResolverRegistry *CredentialStatusResolverRegistry) (out RevocationStatus, err error) {
+
+	resolver, err := credStatusResolverRegistry.Get(credStatus.Type)
 	if err != nil {
 		return out, err
 	}
 
-	resolveOpts := []CredentialStatusResolveOpt{WithIssuerDID(issuerDID), WithUserDID(userDID)}
-	return resolver.Resolve(context.Background(), credentialStatusTyped, resolveOpts...)
+	return resolver.Resolve(ctx, credStatus)
 }
 
 // marshal/unmarshal object from one type to other
@@ -92,7 +121,7 @@ func remarshalObj(dst, src any) error {
 }
 
 // check Issuer TreeState consistency
-func validateTreeState(i Issuer) (bool, error) {
+func validateTreeState(i TreeState) (bool, error) {
 	if i.State == nil {
 		return false, errors.New("state is nil")
 	}

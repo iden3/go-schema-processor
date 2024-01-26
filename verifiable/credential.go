@@ -36,16 +36,15 @@ type W3CCredential struct {
 }
 
 // VerifyProof verify credential proof
-func (vc *W3CCredential) VerifyProof(proofType ProofType, didResolver DIDResolver, opts ...W3CProofVerificationOpt) error {
-	verifyConfig := W3CProofVerificationConfig{}
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
+	didResolver DIDResolver, opts ...W3CProofVerificationOpt) error {
+
+	verifyConfig := w3CProofVerificationConfig{}
 	for _, o := range opts {
 		o(&verifyConfig)
 	}
 
-	var (
-		credProof CredentialProof
-		coreClaim *core.Claim
-	)
+	var credProof CredentialProof
 	for _, p := range vc.Proof {
 		if p.ProofType() == proofType {
 			credProof = p
@@ -61,73 +60,46 @@ func (vc *W3CCredential) VerifyProof(proofType ProofType, didResolver DIDResolve
 		return errors.New("can't get core claim")
 	}
 
-	var credProofBytes []byte
-	credProofBytes, err = json.Marshal(credProof)
-	if err != nil {
-		return err
-	}
 	switch proofType {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
-		err = json.Unmarshal(credProofBytes, &proof)
+		err = remarshalObj(&proof, credProof)
 		if err != nil {
 			return err
 		}
-
-		var userDID *w3c.DID
-		credSubjID, ok := vc.CredentialSubject["id"]
-		if ok {
-			credSubjString := fmt.Sprintf("%v", credSubjID)
-			userDID, err = w3c.ParseDID(credSubjString)
-			if err != nil {
-				return err
-			}
-		}
-		return verifyBJJSignatureProof(proof, coreClaim, didResolver, userDID, verifyConfig)
+		return verifyBJJSignatureProof(ctx, proof, coreClaim, didResolver,
+			verifyConfig)
 	case Iden3SparseMerkleTreeProofType:
 		var proof Iden3SparseMerkleTreeProof
-		err = json.Unmarshal(credProofBytes, &proof)
+		err = remarshalObj(&proof, credProof)
 		if err != nil {
 			return err
 		}
-		return verifyIden3SparseMerkleTreeProof(proof, coreClaim, didResolver)
+		return verifyIden3SparseMerkleTreeProof(ctx, proof, coreClaim,
+			didResolver)
 	default:
-		return ErrorProofNotSupported
+		return ErrProofNotSupported
 	}
 }
 
-func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim, didResolver DIDResolver, userDID *w3c.DID, verifyConfig W3CProofVerificationConfig) error {
-	// issuer claim
-	authClaim := &core.Claim{}
-	err := authClaim.FromHex(proof.IssuerData.AuthCoreClaim)
+func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
+	coreClaim *core.Claim, didResolver DIDResolver,
+	verifyConfig w3CProofVerificationConfig) error {
+
+	// issuer's claim with public key
+	authClaim, err := proof.IssuerData.authClaim()
 	if err != nil {
 		return err
 	}
 
-	rawSlotInts := authClaim.RawSlotsAsInts()
-	var publicKey babyjub.PublicKey
-	publicKey.X = rawSlotInts[2] // Ax should be in indexSlotA
-	publicKey.Y = rawSlotInts[3] // Ay should be in indexSlotB
-
+	// core claim's signature
 	sig, err := bjjSignatureFromHexString(proof.Signature)
 	if err != nil || sig == nil {
 		return err
 	}
 
-	// core claim hash
-	hi, hv, err := coreClaim.HiHv()
+	err = verifyClaimSignature(coreClaim, sig, authClaim)
 	if err != nil {
-		return err
-	}
-
-	claimHash, err := poseidon.Hash([]*big.Int{hi, hv})
-	if err != nil {
-		return err
-	}
-
-	valid := publicKey.VerifyPoseidon(claimHash, sig)
-
-	if !valid {
 		return err
 	}
 
@@ -143,7 +115,7 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 
 	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
 
-	didDoc, err := didResolver.Resolve(context.Background(), issuerDID)
+	didDoc, err := didResolver.Resolve(ctx, issuerDID)
 	if err != nil {
 		return err
 	}
@@ -172,14 +144,72 @@ func verifyBJJSignatureProof(proof BJJSignatureProof2021, coreClaim *core.Claim,
 		}
 	}
 
-	_, err = ValidateCredentialStatus(proof.IssuerData.CredentialStatus, coreClaim.GetRevocationNonce(), verifyConfig.StatusResolverRegistry, issuerDID, userDID)
+	err = validateAuthClaimRevocation(ctx, proof.IssuerData,
+		verifyConfig.credStatusValidationOpts...)
 	if err != nil {
 		return err
+	}
+
+	return err
+}
+
+func verifyClaimSignature(claim *core.Claim, sig *babyjub.Signature,
+	authClaim *core.Claim) error {
+
+	publicKey := publicKeyFromClaim(authClaim)
+
+	// core claim hash
+	hi, hv, err := claim.HiHv()
+	if err != nil {
+		return err
+	}
+
+	claimHash, err := poseidon.Hash([]*big.Int{hi, hv})
+	if err != nil {
+		return err
+	}
+
+	valid := publicKey.VerifyPoseidon(claimHash, sig)
+	if !valid {
+		return errors.New("claim signature validation failed")
 	}
 	return nil
 }
 
-func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim, didResolver DIDResolver) error {
+func publicKeyFromClaim(claim *core.Claim) *babyjub.PublicKey {
+	rawSlotInts := claim.RawSlotsAsInts()
+	var publicKey babyjub.PublicKey
+	publicKey.X = rawSlotInts[2] // Ax should be in indexSlotA
+	publicKey.Y = rawSlotInts[3] // Ay should be in indexSlotB
+	return &publicKey
+}
+
+func validateAuthClaimRevocation(ctx context.Context, issuerData IssuerData,
+	opts ...CredentialStatusValidationOption) error {
+	credStatus, err := coerceCredentialStatus(issuerData.CredentialStatus)
+	if err != nil {
+		return err
+	}
+
+	authClaim, err := issuerData.authClaim()
+	if err != nil {
+		return err
+	}
+
+	if credStatus.RevocationNonce != authClaim.GetRevocationNonce() {
+		return fmt.Errorf("revocation nonce mismatch: credential revocation "+
+			"nonce (%v) != auth claim revocation nonce (%v)",
+			credStatus.RevocationNonce, authClaim.GetRevocationNonce())
+	}
+
+	_, err = ValidateCredentialStatus(ctx, *credStatus, opts...)
+	return err
+}
+
+func verifyIden3SparseMerkleTreeProof(ctx context.Context,
+	proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim,
+	didResolver DIDResolver) error {
+
 	var err error
 
 	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
@@ -194,7 +224,7 @@ func verifyIden3SparseMerkleTreeProof(proof Iden3SparseMerkleTreeProof, coreClai
 
 	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
 
-	didDoc, err := didResolver.Resolve(context.Background(), issuerDID)
+	didDoc, err := didResolver.Resolve(ctx, issuerDID)
 	if err != nil {
 		return err
 	}
@@ -304,8 +334,8 @@ func (vc *W3CCredential) Merklize(ctx context.Context,
 // ErrProofNotFound is an error when specific proof is not found in the credential
 var ErrProofNotFound = errors.New("proof not found")
 
-// ErrorProofNotSupported is an error when specific proof is not supported for validation
-var ErrorProofNotSupported = errors.New("proof not supported")
+// ErrProofNotSupported is an error when specific proof is not supported for validation
+var ErrProofNotSupported = errors.New("proof not supported")
 
 // GetCoreClaimFromProof returns  core claim from given proof
 func (vc *W3CCredential) GetCoreClaimFromProof(proofType ProofType) (*core.Claim, error) {
@@ -345,12 +375,12 @@ type CredentialStatusType string
 
 // RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
 type RevocationStatus struct {
-	Issuer Issuer           `json:"issuer"`
+	Issuer TreeState        `json:"issuer"`
 	MTP    merkletree.Proof `json:"mtp"`
 }
 
-type Issuer struct {
-	State              *string `json:"state,omitempty"`
+type TreeState struct {
+	State              *string `json:"state"`
 	RootOfRoots        *string `json:"rootOfRoots,omitempty"`
 	ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
 	RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
@@ -358,15 +388,16 @@ type Issuer struct {
 
 // WithStatusResolverRegistry return new options
 func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) W3CProofVerificationOpt {
-	return func(opts *W3CProofVerificationConfig) {
-		opts.StatusResolverRegistry = registry
+	return func(opts *w3CProofVerificationConfig) {
+		opts.credStatusValidationOpts = append(opts.credStatusValidationOpts,
+			WithValidationStatusResolverRegistry(registry))
 	}
 }
 
 // W3CProofVerificationOpt returns configuration options for W3C proof verification
-type W3CProofVerificationOpt func(opts *W3CProofVerificationConfig)
+type W3CProofVerificationOpt func(opts *w3CProofVerificationConfig)
 
-// W3CProofVerificationConfig options for W3C proof verification
-type W3CProofVerificationConfig struct {
-	StatusResolverRegistry *CredentialStatusResolverRegistry
+// w3CProofVerificationConfig options for W3C proof verification
+type w3CProofVerificationConfig struct {
+	credStatusValidationOpts []CredentialStatusValidationOption
 }

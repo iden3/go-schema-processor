@@ -22,6 +22,11 @@ type IssuerData struct {
 	CredentialStatus interface{} `json:"credentialStatus,omitempty"`
 }
 
+func (id *IssuerData) authClaim() (*core.Claim, error) {
+	var claim core.Claim
+	return &claim, claim.FromHex(id.AuthCoreClaim)
+}
+
 // State represents the state of the issuer
 type State struct {
 	TxID               *string `json:"txId,omitempty"`
