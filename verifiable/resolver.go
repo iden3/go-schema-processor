@@ -3,7 +3,26 @@ package verifiable
 import (
 	"context"
 	"fmt"
+
+	"github.com/iden3/go-iden3-core/v2/w3c"
 )
+
+type ctxKeyIssuerDID struct{}
+
+// WithIssuerDID puts the issuer DID in the context
+func WithIssuerDID(ctx context.Context, issuerDID *w3c.DID) context.Context {
+	return context.WithValue(ctx, ctxKeyIssuerDID{}, issuerDID)
+}
+
+// GetIssuerDID extract the issuer DID from the context.
+// Or nil if nothing is found.
+func GetIssuerDID(ctx context.Context) *w3c.DID {
+	v := ctx.Value(ctxKeyIssuerDID{})
+	if v == nil {
+		return nil
+	}
+	return v.(*w3c.DID)
+}
 
 // CredentialStatusResolver is an interface that allows to interact with deifferent types of credential status to resolve revocation status
 type CredentialStatusResolver interface {
