@@ -263,12 +263,12 @@ func verifyIden3SparseMerkleTreeProof(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	issuerShateHash, err := merkletree.NewHashFromHex(*proof.IssuerData.State.ClaimsTreeRoot)
+	issuerClaimsTreeRoot, err := merkletree.NewHashFromHex(*proof.IssuerData.State.ClaimsTreeRoot)
 	if err != nil {
 		return fmt.Errorf("invalid state formant: %v", err)
 	}
 
-	if rootFromProof.BigInt().Cmp(issuerShateHash.BigInt()) != 0 {
+	if rootFromProof.BigInt().Cmp(issuerClaimsTreeRoot.BigInt()) != 0 {
 		return errors.New("verifyIden3SparseMerkleTreeProof: root from proof not equal to issuer data claims tree root")
 	}
 
@@ -292,6 +292,7 @@ func getIden3StateInfo2023FromDIDDocument(document DIDDocument) (*CommonVerifica
 		if a.Type == "Iden3StateInfo2023" {
 			a2 := a
 			iden3StateInfo2023 = &a2
+			break
 		}
 	}
 	if iden3StateInfo2023 == nil {
