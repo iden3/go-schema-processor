@@ -53,7 +53,7 @@ func (r HTTPDIDResolver) Resolve(ctx context.Context, did *w3c.DID) (out DIDDocu
 
 	defer func() {
 		err2 := resp.Body.Close()
-		if err != nil {
+		if err == nil {
 			err = errors.WithStack(err2)
 		}
 	}()
