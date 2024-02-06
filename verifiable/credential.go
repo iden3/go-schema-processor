@@ -3,11 +3,17 @@ package verifiable
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"math/big"
 	"time"
 
 	core "github.com/iden3/go-iden3-core/v2"
-	mt "github.com/iden3/go-merkletree-sql/v2"
+	"github.com/iden3/go-iden3-core/v2/w3c"
+	"github.com/iden3/go-iden3-crypto/babyjub"
+	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/pkg/errors"
 )
@@ -27,6 +33,273 @@ type W3CCredential struct {
 	Proof             CredentialProofs       `json:"proof,omitempty"`
 	RefreshService    *RefreshService        `json:"refreshService,omitempty"`
 	DisplayMethod     *DisplayMethod         `json:"displayMethod,omitempty"`
+}
+
+// VerifyProof verify credential proof
+func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
+	didResolver DIDResolver, opts ...W3CProofVerificationOpt) error {
+
+	verifyConfig := w3CProofVerificationConfig{}
+	for _, o := range opts {
+		o(&verifyConfig)
+	}
+
+	var credProof CredentialProof
+	for _, p := range vc.Proof {
+		if p.ProofType() == proofType {
+			credProof = p
+			break
+		}
+	}
+	if credProof == nil {
+		return ErrProofNotFound
+	}
+
+	coreClaim, err := credProof.GetCoreClaim()
+	if err != nil {
+		return errors.New("can't get core claim")
+	}
+
+	switch proofType {
+	case BJJSignatureProofType:
+		var proof BJJSignatureProof2021
+		err = remarshalObj(&proof, credProof)
+		if err != nil {
+			return err
+		}
+		return verifyBJJSignatureProof(ctx, proof, coreClaim, didResolver,
+			verifyConfig)
+	case Iden3SparseMerkleTreeProofType:
+		var proof Iden3SparseMerkleTreeProof
+		err = remarshalObj(&proof, credProof)
+		if err != nil {
+			return err
+		}
+		return verifyIden3SparseMerkleTreeProof(ctx, proof, coreClaim,
+			didResolver)
+	default:
+		return ErrProofNotSupported
+	}
+}
+
+func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
+	coreClaim *core.Claim, didResolver DIDResolver,
+	verifyConfig w3CProofVerificationConfig) error {
+
+	// issuer's claim with public key
+	authClaim, err := proof.IssuerData.authClaim()
+	if err != nil {
+		return err
+	}
+
+	// core claim's signature
+	sig, err := bjjSignatureFromHexString(proof.Signature)
+	if err != nil || sig == nil {
+		return err
+	}
+
+	err = verifyClaimSignature(coreClaim, sig, authClaim)
+	if err != nil {
+		return err
+	}
+
+	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	if err != nil {
+		return err
+	}
+
+	issuerStateHash, err := merkletree.NewHashFromHex(*proof.IssuerData.State.Value)
+	if err != nil {
+		return fmt.Errorf("invalid state formant: %v", err)
+	}
+
+	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
+
+	didDoc, err := didResolver.Resolve(ctx, issuerDID)
+	if err != nil {
+		return err
+	}
+
+	vm, err := getIden3StateInfo2023FromDIDDocument(didDoc)
+	if err != nil {
+		return err
+	}
+
+	// Published or genesis
+	if !*vm.IdentityState.Published {
+		var (
+			isGenesisState bool
+			issuerID       core.ID
+		)
+		issuerID, err = core.IDFromDID(*issuerDID)
+		if err != nil {
+			return err
+		}
+		isGenesisState, err = core.CheckGenesisStateID(issuerID.BigInt(), issuerStateHash.BigInt())
+		if err != nil {
+			return err
+		}
+		if !isGenesisState {
+			return errors.New("issuer state not published and not genesis")
+		}
+	}
+
+	err = validateAuthClaimRevocation(ctx, proof.IssuerData,
+		verifyConfig.credStatusValidationOpts...)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func verifyClaimSignature(claim *core.Claim, sig *babyjub.Signature,
+	authClaim *core.Claim) error {
+
+	publicKey := publicKeyFromClaim(authClaim)
+
+	// core claim hash
+	hi, hv, err := claim.HiHv()
+	if err != nil {
+		return err
+	}
+
+	claimHash, err := poseidon.Hash([]*big.Int{hi, hv})
+	if err != nil {
+		return err
+	}
+
+	valid := publicKey.VerifyPoseidon(claimHash, sig)
+	if !valid {
+		return errors.New("claim signature validation failed")
+	}
+	return nil
+}
+
+func publicKeyFromClaim(claim *core.Claim) *babyjub.PublicKey {
+	rawSlotInts := claim.RawSlotsAsInts()
+	var publicKey babyjub.PublicKey
+	publicKey.X = rawSlotInts[2] // Ax should be in indexSlotA
+	publicKey.Y = rawSlotInts[3] // Ay should be in indexSlotB
+	return &publicKey
+}
+
+func validateAuthClaimRevocation(ctx context.Context, issuerData IssuerData,
+	opts ...CredentialStatusValidationOption) error {
+	credStatus, err := coerceCredentialStatus(issuerData.CredentialStatus)
+	if err != nil {
+		return err
+	}
+
+	authClaim, err := issuerData.authClaim()
+	if err != nil {
+		return err
+	}
+
+	if credStatus.RevocationNonce != authClaim.GetRevocationNonce() {
+		return fmt.Errorf("revocation nonce mismatch: credential revocation "+
+			"nonce (%v) != auth claim revocation nonce (%v)",
+			credStatus.RevocationNonce, authClaim.GetRevocationNonce())
+	}
+
+	_, err = ValidateCredentialStatus(ctx, *credStatus, opts...)
+	return err
+}
+
+func verifyIden3SparseMerkleTreeProof(ctx context.Context,
+	proof Iden3SparseMerkleTreeProof, coreClaim *core.Claim,
+	didResolver DIDResolver) error {
+
+	var err error
+
+	issuerDID, err := w3c.ParseDID(proof.IssuerData.ID)
+	if err != nil {
+		return err
+	}
+
+	issuerStateHash, err := merkletree.NewHashFromHex(*proof.IssuerData.State.Value)
+	if err != nil {
+		return fmt.Errorf("invalid state formant: %v", err)
+	}
+
+	issuerDID.Query = fmt.Sprintf("state=%s", issuerStateHash.Hex())
+
+	didDoc, err := didResolver.Resolve(ctx, issuerDID)
+	if err != nil {
+		return err
+	}
+
+	vm, err := getIden3StateInfo2023FromDIDDocument(didDoc)
+	if err != nil {
+		return err
+	}
+
+	// Published or genesis
+	if !*vm.IdentityState.Published {
+		var (
+			isGenesisState bool
+			issuerID       core.ID
+		)
+		issuerID, err = core.IDFromDID(*issuerDID)
+		if err != nil {
+			return err
+		}
+		isGenesisState, err = core.CheckGenesisStateID(issuerID.BigInt(), issuerStateHash.BigInt())
+		if err != nil {
+			return err
+		}
+		if !isGenesisState {
+			return errors.New("issuer state not published and not genesis")
+		}
+	}
+
+	// 3. root from proof == issuerData.state.сlaimsTreeRoot
+	hi, hv, err := coreClaim.HiHv()
+	if err != nil {
+		return err
+	}
+
+	rootFromProof, err := merkletree.RootFromProof(proof.MTP, hi, hv)
+	if err != nil {
+		return err
+	}
+	issuerClaimsTreeRoot, err := merkletree.NewHashFromHex(*proof.IssuerData.State.ClaimsTreeRoot)
+	if err != nil {
+		return fmt.Errorf("invalid state formant: %v", err)
+	}
+
+	if rootFromProof.BigInt().Cmp(issuerClaimsTreeRoot.BigInt()) != 0 {
+		return errors.New("verifyIden3SparseMerkleTreeProof: root from proof not equal to issuer data claims tree root")
+	}
+
+	return nil
+}
+
+func bjjSignatureFromHexString(sigHex string) (*babyjub.Signature, error) {
+	signatureBytes, err := hex.DecodeString(sigHex)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	var sig [64]byte
+	copy(sig[:], signatureBytes)
+	bjjSig, err := new(babyjub.Signature).Decompress(sig)
+	return bjjSig, errors.WithStack(err)
+}
+
+func getIden3StateInfo2023FromDIDDocument(document DIDDocument) (*CommonVerificationMethod, error) {
+	var iden3StateInfo2023 *CommonVerificationMethod
+	for _, a := range document.VerificationMethod {
+		if a.Type == "Iden3StateInfo2023" {
+			a2 := a
+			iden3StateInfo2023 = &a2
+			break
+		}
+	}
+	if iden3StateInfo2023 == nil {
+		return nil, errors.New("Issuer Iden3StateInfo2023 auth info not found")
+	}
+
+	return iden3StateInfo2023, nil
 }
 
 // Merklize merklizes verifiable credential
@@ -61,6 +334,9 @@ func (vc *W3CCredential) Merklize(ctx context.Context,
 
 // ErrProofNotFound is an error when specific proof is not found in the credential
 var ErrProofNotFound = errors.New("proof not found")
+
+// ErrProofNotSupported is an error when specific proof is not supported for validation
+var ErrProofNotSupported = errors.New("proof not supported")
 
 // GetCoreClaimFromProof returns  core claim from given proof
 func (vc *W3CCredential) GetCoreClaimFromProof(proofType ProofType) (*core.Claim, error) {
@@ -100,11 +376,29 @@ type CredentialStatusType string
 
 // RevocationStatus status of revocation nonce. Info required to check revocation state of claim in circuits
 type RevocationStatus struct {
-	Issuer struct {
-		State              *string `json:"state,omitempty"`
-		RootOfRoots        *string `json:"rootOfRoots,omitempty"`
-		ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
-		RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
-	} `json:"issuer"`
-	MTP mt.Proof `json:"mtp"`
+	Issuer TreeState        `json:"issuer"`
+	MTP    merkletree.Proof `json:"mtp"`
+}
+
+type TreeState struct {
+	State              *string `json:"state"`
+	RootOfRoots        *string `json:"rootOfRoots,omitempty"`
+	ClaimsTreeRoot     *string `json:"claimsTreeRoot,omitempty"`
+	RevocationTreeRoot *string `json:"revocationTreeRoot,omitempty"`
+}
+
+// WithStatusResolverRegistry return new options
+func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) W3CProofVerificationOpt {
+	return func(opts *w3CProofVerificationConfig) {
+		opts.credStatusValidationOpts = append(opts.credStatusValidationOpts,
+			WithValidationStatusResolverRegistry(registry))
+	}
+}
+
+// W3CProofVerificationOpt returns configuration options for W3C proof verification
+type W3CProofVerificationOpt func(opts *w3CProofVerificationConfig)
+
+// w3CProofVerificationConfig options for W3C proof verification
+type w3CProofVerificationConfig struct {
+	credStatusValidationOpts []CredentialStatusValidationOption
 }
