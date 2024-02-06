@@ -31,10 +31,10 @@ func (r HTTPDIDResolver) Resolve(ctx context.Context, did *w3c.DID) (out DIDDocu
 		resp       *http.Response
 		httpClient *http.Client
 	)
+
+	httpClient = http.DefaultClient
 	if r.customHTTPClient != nil {
 		httpClient = r.customHTTPClient
-	} else {
-		httpClient = http.DefaultClient
 	}
 	didStr := did.String()
 	didParts := strings.Split(didStr, "?")

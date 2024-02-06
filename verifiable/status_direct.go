@@ -34,14 +34,23 @@ func (IssuerResolver) Resolve(ctx context.Context,
 
 	statusOK := httpResp.StatusCode >= 200 && httpResp.StatusCode < 300
 	if !statusOK {
-		return out, fmt.Errorf("unexpected status code: %v",
+		return out, fmt.Errorf("unexpected status code: %d",
 			httpResp.StatusCode)
 	}
 
-	respData, err := io.ReadAll(io.LimitReader(httpResp.Body, limitReaderBytes))
+	limitReader := &io.LimitedReader{R: httpResp.Body, N: limitReaderBytes}
+
+	respData, err := io.ReadAll(limitReader)
 	if err != nil {
 		return out, err
 	}
+
+	// Check if the body size exceeds the limit
+	if limitReader.N <= 0 {
+		return out, fmt.Errorf("response body size exceeds the limit of %d",
+			limitReaderBytes)
+	}
+
 	err = json.Unmarshal(respData, &out)
 	if err != nil {
 		return out, err

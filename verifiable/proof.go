@@ -24,7 +24,8 @@ type IssuerData struct {
 
 func (id *IssuerData) authClaim() (*core.Claim, error) {
 	var claim core.Claim
-	return &claim, claim.FromHex(id.AuthCoreClaim)
+	err := claim.FromHex(id.AuthCoreClaim)
+	return &claim, err
 }
 
 // State represents the state of the issuer
