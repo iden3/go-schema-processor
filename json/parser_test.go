@@ -40,7 +40,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 		Updatable:             true,
 	}
 
-	claim, err := parser.ParseClaim(context.Background(), credential, opts)
+	claim, err := parser.ParseClaim(context.Background(), credential, &opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -84,7 +84,7 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 		MerklizedRootPosition: verifiable.CredentialMerklizedRootPositionIndex,
 		Updatable:             true,
 	}
-	claim, err := parser.ParseClaim(context.Background(), credential, opts)
+	claim, err := parser.ParseClaim(context.Background(), credential, &opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()

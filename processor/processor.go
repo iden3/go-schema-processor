@@ -24,6 +24,7 @@ type Validator interface {
 
 // Parser is an interface to parse claim slots
 type Parser interface {
+	// Deprecated: use credential.GetClaim instead
 	ParseClaim(ctx context.Context, credential verifiable.W3CCredential,
 		options *CoreClaimOptions) (*core.Claim, error)
 	GetFieldSlotIndex(field string, typeName string, schema []byte) (int, error)

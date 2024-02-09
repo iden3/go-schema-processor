@@ -60,7 +60,10 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		return errors.New("can't get core claim")
 	}
 
-	vc.verifyCredentialClaim(ctx, coreClaim, verifyConfig.merklizeOptions)
+	err = vc.verifyCredentialClaim(ctx, coreClaim, verifyConfig.merklizeOptions)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
 	switch proofType {
 	case BJJSignatureProofType:
