@@ -60,6 +60,63 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		return errors.New("can't get core claim")
 	}
 
+	// validate credential claim match proof core claim
+	merklizedPosition, err := coreClaim.GetMerklizedPosition()
+	if err != nil {
+		return errors.New("can't get core claim merklized position")
+	}
+	var merklizedPositionString string
+	switch merklizedPosition {
+	case core.MerklizedRootPositionNone:
+		merklizedPositionString = CredentialMerklizedRootPositionNone
+	case core.MerklizedRootPositionIndex:
+		merklizedPositionString = CredentialMerklizedRootPositionIndex
+	case core.MerklizedRootPositionValue:
+		merklizedPositionString = CredentialMerklizedRootPositionValue
+	}
+
+	idPosition, err := coreClaim.GetIDPosition()
+	if err != nil {
+		return errors.New("can't get core claim id position")
+	}
+
+	var subjectPositionString string
+	switch idPosition {
+	case core.IDPositionNone:
+		subjectPositionString = ""
+	case core.IDPositionIndex:
+		subjectPositionString = CredentialSubjectPositionIndex
+	case core.IDPositionValue:
+		subjectPositionString = CredentialSubjectPositionValue
+	}
+
+	coreClaimOpts := CoreClaimOptions{
+		RevNonce:              coreClaim.GetRevocationNonce(),
+		Version:               coreClaim.GetVersion(),
+		SubjectPosition:       subjectPositionString,
+		MerklizedRootPosition: merklizedPositionString,
+		Updatable:             coreClaim.GetFlagUpdatable(),
+		MerklizerOpts:         verifyConfig.merklizeOptions,
+	}
+	credentialClaim, err := vc.GetClaim(ctx, &coreClaimOpts)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	coreClaimHex, err := coreClaim.Hex()
+	if err != nil {
+		return errors.New("can't get core claim hex")
+	}
+
+	credentialClaimHex, err := credentialClaim.Hex()
+	if err != nil {
+		return errors.New("can't get credential claim hex")
+	}
+
+	if coreClaimHex != credentialClaimHex {
+		return errors.New("proof generated for another credential")
+	}
+
 	switch proofType {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
@@ -401,4 +458,5 @@ type W3CProofVerificationOpt func(opts *w3CProofVerificationConfig)
 // w3CProofVerificationConfig options for W3C proof verification
 type w3CProofVerificationConfig struct {
 	credStatusValidationOpts []CredentialStatusValidationOption
+	merklizeOptions          []merklize.MerklizeOption
 }
