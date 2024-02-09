@@ -25,7 +25,7 @@ type Validator interface {
 // Parser is an interface to parse claim slots
 type Parser interface {
 	ParseClaim(ctx context.Context, credential verifiable.W3CCredential,
-		options CoreClaimOptions) (*core.Claim, error)
+		options *CoreClaimOptions) (*core.Claim, error)
 	GetFieldSlotIndex(field string, typeName string, schema []byte) (int, error)
 }
 
@@ -86,7 +86,7 @@ func (s *Processor) Load(ctx context.Context, url string) (schema []byte, err er
 // ParseClaim will serialize input data to index and value fields.
 func (s *Processor) ParseClaim(ctx context.Context,
 	credential verifiable.W3CCredential,
-	opts CoreClaimOptions) (*core.Claim, error) {
+	opts *CoreClaimOptions) (*core.Claim, error) {
 
 	if s.Parser == nil {
 		return nil, errParserNotDefined

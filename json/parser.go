@@ -21,8 +21,8 @@ type Parser struct {
 // Deprecated: use credential.GetClaim instead
 func (s Parser) ParseClaim(ctx context.Context,
 	credential verifiable.W3CCredential,
-	opts processor.CoreClaimOptions) (*core.Claim, error) {
-	verifiableOpts := verifiable.CoreClaimOptions(opts)
+	opts *processor.CoreClaimOptions) (*core.Claim, error) {
+	verifiableOpts := verifiable.CoreClaimOptions(*opts)
 	return credential.GetClaim(ctx, &verifiableOpts)
 }
 
