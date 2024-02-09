@@ -23,7 +23,7 @@ func (s Parser) ParseClaim(ctx context.Context,
 	credential verifiable.W3CCredential,
 	opts *processor.CoreClaimOptions) (*core.Claim, error) {
 	verifiableOpts := verifiable.CoreClaimOptions(*opts)
-	return credential.GetClaim(ctx, &verifiableOpts)
+	return credential.ToCoreClaim(ctx, &verifiableOpts)
 }
 
 // GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)

@@ -15,6 +15,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
+	"github.com/iden3/go-schema-processor/v2/utils"
 	"github.com/pkg/errors"
 )
 
@@ -125,7 +126,7 @@ func (vc *W3CCredential) verifyCredentialClaim(ctx context.Context, proofCoreCla
 		Updatable:             proofCoreClaim.GetFlagUpdatable(),
 		MerklizerOpts:         merklizeOptions,
 	}
-	credentialClaim, err := vc.GetClaim(ctx, &coreClaimOpts)
+	credentialClaim, err := vc.ToCoreClaim(ctx, &coreClaimOpts)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -411,6 +412,109 @@ func (vc *W3CCredential) GetCoreClaimFromProof(proofType ProofType) (*core.Claim
 		}
 	}
 	return nil, ErrProofNotFound
+}
+
+// ToCoreClaim returns Claim object from W3CCredential
+func (vc *W3CCredential) ToCoreClaim(ctx context.Context, opts *CoreClaimOptions) (*core.Claim, error) {
+	if opts == nil {
+		opts = &CoreClaimOptions{
+			RevNonce:              0,
+			Version:               0,
+			SubjectPosition:       CredentialSubjectPositionIndex,
+			MerklizedRootPosition: CredentialMerklizedRootPositionNone,
+			Updatable:             false,
+			MerklizerOpts:         nil,
+		}
+	}
+
+	mz, err := vc.Merklize(ctx, opts.MerklizerOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	credentialType, err := findCredentialType(mz)
+	if err != nil {
+		return nil, err
+	}
+
+	subjectID := vc.CredentialSubject["id"]
+
+	slots, nonMerklized, err := parseSlots(mz, *vc, credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	// if schema is for non merklized credential, root position must be set to none ('')
+	// otherwise default position for merklized position is index.
+	if !nonMerklized {
+		if opts.MerklizedRootPosition == CredentialMerklizedRootPositionNone {
+			opts.MerklizedRootPosition = CredentialMerklizedRootPositionIndex
+		}
+	} else {
+		if opts.MerklizedRootPosition != CredentialMerklizedRootPositionNone {
+			return nil, errors.New(
+				"merklized root position is not supported for non-merklized claims")
+		}
+	}
+
+	claim, err := core.NewClaim(
+		utils.CreateSchemaHash([]byte(credentialType)),
+		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
+		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
+		core.WithRevocationNonce(opts.RevNonce),
+		core.WithVersion(opts.Version))
+	if err != nil {
+		return nil, err
+	}
+	if opts.Updatable {
+		claim.SetFlagUpdatable(opts.Updatable)
+	}
+
+	if vc.Expiration != nil {
+		claim.SetExpirationDate(*vc.Expiration)
+	}
+	if subjectID != nil {
+		var did *w3c.DID
+		did, err = w3c.ParseDID(fmt.Sprintf("%v", subjectID))
+		if err != nil {
+			return nil, err
+		}
+
+		var id core.ID
+		id, err = core.IDFromDID(*did)
+		if err != nil {
+			return nil, err
+		}
+
+		switch opts.SubjectPosition {
+		case "", CredentialSubjectPositionIndex:
+			claim.SetIndexID(id)
+		case CredentialSubjectPositionValue:
+			claim.SetValueID(id)
+		default:
+			return nil, errors.New("unknown subject position")
+		}
+	}
+
+	switch opts.MerklizedRootPosition {
+	case CredentialMerklizedRootPositionIndex:
+		err = claim.SetIndexMerklizedRoot(mz.Root().BigInt())
+		if err != nil {
+			return nil, err
+		}
+	case CredentialMerklizedRootPositionValue:
+		err = claim.SetValueMerklizedRoot(mz.Root().BigInt())
+		if err != nil {
+			return nil, err
+		}
+	case CredentialMerklizedRootPositionNone:
+		// Slots where filled earlier. Nothing to do here.
+		break
+	default:
+		return nil, errors.New("unknown merklized root position")
+	}
+
+	return claim, nil
 }
 
 // CredentialSchema represent the information about credential schema
