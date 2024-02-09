@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	core "github.com/iden3/go-iden3-core/v2"
+	"github.com/iden3/go-schema-processor/v2/processor"
 	"github.com/iden3/go-schema-processor/v2/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/pkg/errors"
@@ -20,8 +21,9 @@ type Parser struct {
 // Deprecated: use credential.GetClaim instead
 func (s Parser) ParseClaim(ctx context.Context,
 	credential verifiable.W3CCredential,
-	opts *verifiable.CoreClaimOptions) (*core.Claim, error) {
-	return credential.GetClaim(ctx, opts)
+	opts processor.CoreClaimOptions) (*core.Claim, error) {
+	verifiableOpts := verifiable.CoreClaimOptions(opts)
+	return credential.GetClaim(ctx, &verifiableOpts)
 }
 
 // GetFieldSlotIndex return index of slot from 0 to 7 (each claim has by default 8 slots)
@@ -77,7 +79,3 @@ func (s Parser) GetFieldSlotIndex(field string, typeName string,
 			"field `%s` not specified in serialization info", field)
 	}
 }
-
-// CoreClaimOptions is params for core claim parsing
-// Deprecated: use verifiable.CoreClaimOptions instead
-type CoreClaimOptions verifiable.CoreClaimOptions

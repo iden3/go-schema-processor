@@ -8,6 +8,7 @@ import (
 
 	core "github.com/iden3/go-iden3-core/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
+	"github.com/iden3/go-schema-processor/v2/processor"
 	tst "github.com/iden3/go-schema-processor/v2/testing"
 	"github.com/iden3/go-schema-processor/v2/verifiable"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 
 	parser := Parser{}
 
-	opts := verifiable.CoreClaimOptions{
+	opts := processor.CoreClaimOptions{
 		RevNonce:              127366661,
 		Version:               0,
 		SubjectPosition:       verifiable.CredentialSubjectPositionIndex,
@@ -39,7 +40,7 @@ func TestParser_ParseClaimWithDataSlots(t *testing.T) {
 		Updatable:             true,
 	}
 
-	claim, err := parser.ParseClaim(context.Background(), credential, &opts)
+	claim, err := parser.ParseClaim(context.Background(), credential, opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
@@ -76,14 +77,14 @@ func TestParser_ParseClaimWithMerklizedRoot(t *testing.T) {
 
 	parser := Parser{}
 
-	opts := verifiable.CoreClaimOptions{
+	opts := processor.CoreClaimOptions{
 		RevNonce:              127366661,
 		Version:               0,
 		SubjectPosition:       verifiable.CredentialSubjectPositionIndex,
 		MerklizedRootPosition: verifiable.CredentialMerklizedRootPositionIndex,
 		Updatable:             true,
 	}
-	claim, err := parser.ParseClaim(context.Background(), credential, &opts)
+	claim, err := parser.ParseClaim(context.Background(), credential, opts)
 	require.NoError(t, err)
 
 	index, value := claim.RawSlots()
