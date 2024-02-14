@@ -61,7 +61,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		return errors.New("can't get core claim")
 	}
 
-	err = vc.verifyCredentialClaim(ctx, coreClaim, verifyConfig.merklizeOptions)
+	err = vc.verifyCredentialCoreClaim(ctx, coreClaim, verifyConfig.merklizeOptions)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -88,7 +88,7 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 	}
 }
 
-func (vc *W3CCredential) verifyCredentialClaim(ctx context.Context, proofCoreClaim *core.Claim, merklizeOptions []merklize.MerklizeOption) error {
+func (vc *W3CCredential) verifyCredentialCoreClaim(ctx context.Context, proofCoreClaim *core.Claim, merklizeOptions []merklize.MerklizeOption) error {
 	merklizedPosition, err := proofCoreClaim.GetMerklizedPosition()
 	if err != nil {
 		return errors.New("can't get core claim merklized position")

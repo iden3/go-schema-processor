@@ -18,7 +18,7 @@ type Parser struct {
 }
 
 // ParseClaim creates Claim object from W3CCredential
-// Deprecated: use credential.GetClaim instead
+// Deprecated: use credential.ToCoreClaim instead
 func (s Parser) ParseClaim(ctx context.Context,
 	credential verifiable.W3CCredential,
 	opts *processor.CoreClaimOptions) (*core.Claim, error) {
