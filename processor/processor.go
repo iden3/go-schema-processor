@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	core "github.com/iden3/go-iden3-core/v2"
-	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/iden3/go-schema-processor/v2/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/pkg/errors"
@@ -25,20 +24,15 @@ type Validator interface {
 
 // Parser is an interface to parse claim slots
 type Parser interface {
+	// Deprecated: use credential.ToCoreClaim instead
 	ParseClaim(ctx context.Context, credential verifiable.W3CCredential,
 		options *CoreClaimOptions) (*core.Claim, error)
 	GetFieldSlotIndex(field string, typeName string, schema []byte) (int, error)
 }
 
 // CoreClaimOptions is params for core claim parsing
-type CoreClaimOptions struct {
-	RevNonce              uint64 `json:"revNonce"`
-	Version               uint32 `json:"version"`
-	SubjectPosition       string `json:"subjectPosition"`
-	MerklizedRootPosition string `json:"merklizedRootPosition"`
-	Updatable             bool   `json:"updatable"`
-	MerklizerOpts         []merklize.MerklizeOption
-}
+// Deprecated: use verifiable.CoreClaimOptions instead
+type CoreClaimOptions verifiable.CoreClaimOptions
 
 var (
 	errParserNotDefined    = errors.New("parser is not defined")

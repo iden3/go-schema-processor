@@ -93,8 +93,11 @@ func TestW3CCredential_ValidateBJJSignatureProof(t *testing.T) {
 
 	defer tst.MockHTTPClient(t,
 		map[string]string{
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld": "../merklize/testdata/httpresp/kyc-v3.json-ld",
+			"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld":                                         "../merklize/testdata/httpresp/iden3proofs.json-ld",
+			"https://www.w3.org/2018/credentials/v1":                                                         "../merklize/testdata/httpresp/credentials-v1.jsonld",
 			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=f9dd6aa4e1abef52b6c94ab7eb92faf1a283b371d263e25ac835c9c04894741e": `./testdata/verifycred//my-universal-resolver-1.json`,
-		})()
+		}, tst.IgnoreUntouchedURLs())()
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test1Resolver{}
 	resolverRegisty.Register(Iden3ReverseSparseMerkleTreeProof, rhsResolver)
@@ -185,8 +188,11 @@ func TestW3CCredential_ValidateBJJSignatureProofGenesis(t *testing.T) {
 
 	defer tst.MockHTTPClient(t,
 		map[string]string{
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld": "../merklize/testdata/httpresp/kyc-v3.json-ld",
+			"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld":                                         "../merklize/testdata/httpresp/iden3proofs.json-ld",
+			"https://www.w3.org/2018/credentials/v1":                                                         "../merklize/testdata/httpresp/credentials-v1.jsonld",
 			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLx3hTJBV8REpNDK2RiG7eNBVzXMoZdPfi2uhF7Ks?state=da6184809dbad90ccc52bb4dbfe2e8ff3f516d87c74d75bcc68a67101760b817": `./testdata/verifycred//my-universal-resolver-2.json`,
-		})()
+		}, tst.IgnoreUntouchedURLs())()
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	rhsResolver := test2Resolver{}
@@ -294,8 +300,11 @@ func TestW3CCredential_ValidateIden3SparseMerkleTreeProof(t *testing.T) {
 
 	defer tst.MockHTTPClient(t,
 		map[string]string{
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld": "../merklize/testdata/httpresp/kyc-v3.json-ld",
+			"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld":                                         "../merklize/testdata/httpresp/iden3proofs.json-ld",
+			"https://www.w3.org/2018/credentials/v1":                                                         "../merklize/testdata/httpresp/credentials-v1.jsonld",
 			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qLGnFZiHrhdNh5KwdkGvbCN1sR2pUaBpBahAXC3zf?state=34824a8e1defc326f935044e32e9f513377dbfc031d79475a0190830554d4409": `./testdata/verifycred//my-universal-resolver-3.json`,
-		})()
+		}, tst.IgnoreUntouchedURLs())()
 
 	err = vc.VerifyProof(context.Background(), Iden3SparseMerkleTreeProofType,
 		HTTPDIDResolver{resolverURL: resolverURL})
@@ -396,8 +405,11 @@ func TestW3CCredential_ValidateBJJSignatureProofAgentStatus(t *testing.T) {
 
 	defer tst.MockHTTPClient(t,
 		map[string]string{
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld": "../merklize/testdata/httpresp/kyc-v3.json-ld",
+			"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld":                                         "../merklize/testdata/httpresp/iden3proofs.json-ld",
+			"https://www.w3.org/2018/credentials/v1":                                                         "../merklize/testdata/httpresp/credentials-v1.jsonld",
 			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qJp131YoXVu8iLNGfL3TkQAWEr3pqimh2iaPgH3BJ?state=2de39210318bbc7fc79e24150c2790089c8385d7acffc0f0ebf1641b95087e0f": `./testdata/verifycred//my-universal-resolver-4.json`,
-		})()
+		}, tst.IgnoreUntouchedURLs())()
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(Iden3commRevocationStatusV1, test3Resolver{})
@@ -470,9 +482,12 @@ func TestW3CCredential_ValidateBJJSignatureProofIssuerStatus(t *testing.T) {
 
 	defer tst.MockHTTPClient(t,
 		map[string]string{
+			"https://raw.githubusercontent.com/iden3/claim-schema-vocab/main/schemas/json-ld/kyc-v3.json-ld": "../merklize/testdata/httpresp/kyc-v3.json-ld",
+			"https://schema.iden3.io/core/jsonld/iden3proofs.jsonld":                                         "../merklize/testdata/httpresp/iden3proofs.json-ld",
+			"https://www.w3.org/2018/credentials/v1":                                                         "../merklize/testdata/httpresp/credentials-v1.jsonld",
 			"http://my-universal-resolver/1.0/identifiers/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn?state=95e4f8437be5d50a569bb532713110e4f5d2ac97765fae54041dddae9638a119": `./testdata/verifycred/my-universal-resolver-5.json`,
 			"http://localhost:8001/api/v1/identities/did%3Apolygonid%3Apolygon%3Amumbai%3A2qNuE5Jxmvrx6EithQ5bMs4DcWN91SjxepUzdQtddn/claims/revocation/status/0":                                                  `./testdata/verifycred/issuer-state-response.json`,
-		})()
+		}, tst.IgnoreUntouchedURLs())()
 
 	resolverRegisty := CredentialStatusResolverRegistry{}
 	resolverRegisty.Register(SparseMerkleTreeProof, IssuerResolver{})
@@ -652,7 +667,7 @@ func TestW3CCredential_MerklizationWithEmptyID(t *testing.T) {
 	defer tst.MockHTTPClient(t, map[string]string{
 		"https://www.w3.org/2018/credentials/v1":              "../merklize/testdata/httpresp/credentials-v1.jsonld",
 		"https://example.com/schema-delivery-address.json-ld": "../json/testdata/schema-delivery-address.json-ld",
-	})()
+	}, tst.IgnoreUntouchedURLs())()
 
 	vcData, err := os.ReadFile("../json/testdata/non-merklized-1.json-ld")
 	require.NoError(t, err)

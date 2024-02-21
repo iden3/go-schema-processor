@@ -15,6 +15,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
+	"github.com/iden3/go-schema-processor/v2/utils"
 	"github.com/pkg/errors"
 )
 
@@ -60,6 +61,11 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 		return errors.New("can't get core claim")
 	}
 
+	err = vc.verifyCredentialCoreClaim(ctx, coreClaim, verifyConfig.merklizeOptions)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
 	switch proofType {
 	case BJJSignatureProofType:
 		var proof BJJSignatureProof2021
@@ -80,6 +86,66 @@ func (vc *W3CCredential) VerifyProof(ctx context.Context, proofType ProofType,
 	default:
 		return ErrProofNotSupported
 	}
+}
+
+func (vc *W3CCredential) verifyCredentialCoreClaim(ctx context.Context, proofCoreClaim *core.Claim, merklizeOptions []merklize.MerklizeOption) error {
+	merklizedPosition, err := proofCoreClaim.GetMerklizedPosition()
+	if err != nil {
+		return errors.New("can't get core claim merklized position")
+	}
+	var merklizedPositionString string
+	switch merklizedPosition {
+	case core.MerklizedRootPositionNone:
+		merklizedPositionString = CredentialMerklizedRootPositionNone
+	case core.MerklizedRootPositionIndex:
+		merklizedPositionString = CredentialMerklizedRootPositionIndex
+	case core.MerklizedRootPositionValue:
+		merklizedPositionString = CredentialMerklizedRootPositionValue
+	}
+
+	idPosition, err := proofCoreClaim.GetIDPosition()
+	if err != nil {
+		return errors.New("can't get core claim id position")
+	}
+
+	var subjectPositionString string
+	switch idPosition {
+	case core.IDPositionNone:
+		subjectPositionString = ""
+	case core.IDPositionIndex:
+		subjectPositionString = CredentialSubjectPositionIndex
+	case core.IDPositionValue:
+		subjectPositionString = CredentialSubjectPositionValue
+	}
+
+	coreClaimOpts := CoreClaimOptions{
+		RevNonce:              proofCoreClaim.GetRevocationNonce(),
+		Version:               proofCoreClaim.GetVersion(),
+		SubjectPosition:       subjectPositionString,
+		MerklizedRootPosition: merklizedPositionString,
+		Updatable:             proofCoreClaim.GetFlagUpdatable(),
+		MerklizerOpts:         merklizeOptions,
+	}
+	credentialClaim, err := vc.ToCoreClaim(ctx, &coreClaimOpts)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	coreClaimHex, err := proofCoreClaim.Hex()
+	if err != nil {
+		return errors.New("can't get core claim hex")
+	}
+
+	credentialClaimHex, err := credentialClaim.Hex()
+	if err != nil {
+		return errors.New("can't get credential claim hex")
+	}
+
+	if coreClaimHex != credentialClaimHex {
+		return errors.New("proof generated for another credential")
+	}
+
+	return nil
 }
 
 func verifyBJJSignatureProof(ctx context.Context, proof BJJSignatureProof2021,
@@ -348,6 +414,109 @@ func (vc *W3CCredential) GetCoreClaimFromProof(proofType ProofType) (*core.Claim
 	return nil, ErrProofNotFound
 }
 
+// ToCoreClaim returns Claim object from W3CCredential
+func (vc *W3CCredential) ToCoreClaim(ctx context.Context, opts *CoreClaimOptions) (*core.Claim, error) {
+	if opts == nil {
+		opts = &CoreClaimOptions{
+			RevNonce:              0,
+			Version:               0,
+			SubjectPosition:       CredentialSubjectPositionIndex,
+			MerklizedRootPosition: CredentialMerklizedRootPositionNone,
+			Updatable:             false,
+			MerklizerOpts:         nil,
+		}
+	}
+
+	mz, err := vc.Merklize(ctx, opts.MerklizerOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	credentialType, err := findCredentialType(mz)
+	if err != nil {
+		return nil, err
+	}
+
+	subjectID := vc.CredentialSubject["id"]
+
+	slots, nonMerklized, err := parseSlots(mz, *vc, credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	// if schema is for non merklized credential, root position must be set to none ('')
+	// otherwise default position for merklized position is index.
+	if !nonMerklized {
+		if opts.MerklizedRootPosition == CredentialMerklizedRootPositionNone {
+			opts.MerklizedRootPosition = CredentialMerklizedRootPositionIndex
+		}
+	} else {
+		if opts.MerklizedRootPosition != CredentialMerklizedRootPositionNone {
+			return nil, errors.New(
+				"merklized root position is not supported for non-merklized claims")
+		}
+	}
+
+	claim, err := core.NewClaim(
+		utils.CreateSchemaHash([]byte(credentialType)),
+		core.WithIndexDataBytes(slots.IndexA, slots.IndexB),
+		core.WithValueDataBytes(slots.ValueA, slots.ValueB),
+		core.WithRevocationNonce(opts.RevNonce),
+		core.WithVersion(opts.Version))
+	if err != nil {
+		return nil, err
+	}
+	if opts.Updatable {
+		claim.SetFlagUpdatable(opts.Updatable)
+	}
+
+	if vc.Expiration != nil {
+		claim.SetExpirationDate(*vc.Expiration)
+	}
+	if subjectID != nil {
+		var did *w3c.DID
+		did, err = w3c.ParseDID(fmt.Sprintf("%v", subjectID))
+		if err != nil {
+			return nil, err
+		}
+
+		var id core.ID
+		id, err = core.IDFromDID(*did)
+		if err != nil {
+			return nil, err
+		}
+
+		switch opts.SubjectPosition {
+		case "", CredentialSubjectPositionIndex:
+			claim.SetIndexID(id)
+		case CredentialSubjectPositionValue:
+			claim.SetValueID(id)
+		default:
+			return nil, errors.New("unknown subject position")
+		}
+	}
+
+	switch opts.MerklizedRootPosition {
+	case CredentialMerklizedRootPositionIndex:
+		err = claim.SetIndexMerklizedRoot(mz.Root().BigInt())
+		if err != nil {
+			return nil, err
+		}
+	case CredentialMerklizedRootPositionValue:
+		err = claim.SetValueMerklizedRoot(mz.Root().BigInt())
+		if err != nil {
+			return nil, err
+		}
+	case CredentialMerklizedRootPositionNone:
+		// Slots where filled earlier. Nothing to do here.
+		break
+	default:
+		return nil, errors.New("unknown merklized root position")
+	}
+
+	return claim, nil
+}
+
 // CredentialSchema represent the information about credential schema
 type CredentialSchema struct {
 	ID   string `json:"id"`
@@ -401,4 +570,5 @@ type W3CProofVerificationOpt func(opts *w3CProofVerificationConfig)
 // w3CProofVerificationConfig options for W3C proof verification
 type w3CProofVerificationConfig struct {
 	credStatusValidationOpts []CredentialStatusValidationOption
+	merklizeOptions          []merklize.MerklizeOption
 }
