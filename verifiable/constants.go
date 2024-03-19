@@ -55,7 +55,7 @@ const (
 	Iden3MobileServiceType = "Iden3MobileServiceV1"
 
 	// Iden3WebServiceType is service type for web redirects as a way to reach user agent in iden3 protocol
-	Iden3WebServiceType = "Iden3WebRedirectV1"
+	Iden3WebServiceType = "Iden3WebRedirectServiceV1"
 
 	// CredentialMerklizedRootPositionIndex is merklized root position of W3CCredential in the IndexDataSlotA (core claim)
 	CredentialMerklizedRootPositionIndex = "index"
