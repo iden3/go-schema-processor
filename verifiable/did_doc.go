@@ -24,6 +24,12 @@ type Service struct {
 	ServiceEndpoint string `json:"serviceEndpoint"`
 }
 
+// WebRedirectService describes the service of web redirection
+type WebRedirectService struct {
+	Service
+	Method string `json:"method"`
+}
+
 // PushService describes the services of push notifications
 type PushService struct {
 	Service
