@@ -26,10 +26,8 @@ type Service struct {
 
 // WebRedirectService describes the service of web redirection
 type WebRedirectService struct {
-	ID              string `json:"id"`
-	Type            string `json:"type"`
-	ServiceEndpoint string `json:"serviceEndpoint"`
-	Method          string `json:"method"`
+	Service
+	Method string `json:"method"`
 }
 
 // PushService describes the services of push notifications
