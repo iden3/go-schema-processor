@@ -57,7 +57,7 @@ type DeviceMetadata struct {
 type CommonVerificationMethod struct {
 	ID                   string                 `json:"id"`
 	Type                 string                 `json:"type"`
-	Controller           string                 `json:"controller"`
+	Controller           string                 `json:"controller,omitempty"`
 	PublicKeyJwk         map[string]interface{} `json:"publicKeyJwk,omitempty"`
 	PublicKeyMultibase   string                 `json:"publicKeyMultibase,omitempty"`
 	PublicKeyHex         string                 `json:"publicKeyHex,omitempty"`
