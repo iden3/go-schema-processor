@@ -122,7 +122,6 @@ type StateInfo struct {
 	ReplacedAtTimestamp string `json:"replacedAtTimestamp"`
 	CreatedAtBlock      string `json:"createdAtBlock"`
 	ReplacedAtBlock     string `json:"replacedAtBlock"`
-	Signature           string `json:"signature"`
 }
 
 // GistInfo representation state of gist root.
@@ -133,7 +132,6 @@ type GistInfo struct {
 	ReplacedAtTimestamp string `json:"replacedAtTimestamp"`
 	CreatedAtBlock      string `json:"createdAtBlock"`
 	ReplacedAtBlock     string `json:"replacedAtBlock"`
-	Signature           string `json:"signature"`
 }
 
 // IdentityState representation all info about identity.
@@ -141,4 +139,5 @@ type IdentityState struct {
 	Published *bool      `json:"published,omitempty"`
 	Info      *StateInfo `json:"info,omitempty"`
 	Global    *GistInfo  `json:"global,omitempty"`
+	Signature string     `json:"signature,omitempty"`
 }
