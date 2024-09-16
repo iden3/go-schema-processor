@@ -3,8 +3,8 @@ module github.com/iden3/go-schema-processor/v2
 go 1.18
 
 require (
-	github.com/iden3/go-iden3-core/v2 v2.2.0
-	github.com/iden3/go-iden3-crypto v0.0.16
+	github.com/iden3/go-iden3-core/v2 v2.3.1
+	github.com/iden3/go-iden3-crypto v0.0.17
 	github.com/iden3/go-merkletree-sql/v2 v2.0.4
 	// We require the `json-gold` bugfix which has not yet been included in the
 	// stable version. After the release of version 0.5.1 or later, it will be
@@ -14,7 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.12.0
 )
 
