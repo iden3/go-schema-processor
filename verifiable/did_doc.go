@@ -138,13 +138,8 @@ type GistInfo struct {
 
 // GistInfoProof representation proof of GistInfo object.
 type GistInfoProof struct {
-	Type            ProofType           `json:"type"`
-	Existence       bool                `json:"existence"`
-	RevocationNonce string              `json:"revocationNonce,omitempty"`
-	Siblings        []string            `json:"siblings"`
-	NodeAux         *merkletree.NodeAux `json:"node_aux,omitempty"`
-	HIndex          string              `json:"hIndex,omitempty"`
-	HValue          string              `json:"hValue,omitempty"`
+	Type  ProofType `json:"type"`
+	Proof merkletree.Proof
 }
 
 // GistProof representation proof of gist root.
