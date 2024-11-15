@@ -142,18 +142,6 @@ type GistInfoProof struct {
 	merkletree.Proof
 }
 
-// GistProof representation proof of gist root.
-type GistProof struct {
-	Root         string   `json:"root"`
-	Existence    bool     `json:"existence"`
-	Siblings     []string `json:"siblings"`
-	Index        string   `json:"index"`
-	Value        string   `json:"value"`
-	AuxExistence bool     `json:"auxExistence"`
-	AuxIndex     string   `json:"auxIndex"`
-	AuxValue     string   `json:"auxValue"`
-}
-
 // IdentityState representation all info about identity.
 type IdentityState struct {
 	Published *bool      `json:"published,omitempty"`
