@@ -126,13 +126,13 @@ type StateInfo struct {
 
 // GistInfo representation state of gist root.
 type GistInfo struct {
-	Root                string    `json:"root"`
-	ReplacedByRoot      string    `json:"replacedByRoot"`
-	CreatedAtTimestamp  string    `json:"createdAtTimestamp"`
-	ReplacedAtTimestamp string    `json:"replacedAtTimestamp"`
-	CreatedAtBlock      string    `json:"createdAtBlock"`
-	ReplacedAtBlock     string    `json:"replacedAtBlock"`
-	Proof               GistProof `json:"proof"`
+	Root                string     `json:"root"`
+	ReplacedByRoot      string     `json:"replacedByRoot"`
+	CreatedAtTimestamp  string     `json:"createdAtTimestamp"`
+	ReplacedAtTimestamp string     `json:"replacedAtTimestamp"`
+	CreatedAtBlock      string     `json:"createdAtBlock"`
+	ReplacedAtBlock     string     `json:"replacedAtBlock"`
+	Proof               *GistProof `json:"proof"`
 }
 
 // GistProof representation proof of gist root.
