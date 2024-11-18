@@ -159,7 +159,7 @@ func (g GistInfoProof) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON for GistInfoProof
 func (g *GistInfoProof) UnmarshalJSON(data []byte) error {
 	var proof merkletree.Proof
-	if err := json.Unmarshal([]byte(data), &proof); err != nil {
+	if err := json.Unmarshal(data, &proof); err != nil {
 		return err
 	}
 
