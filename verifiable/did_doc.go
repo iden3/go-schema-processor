@@ -138,8 +138,8 @@ type GistInfo struct {
 
 // GistInfoProof representation proof of GistInfo object.
 type GistInfoProof struct {
-	Type string `json:"type"`
 	merkletree.Proof
+	Type ProofType `json:"type"`
 }
 
 // IdentityState representation all info about identity.
