@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,11 +76,7 @@ func TestGistInfoProof_JSON_Unmarshal_Marshal(t *testing.T) {
               "0",
               "0",
               "0"
-            ],
-            "node_aux": {
-              "key": "0",
-              "value": "0"
-            }
+            ]
 		}`
 
 	var proof GistInfoProof
@@ -90,7 +85,7 @@ func TestGistInfoProof_JSON_Unmarshal_Marshal(t *testing.T) {
 	require.Equal(t, Iden3SparseMerkleTreeProofType, proof.Type)
 	require.Equal(t, true, proof.Existence)
 	require.Len(t, proof.Proof.AllSiblings(), 64)
-	require.Equal(t, &merkletree.HashZero, proof.NodeAux.Key)
+	require.Nil(t, proof.Proof.NodeAux)
 
 	marshaled, err := proof.MarshalJSON()
 	require.NoError(t, err)
