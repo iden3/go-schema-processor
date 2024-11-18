@@ -142,6 +142,39 @@ type GistInfoProof struct {
 	Type ProofType `json:"type"`
 }
 
+// MarshalJSON for GistInfoProof
+func (g GistInfoProof) MarshalJSON() ([]byte, error) {
+	proofData, err := json.Marshal(g.Proof)
+	if err != nil {
+		return nil, err
+	}
+	proof := map[string]interface{}{}
+	if err := json.Unmarshal(proofData, &proof); err != nil {
+		return nil, err
+	}
+	proof["type"] = g.Type
+	return json.Marshal(proof)
+}
+
+// UnmarshalJSON for GistInfoProof
+func (g *GistInfoProof) UnmarshalJSON(data []byte) error {
+	var proof merkletree.Proof
+	if err := json.Unmarshal([]byte(data), &proof); err != nil {
+		return err
+	}
+
+	typeStruct := struct {
+		Type ProofType `json:"type"`
+	}{}
+	if err := json.Unmarshal(data, &typeStruct); err != nil {
+		return err
+	}
+
+	g.Proof = proof
+	g.Type = typeStruct.Type
+	return nil
+}
+
 // IdentityState representation all info about identity.
 type IdentityState struct {
 	Published *bool      `json:"published,omitempty"`
