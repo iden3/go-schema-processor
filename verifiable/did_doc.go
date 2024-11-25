@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
 )
 
@@ -126,12 +127,52 @@ type StateInfo struct {
 
 // GistInfo representation state of gist root.
 type GistInfo struct {
-	Root                string `json:"root"`
-	ReplacedByRoot      string `json:"replacedByRoot"`
-	CreatedAtTimestamp  string `json:"createdAtTimestamp"`
-	ReplacedAtTimestamp string `json:"replacedAtTimestamp"`
-	CreatedAtBlock      string `json:"createdAtBlock"`
-	ReplacedAtBlock     string `json:"replacedAtBlock"`
+	Root                string         `json:"root"`
+	ReplacedByRoot      string         `json:"replacedByRoot"`
+	CreatedAtTimestamp  string         `json:"createdAtTimestamp"`
+	ReplacedAtTimestamp string         `json:"replacedAtTimestamp"`
+	CreatedAtBlock      string         `json:"createdAtBlock"`
+	ReplacedAtBlock     string         `json:"replacedAtBlock"`
+	Proof               *GistInfoProof `json:"proof,omitempty"`
+}
+
+// GistInfoProof representation proof of GistInfo object.
+type GistInfoProof struct {
+	merkletree.Proof
+	Type ProofType `json:"type"`
+}
+
+// MarshalJSON for GistInfoProof
+func (g GistInfoProof) MarshalJSON() ([]byte, error) {
+	proofData, err := json.Marshal(g.Proof)
+	if err != nil {
+		return nil, err
+	}
+	proof := map[string]interface{}{}
+	if err := json.Unmarshal(proofData, &proof); err != nil {
+		return nil, err
+	}
+	proof["type"] = g.Type
+	return json.Marshal(proof)
+}
+
+// UnmarshalJSON for GistInfoProof
+func (g *GistInfoProof) UnmarshalJSON(data []byte) error {
+	var proof merkletree.Proof
+	if err := json.Unmarshal(data, &proof); err != nil {
+		return err
+	}
+
+	typeStruct := struct {
+		Type ProofType `json:"type"`
+	}{}
+	if err := json.Unmarshal(data, &typeStruct); err != nil {
+		return err
+	}
+
+	g.Proof = proof
+	g.Type = typeStruct.Type
+	return nil
 }
 
 // IdentityState representation all info about identity.
