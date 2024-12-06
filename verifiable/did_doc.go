@@ -14,6 +14,7 @@ type DIDDocument struct {
 	ID                 string                     `json:"id"`
 	Service            []interface{}              `json:"service,omitempty"`
 	VerificationMethod []CommonVerificationMethod `json:"verificationMethod,omitempty"`
+	AssertionMethod    []interface{}              `json:"assertionMethod,omitempty"`
 	Authentication     []Authentication           `json:"authentication,omitempty"`
 	KeyAgreement       []interface{}              `json:"keyAgreement,omitempty"`
 }
