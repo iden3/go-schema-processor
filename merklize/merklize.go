@@ -1355,7 +1355,6 @@ func getCanonicalDouble(v float64) string {
 	return canonicalDoubleRegEx.ReplaceAllString(fmt.Sprintf("%1.15E", v), "${1}E${2}${3}")
 }
 
-
 // count number of entries with same key to distinguish between plain values
 // and arrays (sets)
 func countEntries(nodes []*ld.Quad) (map[qArrKey]int, error) {
