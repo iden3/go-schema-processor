@@ -91,3 +91,15 @@ func TestGistInfoProof_JSON_Unmarshal_Marshal(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, in, string(marshaled))
 }
+
+func TestAuthenticationMarshalUnmarshal(t *testing.T) {
+	in := "\"did:pkh:eip155:80002:0xE9D7fCDf32dF4772A7EF7C24c76aB40E4A42274a\""
+
+	var authentication Authentication
+	err := authentication.UnmarshalJSON([]byte(in))
+	require.NoError(t, err)
+
+	marshaled, err := authentication.MarshalJSON()
+	require.NoError(t, err)
+	require.JSONEq(t, in, string(marshaled))
+}

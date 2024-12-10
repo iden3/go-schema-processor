@@ -111,7 +111,7 @@ func (a *Authentication) MarshalJSON() ([]byte, error) {
 	if a.did == "" {
 		return json.Marshal(a.CommonVerificationMethod)
 	} else {
-		return json.Marshal(a)
+		return json.Marshal(a.did)
 	}
 }
 
