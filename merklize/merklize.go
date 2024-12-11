@@ -1140,7 +1140,7 @@ func convertAnyToString(value any, datatype string) (str string, err error) {
 			if err != nil {
 				return "", err
 			}
-			return getCanonicalDouble(f), nil
+			return ld.GetCanonicalDouble(f), nil
 		case int:
 			return intToXSDDoubleStr(v)
 		case int8:
@@ -1167,9 +1167,9 @@ func convertAnyToString(value any, datatype string) (str string, err error) {
 	switch v := value.(type) {
 	case float64:
 		// https://www.w3.org/TR/2014/REC-json-ld-api-20140116/#data-round-tripping
-		str = getCanonicalDouble(v)
+		str = ld.GetCanonicalDouble(v)
 	case float32:
-		str = getCanonicalDouble(float64(v))
+		str = ld.GetCanonicalDouble(float64(v))
 	case string:
 		str = fmt.Sprintf("%v", v)
 	case int64, int32, int16, int8, int, bool:
@@ -1198,7 +1198,7 @@ type allUInts interface {
 // the same, which is not correct. That is why we use big.Rat here to check
 // that float can represent integer value without loss of precision.
 func intToXSDDoubleStr[T allInts](v T) (string, error) {
-	out := getCanonicalDouble(float64(v))
+	out := ld.GetCanonicalDouble(float64(v))
 
 	r := new(big.Rat)
 	_, ok := r.SetString(out)
@@ -1221,7 +1221,7 @@ func intToXSDDoubleStr[T allInts](v T) (string, error) {
 // see comment for intToXSDDoubleStr for explanations why this function
 // uses big.Rat
 func uintToXSDDoubleStr[T allUInts](v T) (string, error) {
-	out := getCanonicalDouble(float64(v))
+	out := ld.GetCanonicalDouble(float64(v))
 
 	r := new(big.Rat)
 	_, ok := r.SetString(out)
@@ -1337,22 +1337,13 @@ func convertStringToXSDValue(datatype string, value string,
 		if err != nil {
 			return "", err
 		}
-		resultValue = getCanonicalDouble(f)
+		resultValue = ld.GetCanonicalDouble(f)
 
 	default:
 		resultValue = value
 	}
 
 	return resultValue, err
-}
-
-var canonicalDoubleRegEx = regexp.MustCompile(`(\d)0*E\+?(-)?0*(\d)`)
-
-// getCanonicalDouble: a temporary solution until this PR would be merged:
-// https://github.com/piprate/json-gold/pull/78/files
-// After that replace with ld.GetCanonicalDouble
-func getCanonicalDouble(v float64) string {
-	return canonicalDoubleRegEx.ReplaceAllString(fmt.Sprintf("%1.15E", v), "${1}E${2}${3}")
 }
 
 // count number of entries with same key to distinguish between plain values
