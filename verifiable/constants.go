@@ -15,6 +15,9 @@ const (
 	// JSONLDSchemaW3CCredential2020 is a schema for context with Display method type
 	JSONLDSchemaIden3DisplayMethod = "https://schema.iden3.io/core/jsonld/displayMethod.jsonld"
 
+	// JSONLDSchemaIden3AuthBJJCredential is a schema for context with AuthBJJCredential type
+	JSONLDSchemaIden3AuthBJJCredential = "https://schema.iden3.io/core/jsonld/auth.jsonld"
+
 	// SparseMerkleTreeProof is CredentialStatusType for standard MTP result handlers
 	SparseMerkleTreeProof CredentialStatusType = "SparseMerkleTreeProof"
 
