@@ -10,7 +10,9 @@ require (
 	// stable version. After the release of version 0.5.1 or later, it will be
 	// necessary to update to the stable version.
 	// https://github.com/piprate/json-gold/commit/36fcca9d7e487684a764e552e7d837a14546a157
-	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
+	// and this
+	// https://github.com/piprate/json-gold/commit/19254b3ec65b01ad353de8412ae7ba10857258cf
+	github.com/piprate/json-gold v0.5.1-0.20241210232033-19254b3ec65b
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
