@@ -245,4 +245,233 @@ const (
     "id"
   ]
 }`
+
+	// AuthBJJJsonSchema is a basic schema of auth BJJ
+	AuthBJJJsonSchema = `{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$metadata": {
+    "uris": {
+      "jsonLdContext": "https://schema.iden3.io/core/jsonld/auth.jsonld",
+      "jsonSchema": "https://schema.iden3.io/core/json/auth.json"
+    },
+    "serialization": {
+      "indexDataSlotA": "x",
+      "indexDataSlotB": "y"
+    }
+  },
+  "type": "object",
+  "required": [
+    "@context",
+    "id",
+    "type",
+    "issuanceDate",
+    "credentialSubject",
+    "credentialSchema",
+    "credentialStatus",
+    "issuer"
+  ],
+  "properties": {
+    "@context": {
+      "type": [
+        "string",
+        "array",
+        "object"
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "type": [
+        "string",
+        "array"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "issuer": {
+      "type": [
+        "string",
+        "object"
+      ],
+      "format": "uri",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "issuanceDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expirationDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "credentialSchema": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uri"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "credentialSubject": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "id": {
+          "title": "Credential Subject ID",
+          "type": "string",
+          "format": "uri"
+        },
+        "x": {
+          "type": "string"
+        },
+        "y": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}`
+
+	// AuthBJJJsonLDSchema is a JSON-LD schema of auth BJJ
+	AuthBJJJsonLDSchema = `{
+  "@context": [{
+    "@version": 1.1,
+    "@protected": true,
+    "id": "@id",
+    "type": "@type",
+    "AuthBJJCredential": {
+      "@id": "https://schema.iden3.io/core/jsonld/auth.jsonld#AuthBJJCredential",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "iden3_serialization": "iden3:v1:slotIndexA=x&slotIndexB=y",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "auth-vocab": "https://schema.iden3.io/core/vocab/auth.md#",
+        "x": {
+          "@id": "auth-vocab:x",
+          "@type": "xsd:positiveInteger"
+        },
+        "y": {
+          "@id": "auth-vocab:y",
+          "@type": "xsd:positiveInteger"
+        }
+      }
+    },
+    "Iden3StateInfo2023": {
+      "@id": "https://schema.iden3.io/core/jsonld/auth.jsonld#Iden3StateInfo2023",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "@vocab": "https://schema.iden3.io/core/vocab/state-info.md#",
+        "@propagate": true,
+        "stateContractAddress": {
+          "@id": "stateContractAddress",
+          "@type": "xsd:string"
+        },
+        "published": {
+          "@id": "published",
+          "@type": "xsd:boolean"
+        },
+        "info": {
+          "@id": "info",
+          "@type": "@id",
+          "@context": {
+            "@protected": true,
+            "id": {
+              "@id": "id",
+              "@type": "xsd:string"
+            },
+            "state": {
+              "@id": "state",
+              "@type": "xsd:string"
+            },
+            "replacedByState": {
+              "@id": "replacedByState",
+              "@type": "xsd:string"
+            },
+            "createdAtTimestamp": {
+              "@id": "createdAtTimestamp",
+              "@type": "xsd:string"
+            },
+            "replacedAtTimestamp": {
+              "@id": "replacedAtTimestamp",
+              "@type": "xsd:string"
+            },
+            "createdAtBlock": {
+              "@id": "createdAtBlock",
+              "@type": "xsd:string"
+            },
+            "replacedAtBlock": {
+              "@id": "replacedAtBlock",
+              "@type": "xsd:string"
+            }
+          }
+        },
+        "global": {
+          "@id": "global",
+          "@type": "@id",
+          "@context": {
+            "@protected": true,
+            "sec": "https://w3id.org/security#",
+            "root": {
+              "@id": "root",
+              "@type": "xsd:string"
+            },
+            "replacedByRoot": {
+              "@id": "replacedByRoot",
+              "@type": "xsd:string"
+            },
+            "createdAtTimestamp": {
+              "@id": "createdAtTimestamp",
+              "@type": "xsd:string"
+            },
+            "replacedAtTimestamp": {
+              "@id": "replacedAtTimestamp",
+              "@type": "xsd:string"
+            },
+            "createdAtBlock": {
+              "@id": "createdAtBlock",
+              "@type": "xsd:string"
+            },
+            "replacedAtBlock": {
+              "@id": "replacedAtBlock",
+              "@type": "xsd:string"
+            },
+            "proof": {
+              "@id": "sec:proof",
+              "@type": "@id",
+              "@container": "@graph"
+            }
+          }
+        }
+      }
+    }
+  }]
+}`
 )
