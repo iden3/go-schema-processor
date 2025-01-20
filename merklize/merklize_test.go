@@ -1419,6 +1419,20 @@ func TestHashValues_FromDocument(t *testing.T) {
 			wantHash:    "861148800000000000",
 		},
 		{
+			name:        "xsd:dateTime YYYY-MM-DD go format (2006-01-02) < January 1st, 1970",
+			pathToField: "KYCEmployee.hireDate",
+			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:       "1960-02-20",
+			wantHash:    "21888242871839275222246405745257275088548364400416034343697892887375808495617",
+		},
+		{
+			name:        "xsd:dateTime < January 1st, 1970 RFC3339Nano should be similar to YYYY-MM-DD format",
+			pathToField: "KYCEmployee.hireDate",
+			datatype:    "http://www.w3.org/2001/XMLSchema#dateTime",
+			value:       "1960-02-20T00:00:00Z",
+			wantHash:    "21888242871839275222246405745257275088548364400416034343697892887375808495617",
+		},
+		{
 			name:        "xsd:string",
 			pathToField: "KYCEmployee.position",
 			datatype:    "http://www.w3.org/2001/XMLSchema#string",
