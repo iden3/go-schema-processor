@@ -73,14 +73,17 @@ type mockHTTPClientOptions struct {
 	ignoreUntouchedURLs bool
 }
 
+// MockHTTPClientOption is mock for http client for tests
 type MockHTTPClientOption func(*mockHTTPClientOptions)
 
+// IgnoreUntouchedURLs is option to ignore unused urls
 func IgnoreUntouchedURLs() MockHTTPClientOption {
 	return func(opts *mockHTTPClientOptions) {
 		opts.ignoreUntouchedURLs = true
 	}
 }
 
+// MockHTTPClient is mocked http client
 func MockHTTPClient(t testing.TB, routes map[string]string,
 	opts ...MockHTTPClientOption) func() {
 

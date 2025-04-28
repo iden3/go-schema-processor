@@ -23,13 +23,16 @@ const (
 
 var rApplicationJSON = regexp.MustCompile(`^application/(\w*\+)?json$`)
 
+// ErrCacheMiss is an error when there is no info in cache
 var ErrCacheMiss = errors.New("cache miss")
 
+// CacheEngine is engine interface for cache storages
 type CacheEngine interface {
 	Get(key string) (doc *ld.RemoteDocument, expireTime time.Time, err error)
 	Set(key string, doc *ld.RemoteDocument, expireTime time.Time) error
 }
 
+// IPFSClient interface
 type IPFSClient interface {
 	Cat(url string) (io.ReadCloser, error)
 }
@@ -42,8 +45,10 @@ type documentLoader struct {
 	httpClient  *http.Client
 }
 
+// DocumentLoaderOption is an option for document loader
 type DocumentLoaderOption func(*documentLoader)
 
+// WithCacheEngine is an option for setting cache
 func WithCacheEngine(cacheEngine CacheEngine) DocumentLoaderOption {
 	return func(loader *documentLoader) {
 		if cacheEngine == nil {
@@ -55,6 +60,7 @@ func WithCacheEngine(cacheEngine CacheEngine) DocumentLoaderOption {
 	}
 }
 
+// WithHTTPClient is an option for setting http client
 func WithHTTPClient(httpClient *http.Client) DocumentLoaderOption {
 	return func(loader *documentLoader) {
 		loader.httpClient = httpClient
@@ -82,6 +88,7 @@ func NewDocumentLoader(ipfsCli IPFSClient, ipfsGW string,
 	return loader
 }
 
+// LoadDocument loads document from ipfs or http / https source
 func (d *documentLoader) LoadDocument(
 	u string) (doc *ld.RemoteDocument, err error) {
 
