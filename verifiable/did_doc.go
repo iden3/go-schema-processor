@@ -95,7 +95,7 @@ func (a *Authentication) UnmarshalJSON(b []byte) error {
 		if err != nil {
 			return errors.Errorf("invalid json payload for authentication: %v", err)
 		}
-		*a = (Authentication)(tmp)
+		*a = Authentication(tmp)
 	case '"':
 		err := json.Unmarshal(b, &a.did)
 		if err != nil {

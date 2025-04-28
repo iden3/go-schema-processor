@@ -62,8 +62,10 @@ func (m *memoryCacheEngine) Set(key string, doc *ld.RemoteDocument,
 	return nil
 }
 
+// MemoryCacheEngineOption is an option to set cache engine
 type MemoryCacheEngineOption func(*memoryCacheEngine) error
 
+// WithEmbeddedDocumentBytes sets bytes for given url
 func WithEmbeddedDocumentBytes(u string, doc []byte) MemoryCacheEngineOption {
 	return func(engine *memoryCacheEngine) error {
 		if engine.embedDocs == nil {
@@ -81,6 +83,7 @@ func WithEmbeddedDocumentBytes(u string, doc []byte) MemoryCacheEngineOption {
 	}
 }
 
+// NewMemoryCacheEngine creates new memory cache engine
 func NewMemoryCacheEngine(
 	opts ...MemoryCacheEngineOption) (CacheEngine, error) {
 

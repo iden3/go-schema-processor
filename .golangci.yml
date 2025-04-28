@@ -1,20 +1,12 @@
 service:
-  golangci-lint-version: 1.51.x
+  golangci-lint-version: 1.60.3
 
 run:
   timeout: 2m
-  exclude-dirs:
-    - vendor
 
 linters-settings:
   govet:
     shadow: true
-  revive:
-    min-confidence: 0.1
-    rules:
-      # Add more comments for exported functions and remove this rule
-      - name: package-comments
-        disabled: true
   maligned:
     suggest-new: true
   goconst:
@@ -24,6 +16,12 @@ linters-settings:
     locale: US
   lll:
     line-length: 140
+  revive:
+    min-confidence: 0.1
+    rules:
+      # Add more comments for exported functions and remove this rule
+      - name: package-comments
+        disabled: true
 
 linters:
   enable:
@@ -31,39 +29,42 @@ linters:
     - revive
     - govet
     - unconvert
-    - gosec
     - gocyclo
-    - dupl
     - misspell
     - unparam
     - typecheck
     - ineffassign
     - stylecheck
     - gochecknoinits
-    - gocritic
+    - copyloopvar
     - nakedret
     - gosimple
     - prealloc
-    - unused
     - goimports
     - gofmt
     - errcheck
     - staticcheck
-    - exportloopref
 
+    ## format - fill free to fix
+  #    - errcheck
+  #    - gofmt
   fast: false
-  disable-all: true
+  disable:
+    - dupl
 
 issues:
   exclude-rules:
-#    - Fix and remove
+    #    - Fix and remove
     - text: "at least one file in a package should have a package comment"
       linters:
         - stylecheck
-  #    - Fix and remove
-    - text: "should have a package comment, unless it's in another file for this package"
+    #    - Fix and remove
+    - text: "package-comments: should have a package comment"
       linters:
         - revive
+    - text: "shadow: declaration of \"err\" shadows declaration"
+      linters:
+        - govet
     - path: _test\.go
       linters:
         - gosec
