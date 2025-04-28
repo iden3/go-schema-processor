@@ -49,7 +49,6 @@ linters:
     - gofmt
     - errcheck
     - staticcheck
-    - exportloopref
 
   fast: false
   disable-all: true
