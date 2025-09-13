@@ -2,10 +2,15 @@ package verifiable
 
 import (
 	"encoding/json"
+	liberr "errors"
 	"fmt"
 
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/pkg/errors"
+)
+
+var (
+	ErrVerificationMethodNotFound = liberr.New("verification method not found")
 )
 
 // DIDDocument defines current supported did doc model.
@@ -16,7 +21,48 @@ type DIDDocument struct {
 	VerificationMethod []CommonVerificationMethod `json:"verificationMethod,omitempty"`
 	AssertionMethod    []Authentication           `json:"assertionMethod,omitempty"`
 	Authentication     []Authentication           `json:"authentication,omitempty"`
-	KeyAgreement       []interface{}              `json:"keyAgreement,omitempty"`
+	KeyAgreement       []Authentication           `json:"keyAgreement,omitempty"`
+}
+
+func (d *DIDDocument) GetVerificationMethod() CommonVerificationMethods {
+	return CommonVerificationMethods(d.VerificationMethod)
+}
+
+func (d *DIDDocument) resolveToVm(items []Authentication) (CommonVerificationMethods, error) {
+	vms := make(CommonVerificationMethods, 0, len(items))
+	for _, auth := range d.Authentication {
+		if auth.IsDID() {
+			vm, err := d.FindVerificationMethod(auth.DID())
+			if err != nil {
+				return nil, errors.Wrapf(err, "didn't find verification method for did: %s", auth.DID())
+			}
+			vms = append(vms, vm)
+			continue
+		}
+		vms = append(vms, auth.CommonVerificationMethod)
+	}
+	return vms, nil
+}
+
+func (d *DIDDocument) FindVerificationMethod(id string) (CommonVerificationMethod, error) {
+	for _, vm := range d.VerificationMethod {
+		if vm.ID == id {
+			return vm, nil
+		}
+	}
+	return CommonVerificationMethod{}, ErrVerificationMethodNotFound
+}
+
+func (d *DIDDocument) ResolveAssertionVerificationMethods() (CommonVerificationMethods, error) {
+	return d.resolveToVm(d.AssertionMethod)
+}
+
+func (d *DIDDocument) ResolveAuthVerificationMethods() (CommonVerificationMethods, error) {
+	return d.resolveToVm(d.Authentication)
+}
+
+func (d *DIDDocument) ResolveKeyAgreementVerificationMethods() (CommonVerificationMethods, error) {
+	return d.resolveToVm(d.KeyAgreement)
 }
 
 // Service describes standard DID document service field.
@@ -55,6 +101,8 @@ type DeviceMetadata struct {
 	PushToken string `json:"push_token"`
 }
 
+type CommonVerificationMethods []CommonVerificationMethod
+
 // CommonVerificationMethod DID doc verification method.
 type CommonVerificationMethod struct {
 	ID                   string                 `json:"id"`
@@ -69,6 +117,13 @@ type CommonVerificationMethod struct {
 	StateContractAddress string                 `json:"stateContractAddress,omitempty"`
 	IdentityState
 }
+
+// TODO (illia-korotia): resolve key depend on cvm.Type
+// pseudocode:
+// if EcdsaSecp256k1VerificationKey2019 = resilve from PublicKeyJwk or PublicKeyMultibase or ...
+// if EddsaBJJVerificationKey = resolve only from PublicKeyJwk
+// etc...
+// func (cvm *CommonVerificationMethod) Key() (*crypto.PublicKey)
 
 type Authentication struct {
 	CommonVerificationMethod
@@ -181,4 +236,57 @@ type IdentityState struct {
 	Published *bool      `json:"published,omitempty"`
 	Info      *StateInfo `json:"info,omitempty"`
 	Global    *GistInfo  `json:"global,omitempty"`
+}
+
+type VerificationMethodFilter struct {
+	byID         string
+	byType       string
+	byController string
+}
+
+type VerificationMethodFilterOpt func(*VerificationMethodFilter)
+
+func WithID(id string) VerificationMethodFilterOpt {
+	return func(f *VerificationMethodFilter) {
+		f.byID = id
+	}
+}
+
+func WithType(typ string) VerificationMethodFilterOpt {
+	return func(f *VerificationMethodFilter) {
+		f.byType = typ
+	}
+}
+
+func WithController(controller string) VerificationMethodFilterOpt {
+	return func(f *VerificationMethodFilter) {
+		f.byController = controller
+	}
+}
+
+func (cvm CommonVerificationMethods) FilterBy(opts ...VerificationMethodFilterOpt) (CommonVerificationMethods, error) {
+	if len(opts) == 0 {
+		return nil, fmt.Errorf("empty filter options")
+	}
+	var filter VerificationMethodFilter
+	for _, opt := range opts {
+		opt(&filter)
+	}
+	var filtered CommonVerificationMethods
+	for _, vm := range cvm {
+		if filter.byID != "" && vm.ID != filter.byID {
+			continue
+		}
+		if filter.byType != "" && vm.Type != filter.byType {
+			continue
+		}
+		if filter.byController != "" && vm.Controller != filter.byController {
+			continue
+		}
+		filtered = append(filtered, vm)
+	}
+	if filter.byID != "" && len(filtered) > 1 {
+		return filtered[:1], nil
+	}
+	return filtered, nil
 }
