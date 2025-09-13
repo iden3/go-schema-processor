@@ -32,7 +32,7 @@ func (d *DIDDocument) resolveToVm(items []Authentication) (CommonVerificationMet
 	vms := make(CommonVerificationMethods, 0, len(items))
 	for _, auth := range d.Authentication {
 		if auth.IsDID() {
-			vm, err := d.GetVerificationMethod().FilterBy(WithController(auth.DID()))
+			vm, err := d.GetVerificationMethod().FilterBy(WithID(auth.DID()))
 			if err != nil {
 				return nil, err
 			}
