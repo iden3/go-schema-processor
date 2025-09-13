@@ -32,25 +32,20 @@ func (d *DIDDocument) resolveToVm(items []Authentication) (CommonVerificationMet
 	vms := make(CommonVerificationMethods, 0, len(items))
 	for _, auth := range d.Authentication {
 		if auth.IsDID() {
-			vm, err := d.FindVerificationMethod(auth.DID())
+			vm, err := d.GetVerificationMethod().FilterBy(WithController(auth.DID()))
 			if err != nil {
-				return nil, errors.Wrapf(err, "didn't find verification method for did: %s", auth.DID())
+				return nil, err
 			}
-			vms = append(vms, vm)
+			if len(vm) != 1 {
+				return nil,
+					fmt.Errorf("found %d verification methods for did: %s", len(vm), auth.DID())
+			}
+			vms = append(vms, vm[0])
 			continue
 		}
 		vms = append(vms, auth.CommonVerificationMethod)
 	}
 	return vms, nil
-}
-
-func (d *DIDDocument) FindVerificationMethod(id string) (CommonVerificationMethod, error) {
-	for _, vm := range d.VerificationMethod {
-		if vm.ID == id {
-			return vm, nil
-		}
-	}
-	return CommonVerificationMethod{}, ErrVerificationMethodNotFound
 }
 
 func (d *DIDDocument) ResolveAssertionVerificationMethods() (CommonVerificationMethods, error) {
