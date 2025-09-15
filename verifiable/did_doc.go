@@ -24,15 +24,15 @@ type DIDDocument struct {
 	KeyAgreement       []Authentication           `json:"keyAgreement,omitempty"`
 }
 
-func (d *DIDDocument) GetVerificationMethod() CommonVerificationMethods {
+func (d *DIDDocument) ResolveVerificationMethods() CommonVerificationMethods {
 	return CommonVerificationMethods(d.VerificationMethod)
 }
 
-func (d *DIDDocument) resolveToVm(items []Authentication) (CommonVerificationMethods, error) {
+func (d *DIDDocument) resolveToVM(items []Authentication) (CommonVerificationMethods, error) {
 	vms := make(CommonVerificationMethods, 0, len(items))
 	for _, auth := range d.Authentication {
 		if auth.IsDID() {
-			vm, err := d.GetVerificationMethod().FilterBy(WithID(auth.DID()))
+			vm, err := d.ResolveVerificationMethods().FilterBy(WithID(auth.DID()))
 			if err != nil {
 				return nil, err
 			}
@@ -49,15 +49,15 @@ func (d *DIDDocument) resolveToVm(items []Authentication) (CommonVerificationMet
 }
 
 func (d *DIDDocument) ResolveAssertionVerificationMethods() (CommonVerificationMethods, error) {
-	return d.resolveToVm(d.AssertionMethod)
+	return d.resolveToVM(d.AssertionMethod)
 }
 
 func (d *DIDDocument) ResolveAuthVerificationMethods() (CommonVerificationMethods, error) {
-	return d.resolveToVm(d.Authentication)
+	return d.resolveToVM(d.Authentication)
 }
 
 func (d *DIDDocument) ResolveKeyAgreementVerificationMethods() (CommonVerificationMethods, error) {
-	return d.resolveToVm(d.KeyAgreement)
+	return d.resolveToVM(d.KeyAgreement)
 }
 
 // Service describes standard DID document service field.
@@ -234,9 +234,11 @@ type IdentityState struct {
 }
 
 type VerificationMethodFilter struct {
-	byID         string
-	byType       string
-	byController string
+	byID           string
+	byType         string
+	byController   string
+	byKeyType      string
+	byKeyAlgorithm string
 }
 
 type VerificationMethodFilterOpt func(*VerificationMethodFilter)
@@ -259,6 +261,18 @@ func WithController(controller string) VerificationMethodFilterOpt {
 	}
 }
 
+func WithKeyType(keyType string) VerificationMethodFilterOpt {
+	return func(f *VerificationMethodFilter) {
+		f.byKeyType = keyType
+	}
+}
+
+func WithKeyAlgorithm(algorithm string) VerificationMethodFilterOpt {
+	return func(f *VerificationMethodFilter) {
+		f.byKeyAlgorithm = algorithm
+	}
+}
+
 func (cvm CommonVerificationMethods) FilterBy(opts ...VerificationMethodFilterOpt) (CommonVerificationMethods, error) {
 	if len(opts) == 0 {
 		return nil, fmt.Errorf("empty filter options")
@@ -267,7 +281,8 @@ func (cvm CommonVerificationMethods) FilterBy(opts ...VerificationMethodFilterOp
 	for _, opt := range opts {
 		opt(&filter)
 	}
-	var filtered CommonVerificationMethods
+
+	filtered := CommonVerificationMethods{}
 	for _, vm := range cvm {
 		if filter.byID != "" && vm.ID != filter.byID {
 			continue
@@ -276,6 +291,12 @@ func (cvm CommonVerificationMethods) FilterBy(opts ...VerificationMethodFilterOp
 			continue
 		}
 		if filter.byController != "" && vm.Controller != filter.byController {
+			continue
+		}
+		if filter.byKeyType != "" && vm.PublicKeyJwk["kty"] != filter.byKeyType {
+			continue
+		}
+		if filter.byKeyAlgorithm != "" && vm.PublicKeyJwk["alg"] != filter.byKeyAlgorithm {
 			continue
 		}
 		filtered = append(filtered, vm)

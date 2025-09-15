@@ -103,3 +103,211 @@ func TestAuthenticationMarshalUnmarshal(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, in, string(marshaled))
 }
+
+func TestDidDoc_ResolveAssertionVerificationMethods(t *testing.T) {
+	vm1 := CommonVerificationMethod{ID: "did:example:123#key-1", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
+	vm2 := CommonVerificationMethod{ID: "did:example:123#key-2", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
+
+	tests := []struct {
+		name    string
+		doc     DIDDocument
+		wantIDs []string
+	}{
+		{
+			name: "Resolve did reference and inline methods",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{vm1, vm2},
+				// authentication contains a DID reference to vm1 and inline vm2
+				Authentication: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{}, did: vm1.ID},
+					{CommonVerificationMethod: vm2},
+				},
+			},
+			wantIDs: []string{vm1.ID, vm2.ID},
+		},
+		{
+			name: "Resolve one authentication did reference",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{vm1, vm2},
+				// authentication contains a DID reference to vm1 and inline vm2
+				Authentication: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{}, did: vm1.ID},
+				},
+			},
+			wantIDs: []string{vm1.ID},
+		},
+		{
+			name: "Resolve one authentication method without verification methods",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{},
+				Authentication: []Authentication{
+					{CommonVerificationMethod: vm1},
+				},
+			},
+			wantIDs: []string{vm1.ID},
+		},
+		{
+			name: "Resolve empty authentication",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{vm1, vm2},
+				Authentication:     []Authentication{},
+			},
+			wantIDs: []string{},
+		},
+		{
+			name: "Resolve empty authentication and verification methods",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{},
+				Authentication:     []Authentication{},
+			},
+			wantIDs: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.doc.ResolveAssertionVerificationMethods()
+			require.NoError(t, err)
+			require.Len(t, got, len(tc.wantIDs))
+			for i, vm := range got {
+				require.Equal(t, tc.wantIDs[i], vm.ID)
+			}
+		})
+	}
+}
+
+func TestDidDoc_ResolveAssertionVerificationMethods_Errors(t *testing.T) {
+	vm1 := CommonVerificationMethod{ID: "did:example:123#key-1", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
+
+	tests := []struct {
+		name       string
+		doc        DIDDocument
+		errContain string
+	}{
+		{
+			name: "missing referenced vm returns error",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{vm1},
+				Authentication: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{}, did: "did:example:123#missing"},
+				},
+			},
+			errContain: "found 0 verification methods",
+		},
+		{
+			name: "missing referenced vm plus embedded one returns error",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{vm1},
+				Authentication: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{}, did: "did:example:123#missing"},
+					{CommonVerificationMethod: vm1},
+				},
+			},
+			errContain: "found 0 verification methods",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.doc.ResolveAssertionVerificationMethods()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.errContain)
+		})
+	}
+}
+
+func TestCommonVerificationMethods_FilterBy(t *testing.T) {
+	vm1 := CommonVerificationMethod{
+		ID:         "did:example:123#key-1",
+		Type:       "EcdsaSecp256k1VerificationKey2019",
+		Controller: "did:example:123",
+		PublicKeyJwk: map[string]interface{}{
+			"kty": "EC",
+			"crv": "secp256k1",
+			"alg": "ES256K",
+		},
+	}
+	vm2 := CommonVerificationMethod{
+		ID:         "did:example:123#key-2",
+		Type:       "Ed25519VerificationKey2018",
+		Controller: "did:example:123",
+		PublicKeyJwk: map[string]interface{}{
+			"kty": "OKP",
+			"crv": "Ed25519",
+			"alg": "EdDSA",
+		},
+	}
+	vm3 := CommonVerificationMethod{
+		ID:         "did:example:123#key-3",
+		Type:       "X25519KeyAgreementKey2019",
+		Controller: "did:example:123",
+		PublicKeyJwk: map[string]interface{}{
+			"kty": "OKP",
+			"crv": "X25519",
+			"alg": "ECDH-ES",
+		},
+	}
+
+	tests := []struct {
+		name    string
+		vms     CommonVerificationMethods
+		opts    []VerificationMethodFilterOpt
+		wantIDs []string
+	}{
+		{
+			name:    "filter by ID",
+			vms:     CommonVerificationMethods{vm1, vm2, vm3},
+			opts:    []VerificationMethodFilterOpt{WithID(vm2.ID)},
+			wantIDs: []string{vm2.ID},
+		},
+		{
+			name: "filter by Type",
+			vms: CommonVerificationMethods{
+				vm1, vm2, vm3,
+				CommonVerificationMethod{
+					ID:   "did:example:123#key-extra",
+					Type: vm2.Type,
+				}},
+			opts:    []VerificationMethodFilterOpt{WithType(vm2.Type)},
+			wantIDs: []string{vm2.ID, "did:example:123#key-extra"},
+		},
+		{
+			name:    "find by Key Type",
+			vms:     CommonVerificationMethods{vm1, vm2, vm3},
+			opts:    []VerificationMethodFilterOpt{WithKeyType("OKP")},
+			wantIDs: []string{vm2.ID, vm3.ID},
+		},
+		{
+			name:    "find by Key Algorithm",
+			vms:     CommonVerificationMethods{vm1, vm2, vm3},
+			opts:    []VerificationMethodFilterOpt{WithKeyAlgorithm("EdDSA")},
+			wantIDs: []string{vm2.ID},
+		},
+		{
+			name: "find by Type and Key Type",
+			vms: CommonVerificationMethods{vm1, vm2, vm3, {
+				ID:   "did:example:123#key-extra",
+				Type: "Ed25519VerificationKey2018",
+				PublicKeyJwk: map[string]interface{}{
+					"kty": "BJJ",
+				},
+			}},
+			opts: []VerificationMethodFilterOpt{
+				WithType("Ed25519VerificationKey2018"),
+				WithKeyType("OKP"),
+			},
+			wantIDs: []string{vm2.ID},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.vms.FilterBy(tc.opts...)
+			require.NoError(t, err)
+			require.Len(t, got, len(tc.wantIDs))
+			for i, vm := range got {
+				require.Equal(t, tc.wantIDs[i], vm.ID)
+			}
+		})
+	}
+}
