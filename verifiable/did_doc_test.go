@@ -176,6 +176,38 @@ func TestDidDoc_ResolveAssertionVerificationMethods(t *testing.T) {
 	}
 }
 
+func TestDidDoc_ResolveKeyAgreementVerificationMethods(t *testing.T) {
+	vm1 := CommonVerificationMethod{ID: "did:example:123#key-1", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
+	vm2 := CommonVerificationMethod{ID: "did:example:123#key-2", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
+
+	tests := []struct {
+		name    string
+		doc     DIDDocument
+		wantIDs []string
+	}{
+		{
+			name: "Resolve did reference and inline methods",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{vm1, vm2},
+				// authentication contains a DID reference to vm1 and inline vm2
+				KeyAgreement: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{}, did: vm1.ID},
+					{CommonVerificationMethod: vm2},
+				},
+			},
+			wantIDs: []string{vm1.ID, vm2.ID},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.doc.ResolveKeyAgreementVerificationMethods()
+			require.NoError(t, err)
+			require.Len(t, got, len(tc.wantIDs))
+		})
+	}
+}
+
 func TestDidDoc_ResolveAssertionVerificationMethods_Errors(t *testing.T) {
 	vm1 := CommonVerificationMethod{ID: "did:example:123#key-1", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
 

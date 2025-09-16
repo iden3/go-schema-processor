@@ -30,7 +30,7 @@ func (d *DIDDocument) ResolveVerificationMethods() CommonVerificationMethods {
 
 func (d *DIDDocument) resolveToVM(items []Authentication) (CommonVerificationMethods, error) {
 	vms := make(CommonVerificationMethods, 0, len(items))
-	for _, auth := range d.Authentication {
+	for _, auth := range items {
 		if auth.IsDID() {
 			vm, err := d.ResolveVerificationMethods().FilterBy(WithID(auth.DID()))
 			if err != nil {
