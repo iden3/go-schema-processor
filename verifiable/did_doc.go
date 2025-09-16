@@ -60,6 +60,41 @@ func (d *DIDDocument) ResolveKeyAgreementVerificationMethods() (CommonVerificati
 	return d.resolveToVM(d.KeyAgreement)
 }
 
+func (d *DIDDocument) AllVerificationMethods() CommonVerificationMethods {
+	alllen := len(d.VerificationMethod) + len(d.Authentication) +
+		len(d.AssertionMethod) + len(d.KeyAgreement)
+	all := make(map[string]CommonVerificationMethod, alllen)
+
+	for _, vm := range d.VerificationMethod {
+		all[vm.ID] = vm
+	}
+
+	appendVMs := func(auths []Authentication) {
+		for _, auth := range auths {
+			if auth.IsDID() {
+				continue
+			}
+
+			if _, ok := all[auth.ID]; ok {
+				continue
+			}
+
+			all[auth.ID] = auth.CommonVerificationMethod
+		}
+	}
+
+	appendVMs(d.Authentication)
+	appendVMs(d.AssertionMethod)
+	appendVMs(d.KeyAgreement)
+
+	vms := make(CommonVerificationMethods, 0, len(all))
+	for _, vm := range all {
+		vms = append(vms, vm)
+	}
+
+	return vms
+}
+
 // Service describes standard DID document service field.
 type Service struct {
 	ID              string `json:"id"`
@@ -237,8 +272,8 @@ type VerificationMethodFilter struct {
 	byID           string
 	byType         string
 	byController   string
-	byKeyType      string
-	byKeyAlgorithm string
+	byJWKType      string
+	byJWKAlgorithm string
 }
 
 type VerificationMethodFilterOpt func(*VerificationMethodFilter)
@@ -261,15 +296,15 @@ func WithController(controller string) VerificationMethodFilterOpt {
 	}
 }
 
-func WithKeyType(keyType string) VerificationMethodFilterOpt {
+func WithJWKType(keyType string) VerificationMethodFilterOpt {
 	return func(f *VerificationMethodFilter) {
-		f.byKeyType = keyType
+		f.byJWKType = keyType
 	}
 }
 
-func WithKeyAlgorithm(algorithm string) VerificationMethodFilterOpt {
+func WithJWKAlgorithm(algorithm string) VerificationMethodFilterOpt {
 	return func(f *VerificationMethodFilter) {
-		f.byKeyAlgorithm = algorithm
+		f.byJWKAlgorithm = algorithm
 	}
 }
 
@@ -293,10 +328,10 @@ func (cvm CommonVerificationMethods) FilterBy(opts ...VerificationMethodFilterOp
 		if filter.byController != "" && vm.Controller != filter.byController {
 			continue
 		}
-		if filter.byKeyType != "" && vm.PublicKeyJwk["kty"] != filter.byKeyType {
+		if filter.byJWKType != "" && vm.PublicKeyJwk["kty"] != filter.byJWKType {
 			continue
 		}
-		if filter.byKeyAlgorithm != "" && vm.PublicKeyJwk["alg"] != filter.byKeyAlgorithm {
+		if filter.byJWKAlgorithm != "" && vm.PublicKeyJwk["alg"] != filter.byJWKAlgorithm {
 			continue
 		}
 		filtered = append(filtered, vm)

@@ -274,13 +274,13 @@ func TestCommonVerificationMethods_FilterBy(t *testing.T) {
 		{
 			name:    "find by Key Type",
 			vms:     CommonVerificationMethods{vm1, vm2, vm3},
-			opts:    []VerificationMethodFilterOpt{WithKeyType("OKP")},
+			opts:    []VerificationMethodFilterOpt{WithJWKType("OKP")},
 			wantIDs: []string{vm2.ID, vm3.ID},
 		},
 		{
 			name:    "find by Key Algorithm",
 			vms:     CommonVerificationMethods{vm1, vm2, vm3},
-			opts:    []VerificationMethodFilterOpt{WithKeyAlgorithm("EdDSA")},
+			opts:    []VerificationMethodFilterOpt{WithJWKAlgorithm("EdDSA")},
 			wantIDs: []string{vm2.ID},
 		},
 		{
@@ -294,9 +294,22 @@ func TestCommonVerificationMethods_FilterBy(t *testing.T) {
 			}},
 			opts: []VerificationMethodFilterOpt{
 				WithType("Ed25519VerificationKey2018"),
-				WithKeyType("OKP"),
+				WithJWKType("OKP"),
 			},
 			wantIDs: []string{vm2.ID},
+		},
+		{
+			name: "filter by empty JWK. No panic",
+			vms: CommonVerificationMethods{
+				CommonVerificationMethod{
+					ID:           "did:example:123#key-1",
+					Type:         "EcdsaSecp256k1VerificationKey2019",
+					Controller:   "did:example:123",
+					PublicKeyHex: "asd",
+				},
+			},
+			opts:    []VerificationMethodFilterOpt{WithJWKType("OKP"), WithJWKAlgorithm("EdDSA")},
+			wantIDs: []string{},
 		},
 	}
 
@@ -308,6 +321,125 @@ func TestCommonVerificationMethods_FilterBy(t *testing.T) {
 			for i, vm := range got {
 				require.Equal(t, tc.wantIDs[i], vm.ID)
 			}
+		})
+	}
+}
+
+func TestCommonVerificationMethods_AllVerificationMethods(t *testing.T) {
+	tests := []struct {
+		name    string
+		doc     DIDDocument
+		wantIDs []string
+	}{
+		{
+			name: "All VMs from all sections",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{
+					{ID: "did:example:123#key-1"},
+					{ID: "did:example:123#key-2"},
+				},
+				Authentication: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{
+						ID: "did:example:123#key-3"}},
+				},
+				AssertionMethod: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{
+						ID: "did:example:123#key-4"}},
+				},
+				KeyAgreement: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{
+						ID: "did:example:123#key-5"}},
+				},
+			},
+			wantIDs: []string{
+				"did:example:123#key-1",
+				"did:example:123#key-2",
+				"did:example:123#key-3",
+				"did:example:123#key-4",
+				"did:example:123#key-5",
+			},
+		},
+		{
+			name: "Duplicate VMs are returned only once",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{
+					{ID: "did:example:123#key-1"},
+					{ID: "did:example:123#key-2"},
+				},
+				Authentication: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{ID: "did:example:123#key-2"}},
+				},
+				AssertionMethod: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{ID: "did:example:123#key-4"}},
+				},
+			},
+			wantIDs: []string{
+				"did:example:123#key-1",
+				"did:example:123#key-2",
+				"did:example:123#key-4",
+			},
+		},
+		{
+			name: "Duplicate VMs with reference to VerificationMethod",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{
+					{ID: "did:example:123#key-1"},
+					{ID: "did:example:123#key-2"},
+				},
+				Authentication: []Authentication{
+					{CommonVerificationMethod: CommonVerificationMethod{ID: "did:example:123#key-2"}},
+				},
+				AssertionMethod: []Authentication{
+					{
+						CommonVerificationMethod: CommonVerificationMethod{},
+						did:                      "did:example:123#key-2",
+					},
+				},
+			},
+			wantIDs: []string{
+				"did:example:123#key-1",
+				"did:example:123#key-2",
+			},
+		},
+		{
+			name: "Don't return an error if did reference isn't found in VerificationMethod",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{
+					{ID: "did:example:123#key-1"},
+					{ID: "did:example:123#key-2"},
+				},
+				AssertionMethod: []Authentication{
+					{
+						CommonVerificationMethod: CommonVerificationMethod{},
+						did:                      "did:example:123#key-not-found",
+					},
+				},
+			},
+			wantIDs: []string{
+				"did:example:123#key-1",
+				"did:example:123#key-2",
+			},
+		},
+		{
+			name: "All is empty. Return empty",
+			doc: DIDDocument{
+				VerificationMethod: []CommonVerificationMethod{},
+				AssertionMethod:    []Authentication{},
+				Authentication:     []Authentication{},
+				KeyAgreement:       []Authentication{},
+			},
+			wantIDs: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.doc.AllVerificationMethods()
+			onlyIDs := make([]string, len(got))
+			for i, vm := range got {
+				onlyIDs[i] = vm.ID
+			}
+			require.ElementsMatch(t, tc.wantIDs, onlyIDs)
 		})
 	}
 }
