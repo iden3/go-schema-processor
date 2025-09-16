@@ -104,7 +104,7 @@ func TestAuthenticationMarshalUnmarshal(t *testing.T) {
 	require.JSONEq(t, in, string(marshaled))
 }
 
-func TestDidDoc_ResolveAssertionVerificationMethods(t *testing.T) {
+func TestDidDoc_ResolveAuthVerificationMethods(t *testing.T) {
 	vm1 := CommonVerificationMethod{ID: "did:example:123#key-1", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
 	vm2 := CommonVerificationMethod{ID: "did:example:123#key-2", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
 
@@ -166,7 +166,7 @@ func TestDidDoc_ResolveAssertionVerificationMethods(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := tc.doc.ResolveAssertionVerificationMethods()
+			got, err := tc.doc.ResolveAuthVerificationMethods()
 			require.NoError(t, err)
 			require.Len(t, got, len(tc.wantIDs))
 			for i, vm := range got {
@@ -207,7 +207,7 @@ func TestDidDoc_ResolveKeyAgreementVerificationMethods(t *testing.T) {
 	}
 }
 
-func TestDidDoc_ResolveAssertionVerificationMethods_Errors(t *testing.T) {
+func TestDidDoc_ResolveAuthVerificationMethods_Errors(t *testing.T) {
 	vm1 := CommonVerificationMethod{ID: "did:example:123#key-1", Type: "EcdsaSecp256k1VerificationKey2019", Controller: "did:example:123"}
 
 	tests := []struct {
@@ -240,7 +240,7 @@ func TestDidDoc_ResolveAssertionVerificationMethods_Errors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := tc.doc.ResolveAssertionVerificationMethods()
+			_, err := tc.doc.ResolveAuthVerificationMethods()
 			require.Error(t, err)
 			require.Contains(t, err.Error(), tc.errContain)
 		})
