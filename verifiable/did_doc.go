@@ -148,13 +148,6 @@ type CommonVerificationMethod struct {
 	IdentityState
 }
 
-// TODO (illia-korotia): resolve key depend on cvm.Type
-// pseudocode:
-// if EcdsaSecp256k1VerificationKey2019 = resilve from PublicKeyJwk or PublicKeyMultibase or ...
-// if EddsaBJJVerificationKey = resolve only from PublicKeyJwk
-// etc...
-// func (cvm *CommonVerificationMethod) Key() (*crypto.PublicKey)
-
 type Authentication struct {
 	CommonVerificationMethod
 	did string

@@ -189,7 +189,6 @@ func TestDidDoc_ResolveKeyAgreementVerificationMethods(t *testing.T) {
 			name: "Resolve did reference and inline methods",
 			doc: DIDDocument{
 				VerificationMethod: []CommonVerificationMethod{vm1, vm2},
-				// authentication contains a DID reference to vm1 and inline vm2
 				KeyAgreement: []Authentication{
 					{CommonVerificationMethod: CommonVerificationMethod{}, did: vm1.ID},
 					{CommonVerificationMethod: vm2},
