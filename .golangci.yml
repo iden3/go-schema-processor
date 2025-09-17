@@ -18,7 +18,7 @@ linters:
     - errcheck
   disable:
     - dupl
-    - revive # Fix comments latet and re-enable
+    - revive # Fix comments later and re-enable
   settings:
     goconst:
       min-len: 2
