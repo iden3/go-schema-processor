@@ -23,7 +23,7 @@ type HTTPDIDResolver struct {
 	customHTTPClient *http.Client
 }
 
-// NewHTTPDIDResolver creates a new HTTPDIDResolver with the given resolver URL and options.
+// HTTPDIDResolverOption creates a new HTTPDIDResolver with the given resolver URL and options.
 type HTTPDIDResolverOption func(*HTTPDIDResolver)
 
 // WithHTTPClient sets a custom HTTP client for the HTTPDIDResolver.
