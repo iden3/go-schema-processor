@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/iden3/go-merkletree-sql/v2"
 	"github.com/iden3/go-schema-processor/v2/merklize"
 	"github.com/iden3/go-schema-processor/v2/utils"
-	"github.com/piprate/json-gold/ld"
 	"github.com/pkg/errors"
 )
 
@@ -566,29 +564,10 @@ func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) W3CP
 	}
 }
 
-// WithDocumentLoader adds document loader option for merklization
-func WithDocumentLoader(loader ld.DocumentLoader) W3CProofVerificationOpt {
+// WithMerklizeOptions return new options
+func WithMerklizeOptions(merklizeOpts ...merklize.MerklizeOption) W3CProofVerificationOpt {
 	return func(opts *w3CProofVerificationConfig) {
-		opts.merklizeOptions = append(opts.merklizeOptions,
-			merklize.WithDocumentLoader(loader))
-	}
-}
-
-// WithIPFSGateway adds IPFS gateway option for merklization
-func WithIPFSGateway(gateway string) W3CProofVerificationOpt {
-	return func(opts *w3CProofVerificationConfig) {
-		opts.merklizeOptions = append(opts.merklizeOptions,
-			merklize.WithIPFSGateway(gateway))
-	}
-}
-
-// WithIPFSClient adds IPFS client option for merklization
-func WithIPFSClient(ipfsCli interface {
-	Cat(string) (io.ReadCloser, error)
-}) W3CProofVerificationOpt {
-	return func(opts *w3CProofVerificationConfig) {
-		opts.merklizeOptions = append(opts.merklizeOptions,
-			merklize.WithIPFSClient(ipfsCli))
+		opts.merklizeOptions = merklizeOpts
 	}
 }
 
