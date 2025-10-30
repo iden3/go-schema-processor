@@ -564,6 +564,13 @@ func WithStatusResolverRegistry(registry *CredentialStatusResolverRegistry) W3CP
 	}
 }
 
+// WithMerklizeOptions return new options
+func WithMerklizeOptions(merklizeOpts ...merklize.MerklizeOption) W3CProofVerificationOpt {
+	return func(opts *w3CProofVerificationConfig) {
+		opts.merklizeOptions = merklizeOpts
+	}
+}
+
 // W3CProofVerificationOpt returns configuration options for W3C proof verification
 type W3CProofVerificationOpt func(opts *w3CProofVerificationConfig)
 
